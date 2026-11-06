@@ -75,3 +75,7 @@ Design notes:
 ## Roadmap hooks (not built yet)
 
 The model and storage were shaped for these, but they are not part of the MVP: AI-assisted brainstorming (a `suggest children` action on a node), real-time collaboration (the document is already a plain tree of ids that CRDTs map onto), share links, a template gallery beyond the six built-ins, and version history (snapshots are already immutable values).
+
+## License
+
+[MIT](LICENSE)
