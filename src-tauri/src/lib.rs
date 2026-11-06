@@ -96,9 +96,7 @@ fn load_map(app: AppHandle, id: String) -> CmdResult<Option<String>> {
 
 #[tauri::command]
 fn save_map(app: AppHandle, id: String, json: String) -> CmdResult<()> {
-    serde_json::from_str::<Value>(&json)
-        .map_err(|e| format!("refusing to save invalid JSON: {e}"))?;
-    atomic_write(&map_path(&app, &id)?, json.as_bytes())
+    write_map(&maps_dir(&app)?, &id, &json)
 }
 
 #[tauri::command]
