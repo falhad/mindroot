@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  CalendarDays, Copy, FolderOpen, GraduationCap, Lightbulb, ListChecks, Target, Inbox, Layers, Loader2, MoreHorizontal, Monitor, Moon, Pencil, Plus, RotateCcw, Search, Star, Sun, Tag, Trash2, Upload, X,
+  CalendarDays, Copy, FolderOpen, GraduationCap, Lightbulb, ListChecks, Target, Inbox, Layers, Loader2, MoreHorizontal, Monitor, Settings, Moon, Pencil, Plus, RotateCcw, Search, Star, Sun, Tag, Trash2, Upload, X,
 } from 'lucide-react'
 import { TEMPLATES } from '../core/templates'
 import type { MapMeta } from '../core/types'
@@ -10,23 +10,13 @@ import {
   createMap, deleteForever, duplicateMap, emptyTrash, importFile, libraryActions, refreshLibrary, renameMap, restoreMap, setTags, toggleStar,
   trashMap, useLibrary, visibleItems, type Sort,
 } from '../state/library'
-import { askConfirm, cycleTheme, goTo, toast, useUi } from '../state/ui'
+import { askConfirm, cycleTheme, goTo, toast, ui, useUi } from '../state/ui'
 import { Modal, Toasts } from './Overlays'
+import { StatusSlot } from './StatusSlot'
+import { ago } from './time'
 
 const TEMPLATE_ICONS: Record<string, typeof Plus> = { blank: Plus, brainstorm: Lightbulb, project: ListChecks, weekly: CalendarDays, swot: Target, study: GraduationCap }
 const thumbUrl = (svg?: string) => (svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : null)
-
-function ago(t: number): string {
-  const s = Math.round((t - Date.now()) / 1000)
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-  const steps: [number, Intl.RelativeTimeFormatUnit][] = [[60, 'second'], [3600, 'minute'], [86400, 'hour'], [604800, 'day'], [2629800, 'week'], [31557600, 'month']]
-  let div = 1
-  for (const [limit, unit] of steps) {
-    if (Math.abs(s) < limit) return rtf.format(Math.round(s / div), unit)
-    div = limit
-  }
-  return rtf.format(Math.round(s / 31557600), 'year')
-}
 
 export function Dashboard() {
   const lib = useLibrary()
@@ -117,6 +107,8 @@ export function Dashboard() {
           )}
         </div>
         <div className="no-drag flex shrink-0 items-center gap-1">
+          <StatusSlot />
+          <button className="btn icon" aria-label="Settings" title="Settings and plugins (⌘,)" onClick={() => ui.setSettings(true, 'general')}><Settings size={16} /></button>
           <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
           <button className="btn outline" aria-label="Import" onClick={async () => void importFiles(await pickFile('.json,.md,.markdown,.txt,application/json', true))}>
             <Upload size={15} /> <span className="hidden sm:inline">Import</span>

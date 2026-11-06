@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use crate::storage::{paths, CmdResult};
 
@@ -96,7 +96,7 @@ pub fn run_git(cwd: &Path, args: &[String]) -> CmdResult<GitOut> {
 }
 
 #[tauri::command]
-pub async fn git_run(app: AppHandle, args: Vec<String>) -> CmdResult<GitOut> {
+pub async fn git_run<R: Runtime>(app: AppHandle<R>, args: Vec<String>) -> CmdResult<GitOut> {
     let vault = paths(&app)?.vault();
     tauri::async_runtime::spawn_blocking(move || run_git(&vault, &args)).await.map_err(|e| e.to_string())?
 }
@@ -138,7 +138,7 @@ pub fn ensure_repo(vault: &Path, branch: &str) -> CmdResult<()> {
 }
 
 #[tauri::command]
-pub async fn git_ensure_repo(app: AppHandle, branch: String) -> CmdResult<()> {
+pub async fn git_ensure_repo<R: Runtime>(app: AppHandle<R>, branch: String) -> CmdResult<()> {
     if branch.is_empty() || branch.starts_with('-') || branch.contains(char::is_whitespace) {
         return Err("invalid branch name".into());
     }

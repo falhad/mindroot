@@ -28,6 +28,9 @@ interface UiState {
   searchOpen: boolean
   exportOpen: boolean
   helpOpen: boolean
+  settingsOpen: boolean
+  /** Tab id in the settings dialog: `general`, `plugins`, or a plugin id. */
+  settingsTab: string
   toasts: Toast[]
 }
 
@@ -61,6 +64,8 @@ export const useUi = create<UiState>(() => ({
   searchOpen: false,
   exportOpen: false,
   helpOpen: false,
+  settingsOpen: false,
+  settingsTab: 'general',
   toasts: [],
   confirm: null,
 }))
@@ -104,6 +109,7 @@ export const ui = {
   setSearch: (searchOpen: boolean) => set({ searchOpen }),
   setExport: (exportOpen: boolean) => set({ exportOpen }),
   setHelp: (helpOpen: boolean) => set({ helpOpen }),
+  setSettings: (settingsOpen: boolean, settingsTab?: string) => set((s) => ({ settingsOpen, settingsTab: settingsTab ?? s.settingsTab })),
 }
 
 /** In-app replacement for window.confirm (webviews don't all support it). */

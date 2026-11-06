@@ -1,0 +1,271 @@
+import * as React from 'react'
+import { create } from 'zustand'
+import { mergeDocs } from '../sync/merge'
+import { isTauri } from '../io/env'
+import { store } from '../io/storage'
+import { markSaved, replaceDoc, useDoc } from '../state/doc'
+import { refreshLibrary } from '../state/library'
+import { flushSave, pauseSaves, saveListeners } from '../state/persist'
+import { askConfirm, toast, ui } from '../state/ui'
+import type { Command } from '../ui/commands'
+import type { AppEvent, Disposable, Plugin, PluginContext, PluginManifest, SettingsPanel, StatusItem } from './types'
+
+export interface PluginRecord {
+  manifest: PluginManifest
+  builtin: boolean
+  state: 'active' | 'disabled' | 'error'
+  error?: string
+}
+
+type Contributed<T> = T & { pluginId: string }
+
+interface RegistryState {
+  plugins: PluginRecord[]
+  commands: Contributed<Command>[]
+  status: Contributed<StatusItem>[]
+  panels: Contributed<SettingsPanel>[]
+  ready: boolean
+}
+
+export const useRegistry = create<RegistryState>(() => ({ plugins: [], commands: [], status: [], panels: [], ready: false }))
+const set = useRegistry.setState
+
+interface Loaded {
+  plugin: Plugin
+  disposables: Disposable[]
+}
+const loaded = new Map<string, Loaded>()
+const pluginSources = new Map<string, Plugin>()
+const handlers = new Map<AppEvent, Set<{ pluginId: string; fn: (p?: any) => void | Promise<void> }>>()
+
+// ---------- settings storage ----------
+
+async function readSettings(id: string): Promise<Record<string, unknown> | null> {
+  try {
+    if (isTauri) {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const text = await invoke<string | null>('plugin_settings_get', { id })
+      return text ? JSON.parse(text) : null
+    }
+    const t = localStorage.getItem(`bm.plugin.${id}`)
+    return t ? JSON.parse(t) : null
+  } catch {
+    return null
+  }
+}
+
+async function writeSettings(id: string, value: object) {
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core')
+    await invoke('plugin_settings_set', { id, json: JSON.stringify(value) })
+  } else localStorage.setItem(`bm.plugin.${id}`, JSON.stringify(value))
+}
+
+// ---------- context ----------
+
+function track<T extends Disposable>(l: Loaded, d: T): T {
+  l.disposables.push(d)
+  return d
+}
+
+function createContext(plugin: Plugin, l: Loaded, isBuiltin: boolean): PluginContext {
+  const m = plugin.manifest
+  const pid = m.id
+  const ctx: PluginContext = {
+    manifest: m,
+    isDesktop: isTauri,
+    react: React,
+    settings: {
+      get: async <T extends object>(defaults: T) => ({ ...defaults, ...((await readSettings(pid)) ?? {}) }) as T,
+      set: (v) => writeSettings(pid, v),
+    },
+    commands: {
+      register(c) {
+        const entry = { id: `${pid}:${c.id}`, title: c.title, group: c.group ?? m.name, hint: c.hint, run: () => void Promise.resolve(c.run()).catch((e) => toast(`${m.name}: ${e instanceof Error ? e.message : e}`, 'error')), pluginId: pid }
+        set((s) => ({ commands: [...s.commands.filter((x) => x.id !== entry.id), entry] }))
+        return track(l, { dispose: () => set((s) => ({ commands: s.commands.filter((x) => x.id !== entry.id) })) })
+      },
+    },
+    status: {
+      register(item) {
+        const entry = { ...item, id: `${pid}:${item.id}`, pluginId: pid }
+        set((s) => ({ status: [...s.status.filter((x) => x.id !== entry.id), entry].sort((a, b) => (a.order ?? 100) - (b.order ?? 100)) }))
+        return track(l, { dispose: () => set((s) => ({ status: s.status.filter((x) => x.id !== entry.id) })) })
+      },
+    },
+    settingsPanel: {
+      register(panel) {
+        const entry = { ...panel, pluginId: pid }
+        set((s) => ({ panels: [...s.panels.filter((x) => x.pluginId !== pid), entry] }))
+        return track(l, { dispose: () => set((s) => ({ panels: s.panels.filter((x) => x.pluginId !== pid) })) })
+      },
+    },
+    events: {
+      on(event, fn) {
+        const entry = { pluginId: pid, fn }
+        if (!handlers.has(event)) handlers.set(event, new Set())
+        handlers.get(event)!.add(entry)
+        return track(l, { dispose: () => void handlers.get(event)?.delete(entry) })
+      },
+    },
+    ui: {
+      toast: (text, kind) => toast(text, kind),
+      confirm: (o) => askConfirm(o),
+      openSettings: (tab) => ui.setSettings(true, tab ?? pid),
+    },
+    library: { refresh: () => refreshLibrary() },
+    docs: {
+      openId: () => useDoc.getState().doc?.meta.id ?? null,
+      current: () => useDoc.getState().doc,
+      subscribe(handler) {
+        const off = useDoc.subscribe((s, prev) => {
+          if (s.doc !== prev.doc) handler(s.doc)
+        })
+        return track(l, { dispose: off })
+      },
+      flush: () => flushSave(),
+      pauseSaves: () => pauseSaves(),
+      reloadOpen: reloadOpenDoc,
+    },
+  }
+  if (isTauri && (isBuiltin || m.permissions?.includes('native'))) {
+    ctx.native = {
+      invoke: async (command, args) => {
+        const { invoke } = await import('@tauri-apps/api/core')
+        return invoke(command, args)
+      },
+    }
+  }
+  return ctx
+}
+
+/**
+ * Re-read the open map from disk after something else changed it. If the user has unsaved
+ * edits, they are merged into the incoming version (same three-way merge as sync).
+ */
+export async function reloadOpenDoc() {
+  const s = useDoc.getState()
+  if (!s.doc) return
+  const disk = await store.load(s.doc.meta.id)
+  if (!disk) return
+  const now = useDoc.getState()
+  if (!now.doc || now.doc.meta.id !== disk.meta.id) return
+  const unsaved = now.saveState === 'dirty' || now.saveState === 'saving'
+  if (!unsaved) {
+    if (disk.meta.updatedAt === now.doc.meta.updatedAt && JSON.stringify(disk.nodes) === JSON.stringify(now.doc.nodes)) return
+    replaceDoc(disk, false)
+    markSaved(disk)
+    return
+  }
+  const r = mergeDocs((now.savedDoc ?? disk) as any, now.doc as any, disk as any)
+  replaceDoc(r.doc, true)
+  markSaved(disk)
+}
+
+// ---------- lifecycle ----------
+
+async function activate(plugin: Plugin, builtin: boolean) {
+  const id = plugin.manifest.id
+  const l: Loaded = { plugin, disposables: [] }
+  loaded.set(id, l)
+  try {
+    await plugin.activate(createContext(plugin, l, builtin))
+    setRecord(id, { state: 'active', error: undefined })
+  } catch (e) {
+    console.error(`plugin ${id} failed to activate`, e)
+    await deactivate(id)
+    setRecord(id, { state: 'error', error: e instanceof Error ? e.message : String(e) })
+  }
+}
+
+async function deactivate(id: string) {
+  const l = loaded.get(id)
+  if (!l) return
+  loaded.delete(id)
+  try {
+    await l.plugin.deactivate?.()
+  } catch (e) {
+    console.error(`plugin ${id} failed to deactivate`, e)
+  }
+  for (const d of l.disposables.splice(0)) {
+    try {
+      d.dispose()
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function setRecord(id: string, patch: Partial<PluginRecord>) {
+  set((s) => ({ plugins: s.plugins.map((p) => (p.manifest.id === id ? { ...p, ...patch } : p)) }))
+}
+
+const CORE = 'branchmint.core'
+
+interface CoreSettings {
+  /** Built-in plugins the user turned off. */
+  disabled: string[]
+  /** Installed plugins the user turned on (they start off). */
+  enabledExternal: string[]
+}
+
+async function coreSettings(): Promise<CoreSettings> {
+  const v = (await readSettings(CORE)) ?? {}
+  const arr = (x: unknown) => (Array.isArray(x) ? x.filter((y): y is string => typeof y === 'string') : [])
+  return { disabled: arr(v.disabled), enabledExternal: arr(v.enabledExternal) }
+}
+
+const isOn = (c: CoreSettings, id: string, builtin: boolean) => (builtin ? !c.disabled.includes(id) : c.enabledExternal.includes(id))
+
+/** Register and start plugins. Plugins that are off are listed but not activated. */
+export async function startPlugins(list: { plugin: Plugin; builtin: boolean; error?: string }[]) {
+  for (const { plugin } of list) pluginSources.set(plugin.manifest.id, plugin)
+  const core = await coreSettings()
+  saveListeners.add((id) => emit('doc:saved', { id }))
+  set({
+    plugins: list.map(({ plugin, builtin, error }) => ({
+      manifest: plugin.manifest,
+      builtin,
+      state: error ? 'error' : isOn(core, plugin.manifest.id, builtin) ? 'active' : 'disabled',
+      error,
+    })),
+  })
+  for (const { plugin, builtin, error } of list) if (!error && isOn(core, plugin.manifest.id, builtin)) await activate(plugin, builtin)
+  set({ ready: true })
+  emit('app:ready')
+}
+
+export async function setPluginEnabled(id: string, enabled: boolean) {
+  const rec = useRegistry.getState().plugins.find((p) => p.manifest.id === id)
+  if (!rec) return
+  const core = await coreSettings()
+  const without = (a: string[]) => a.filter((x) => x !== id)
+  if (rec.builtin) core.disabled = enabled ? without(core.disabled) : [...without(core.disabled), id]
+  else core.enabledExternal = enabled ? [...without(core.enabledExternal), id] : without(core.enabledExternal)
+  await writeSettings(CORE, core)
+  if (!enabled) {
+    await deactivate(id)
+    setRecord(id, { state: 'disabled', error: undefined })
+  } else if (!loaded.has(id)) {
+    const plugin = pluginSources.get(id)
+    if (plugin) await activate(plugin, rec.builtin)
+  }
+}
+
+// ---------- events ----------
+
+export function emit(event: AppEvent, payload?: unknown) {
+  for (const h of handlers.get(event) ?? []) {
+    try {
+      void Promise.resolve(h.fn(payload)).catch((e) => console.error(`plugin ${h.pluginId} ${event}`, e))
+    } catch (e) {
+      console.error(`plugin ${h.pluginId} ${event}`, e)
+    }
+  }
+}
+
+/** Like `emit`, but waits for async handlers (at most `timeoutMs`). */
+export async function emitAndWait(event: AppEvent, payload?: unknown, timeoutMs = 8000) {
+  const runs = [...(handlers.get(event) ?? [])].map((h) => Promise.resolve().then(() => h.fn(payload)).catch((e) => console.error(`plugin ${h.pluginId} ${event}`, e)))
+  await Promise.race([Promise.all(runs), new Promise((r) => setTimeout(r, timeoutMs))])
+}

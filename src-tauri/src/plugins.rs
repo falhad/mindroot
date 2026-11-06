@@ -6,7 +6,7 @@ use std::fs;
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use crate::storage::{paths, CmdResult};
 
@@ -21,7 +21,7 @@ fn safe_name(s: &str) -> bool {
 }
 
 #[tauri::command]
-pub fn plugins_list(app: AppHandle) -> CmdResult<Vec<PluginEntry>> {
+pub fn plugins_list<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<PluginEntry>> {
     let mut out = Vec::new();
     for e in fs::read_dir(paths(&app)?.plugins()).map_err(|e| e.to_string())?.flatten() {
         let dir = e.file_name().to_string_lossy().into_owned();
@@ -39,7 +39,7 @@ pub fn plugins_list(app: AppHandle) -> CmdResult<Vec<PluginEntry>> {
 
 /// Read one file from a plugin folder. `file` is a single safe file name: no paths.
 #[tauri::command]
-pub fn plugin_read(app: AppHandle, dir: String, file: String) -> CmdResult<String> {
+pub fn plugin_read<R: Runtime>(app: AppHandle<R>, dir: String, file: String) -> CmdResult<String> {
     if !safe_name(&dir) || !safe_name(&file) {
         return Err("invalid plugin path".into());
     }
@@ -47,7 +47,7 @@ pub fn plugin_read(app: AppHandle, dir: String, file: String) -> CmdResult<Strin
 }
 
 #[tauri::command]
-pub fn plugins_path(app: AppHandle) -> CmdResult<String> {
+pub fn plugins_path<R: Runtime>(app: AppHandle<R>) -> CmdResult<String> {
     Ok(paths(&app)?.plugins().to_string_lossy().into_owned())
 }
 

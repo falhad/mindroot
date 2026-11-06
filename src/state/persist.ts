@@ -1,9 +1,28 @@
 import { prepareForSave, store } from '../io/storage'
-import { useDoc, setSaveState } from './doc'
+import { markSaved, setSaveState, useDoc } from './doc'
 
 const DEBOUNCE_MS = 600
 let timer: ReturnType<typeof setTimeout> | null = null
 let inflight: Promise<void> | null = null
+let pauseCount = 0
+
+/** Called after a map was written (plugins listen through the host). */
+export const saveListeners = new Set<(mapId: string) => void>()
+
+/**
+ * Hold autosave while something else changes the files on disk (a sync merge).
+ * Returns the function that resumes it. Edits made meanwhile stay in memory and are saved after.
+ */
+export function pauseSaves(): () => void {
+  pauseCount++
+  let done = false
+  return () => {
+    if (done) return
+    done = true
+    pauseCount--
+    if (pauseCount === 0) scheduleSave()
+  }
+}
 
 /** Write the open map now (no-op when nothing changed). */
 export async function flushSave(): Promise<void> {
@@ -12,6 +31,7 @@ export async function flushSave(): Promise<void> {
     timer = null
   }
   if (inflight) await inflight
+  if (pauseCount > 0) return scheduleSave()
   const { doc, saveState } = useDoc.getState()
   if (!doc || saveState !== 'dirty') return
   setSaveState('saving')
@@ -21,6 +41,14 @@ export async function flushSave(): Promise<void> {
       prepareForSave(copy)
       await store.save(copy)
       // If the user kept typing while we wrote, stay dirty and save again.
+      markSaved(doc)
+      for (const fn of saveListeners) {
+        try {
+          fn(doc.meta.id)
+        } catch (e) {
+          console.error('save listener failed', e)
+        }
+      }
       if (useDoc.getState().doc === doc) setSaveState('saved')
       else {
         setSaveState('dirty')

@@ -13,6 +13,7 @@ import { store } from '../io/storage'
 import {
   addChild, addSibling, closeDoc, commit, openDoc, redo, setConnectFrom, undo, useDoc,
 } from '../state/doc'
+import { emit } from '../plugins/host'
 import { flushSave } from '../state/persist'
 import { cycleTheme, toast, ui, useUi } from '../state/ui'
 import { revealBox, setInsetRight, setView, useView, zoomBy } from '../state/view'
@@ -22,6 +23,7 @@ import { ExportDialog } from './ExportDialog'
 import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
 import { Minimap } from './Minimap'
+import { StatusSlot } from './StatusSlot'
 import { ContextMenu, Palette, SearchBar, type ContextState } from './Overlays'
 
 type Phase = 'loading' | 'ready' | 'missing' | 'error'
@@ -57,6 +59,7 @@ export function Editor({ id }: { id: string }) {
         }
         opened = true
         setPhase('ready')
+        emit('doc:opened', { id })
       })
       .catch((e) => {
         if (!alive) return
@@ -78,6 +81,7 @@ export function Editor({ id }: { id: string }) {
       try {
         localStorage.setItem(`bm.view.${id}`, JSON.stringify({ x: v.x, y: v.y, k: v.k }))
       } catch { /* ignore */ }
+      emit('doc:closed', { id })
       void flushSave().finally(closeDoc)
     }
   }, [id])
@@ -202,6 +206,7 @@ function TopBar() {
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') (e.target as HTMLInputElement).blur() }}
       />
       <span className="no-drag hidden sm:block"><SaveStatus /></span>
+      <StatusSlot />
       <div className="flex-1" />
       <div className="no-drag flex items-center gap-0.5">
         <button className="btn icon" aria-label="Undo" title="Undo (⌘Z)" disabled={!canUndo} onClick={undo}><Undo2 size={16} /></button>

@@ -1,0 +1,126 @@
+import { useEffect, useState } from 'react'
+import { Blocks, FolderOpen, Moon, Puzzle, Settings2, Sun, Monitor, X } from 'lucide-react'
+import { isTauri } from '../io/env'
+import { setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
+import { applyTheme, ui, useUi } from '../state/ui'
+import { Modal } from './Overlays'
+
+export function SettingsDialog() {
+  const open = useUi((s) => s.settingsOpen)
+  if (!open) return null
+  return <Inner />
+}
+
+function Inner() {
+  const tab = useUi((s) => s.settingsTab)
+  const panels = useRegistry((s) => s.panels)
+  const active = tab === 'general' || tab === 'plugins' || panels.some((p) => p.pluginId === tab) ? tab : 'general'
+  const nav = (id: string, label: string, icon: React.ReactNode) => (
+    <button key={id} onClick={() => ui.setSettings(true, id)} aria-current={active === id ? 'page' : undefined}
+      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] ${active === id ? 'bg-active text-accent' : 'hover:bg-hover'}`}>
+      {icon} <span className="truncate">{label}</span>
+    </button>
+  )
+  const panel = panels.find((p) => p.pluginId === active)
+
+  return (
+    <Modal onClose={() => ui.setSettings(false)} label="Settings" width={860} top="7vh">
+      <div className="flex items-center justify-between border-b border-line px-5 py-3">
+        <h2 className="text-[15px] font-semibold">Settings</h2>
+        <button className="btn icon" aria-label="Close" onClick={() => ui.setSettings(false)}><X size={16} /></button>
+      </div>
+      <div className="grid min-h-[420px] max-h-[74vh] sm:grid-cols-[210px_1fr]">
+        <nav className="space-y-0.5 overflow-y-auto border-line p-2.5 sm:border-r" aria-label="Settings sections">
+          {nav('general', 'General', <Settings2 size={15} />)}
+          {nav('plugins', 'Plugins', <Blocks size={15} />)}
+          {panels.length > 0 && <div className="label px-2.5 pb-1 pt-3">Plugin settings</div>}
+          {panels.map((p) => nav(p.pluginId, p.title, <Puzzle size={15} />))}
+        </nav>
+        <div className="overflow-y-auto p-5">
+          {active === 'general' && <General />}
+          {active === 'plugins' && <Plugins />}
+          {panel && (
+            <div>
+              <h3 className="mb-4 text-[15px] font-semibold">{panel.title}</h3>
+              {panel.render()}
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function General() {
+  const mode = useUi((s) => s.themeMode)
+  const opts = [['light', 'Light', Sun], ['dark', 'Dark', Moon], ['system', 'System', Monitor]] as const
+  return (
+    <div className="space-y-6">
+      <section>
+        <div className="label mb-2">Appearance</div>
+        <div className="seg">
+          {opts.map(([id, label, Icon]) => (
+            <button key={id} className={mode === id ? 'on' : ''} onClick={() => applyTheme(id)}><Icon size={13} className="mr-1 inline" /> {label}</button>
+          ))}
+        </div>
+      </section>
+      <section>
+        <div className="label mb-2">Keyboard</div>
+        <button className="btn outline" onClick={() => { ui.setSettings(false); ui.setHelp(true) }}>Show all shortcuts</button>
+      </section>
+    </div>
+  )
+}
+
+function Plugins() {
+  const plugins = useRegistry((s) => s.plugins)
+  const [path, setPath] = useState('')
+  useEffect(() => {
+    if (!isTauri) return
+    void import('@tauri-apps/api/core').then(({ invoke }) => invoke<string>('plugins_path').then(setPath).catch(() => {}))
+  }, [])
+  return (
+    <div className="space-y-4">
+      <p className="text-[13px] text-muted">Plugins add commands, status chips and settings. Built-in plugins use the same plugin API as the ones you install.</p>
+      <ul className="space-y-2">
+        {plugins.map((p) => <PluginRow key={p.manifest.id} p={p} />)}
+      </ul>
+      {isTauri && (
+        <div className="rounded-xl border border-dashed border-[var(--line-strong)] p-3.5 text-[12.5px] text-muted">
+          <div className="mb-1 flex items-center gap-1.5 font-medium text-ink"><FolderOpen size={14} /> Install a plugin</div>
+          Put its folder (with <code>manifest.json</code> and <code>index.js</code>) here, then restart Branchmint:
+          <code className="mt-1 block break-all text-ink">{path || '…'}</code>
+          Installed plugins start switched off. They run with full access to the app, so only enable code you trust.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PluginRow({ p }: { p: PluginRecord }) {
+  const on = p.state === 'active'
+  const hasNative = p.manifest.permissions?.includes('native')
+  return (
+    <li className="flex items-start gap-3 rounded-xl border border-line p-3.5">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13.5px] font-semibold">{p.manifest.name}</span>
+          <span className="text-[11.5px] text-muted">v{p.manifest.version}</span>
+          {p.builtin ? <Tag>built-in</Tag> : <Tag>installed</Tag>}
+          {hasNative && <Tag title="Can call the app's native commands (files, Git)">native access</Tag>}
+        </div>
+        {p.manifest.description && <p className="mt-0.5 text-[12.5px] leading-snug text-muted">{p.manifest.description}</p>}
+        {p.state === 'error' && <p className="mt-1 text-[12.5px] text-danger" role="alert">Could not start: {p.error}</p>}
+      </div>
+      <label className="relative mt-0.5 inline-flex shrink-0 cursor-pointer items-center" title={on ? 'Turn off' : 'Turn on'}>
+        <input type="checkbox" role="switch" className="peer sr-only" checked={on} disabled={p.state === 'error' && !p.builtin} onChange={(e) => void setPluginEnabled(p.manifest.id, e.target.checked)} aria-label={`${p.manifest.name} enabled`} />
+        <span className="h-5 w-9 rounded-full bg-[var(--line-strong)] transition-colors peer-checked:bg-[var(--accent)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--accent)]" />
+        <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+      </label>
+    </li>
+  )
+}
+
+const Tag = ({ children, title }: { children: React.ReactNode; title?: string }) => (
+  <span title={title} className="rounded-md bg-hover px-1.5 py-0.5 text-[11px] text-muted">{children}</span>
+)

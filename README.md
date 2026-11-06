@@ -9,11 +9,12 @@ pnpm install
 pnpm tauri dev        # desktop app (hot reload)
 pnpm dev              # browser only: http://localhost:1420 (maps live in IndexedDB)
 pnpm tauri build      # release bundle (.app / .dmg / .msi / .deb ...)
-pnpm test             # unit tests (vitest) ; cargo test --manifest-path src-tauri/Cargo.toml
+pnpm test             # unit + sync tests (vitest; the sync tests use real git)
+cargo test --manifest-path src-tauri/Cargo.toml   # storage, git runner, and an IPC test of every command
 pnpm typecheck
 ```
 
-Requirements: Node 20+, pnpm, Rust 1.80+, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/).
+Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system dependencies](https://tauri.app/start/prerequisites/).
 
 ## What it does
 
@@ -24,6 +25,8 @@ Requirements: Node 20+, pnpm, Rust 1.80+, and the [Tauri system dependencies](ht
 - Undo/redo (300 steps), copy/cut/paste (rich inside the app, outlines as plain text, images from the clipboard).
 - Dashboard: search across titles and node text, sort, star, tags, trash with restore, rename, duplicate, six templates, import by file picker or drag-and-drop.
 - Autosave (600 ms debounce, atomic writes, flushed on close/hide), save-state indicator.
+- **Git sync** (built-in plugin): keep your maps in a private Git repository and in step across computers, with idea-by-idea merging. See [docs/sync.md](docs/sync.md).
+- **Plugins**: add commands, header chips, settings panels and event listeners; built-in and installed plugins share one API. See [docs/plugins.md](docs/plugins.md).
 - Import: Branchmint JSON, any `{text|title, children}` JSON, Markdown/indented outlines. Export: JSON, Markdown, PNG, SVG, PDF.
 - Fonts: Inter + Vazirmatn (Persian/Arabic), bundled for offline use and embedded in SVG/PNG/PDF exports.
 - Light / dark / system appearance; six colour themes; responsive down to phone width (touch pan, pinch zoom).
@@ -59,14 +62,16 @@ src/core     Pure TypeScript, no React, fully unit-tested
   svg.ts       SVG renderer for export and dashboard thumbnails
   outline.ts   Markdown/JSON import, Markdown export, document sanitising
 src/state    Zustand stores: doc (history, selection, derived layout), view, ui, library, search
-src/io       storage (Tauri commands or IndexedDB), exporters, file dialogs
+src/io       storage (Tauri commands or IndexedDB), image assets, exporters, file dialogs
+src/sync     Git sync engine + three-way map merge (pure, tested against real Git)
+src/plugins  plugin API, host, loader for installed plugins; builtin/ has Git sync
 src/ui       React components
 src-tauri    Rust: atomic JSON file storage, raw-bytes export command
 ```
 
 Design notes:
 
-- **One document, one file.** Each map is `<app-data>/maps/<id>.json`, written atomically (temp file + rename). A `meta` block (title, counts, search text, SVG thumbnail) lets the dashboard list maps without parsing nodes. `sanitizeDoc` repairs dangling ids, cycles and bad enums on load, so a hand-edited file cannot crash the app.
+- **One map, one file, one record per line.** Each map is `<app-data>/vault/maps/<id>.jsonl` (JSON Lines), written atomically (temp file + rename). The first line holds a `meta` block, so the dashboard lists maps by reading one line each. Images are content-addressed files in `vault/assets/`. Thumbnails and search text live in a local cache. `sanitizeDoc` repairs dangling ids, cycles and bad enums on load. Format details: [docs/sync.md](docs/sync.md).
 - **Undo = array of Immer snapshots.** Structural sharing keeps this cheap. Rapid edits with the same key (typing in notes) merge into one step.
 - **Same numbers everywhere.** Node sizes come from one measure function; the canvas, minimap, thumbnails and all exports read the same layout, so exports match the screen.
 - **Browser fallback.** Outside Tauri the storage layer uses IndexedDB, so `pnpm dev` is a complete app for fast UI work.
@@ -74,7 +79,7 @@ Design notes:
 
 ## Roadmap hooks (not built yet)
 
-The model and storage were shaped for these, but they are not part of the MVP: AI-assisted brainstorming (a `suggest children` action on a node), real-time collaboration (the document is already a plain tree of ids that CRDTs map onto), share links, a template gallery beyond the six built-ins, and version history (snapshots are already immutable values).
+The model, storage and plugin API were shaped for these, but they are not built yet: AI-assisted brainstorming (a plugin with a `suggest children` command; needs a write API for plugins), real-time collaboration, share links, a template gallery beyond the six built-ins, and a version-history browser (Git sync already records every state; a UI to browse it is missing).
 
 ## License
 

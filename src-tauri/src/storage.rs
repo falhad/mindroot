@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use tauri::ipc::{InvokeBody, Request, Response};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 
 pub type CmdResult<T> = Result<T, String>;
 
@@ -61,7 +61,7 @@ impl Paths {
     }
 }
 
-pub fn paths(app: &AppHandle) -> CmdResult<Paths> {
+pub fn paths<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Paths> {
     let p = Paths { root: app.path().app_data_dir().map_err(|e| e.to_string())? };
     p.ensure()?;
     Ok(p)
@@ -196,41 +196,41 @@ pub fn remove_map(p: &Paths, id: &str) -> CmdResult<()> {
 // ---------- commands ----------
 
 #[tauri::command]
-pub fn list_maps(app: AppHandle) -> CmdResult<Vec<Value>> {
+pub fn list_maps<R: Runtime>(app: AppHandle<R>) -> CmdResult<Vec<Value>> {
     read_metas(&paths(&app)?)
 }
 
 #[tauri::command]
-pub fn load_map(app: AppHandle, id: String) -> CmdResult<Option<String>> {
+pub fn load_map<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<Option<String>> {
     load_map_text(&paths(&app)?, &id)
 }
 
 #[tauri::command]
-pub fn save_map(app: AppHandle, id: String, text: String) -> CmdResult<()> {
+pub fn save_map<R: Runtime>(app: AppHandle<R>, id: String, text: String) -> CmdResult<()> {
     write_map(&paths(&app)?, &id, &text)
 }
 
 #[tauri::command]
-pub fn delete_map(app: AppHandle, id: String) -> CmdResult<()> {
+pub fn delete_map<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<()> {
     remove_map(&paths(&app)?, &id)
 }
 
 #[tauri::command]
-pub fn save_cache(app: AppHandle, id: String, json: String) -> CmdResult<()> {
+pub fn save_cache<R: Runtime>(app: AppHandle<R>, id: String, json: String) -> CmdResult<()> {
     validate_id(&id)?;
     serde_json::from_str::<Value>(&json).map_err(|e| e.to_string())?;
     atomic_write(&paths(&app)?.cache().join(format!("{id}.json")), json.as_bytes())
 }
 
 #[tauri::command]
-pub fn asset_exists(app: AppHandle, name: String) -> CmdResult<bool> {
+pub fn asset_exists<R: Runtime>(app: AppHandle<R>, name: String) -> CmdResult<bool> {
     validate_asset_name(&name)?;
     Ok(paths(&app)?.assets().join(name).exists())
 }
 
 /// Raw body = file bytes, `name` header = asset name.
 #[tauri::command]
-pub fn save_asset(app: AppHandle, request: Request<'_>) -> CmdResult<()> {
+pub fn save_asset<R: Runtime>(app: AppHandle<R>, request: Request<'_>) -> CmdResult<()> {
     let InvokeBody::Raw(bytes) = request.body() else { return Err("expected a raw body".into()) };
     let name = request.headers().get("name").and_then(|v| v.to_str().ok()).ok_or("missing name header")?;
     validate_asset_name(name)?;
@@ -242,7 +242,7 @@ pub fn save_asset(app: AppHandle, request: Request<'_>) -> CmdResult<()> {
 }
 
 #[tauri::command]
-pub fn load_asset(app: AppHandle, name: String) -> CmdResult<Response> {
+pub fn load_asset<R: Runtime>(app: AppHandle<R>, name: String) -> CmdResult<Response> {
     validate_asset_name(&name)?;
     fs::read(paths(&app)?.assets().join(name)).map(Response::new).map_err(|e| e.to_string())
 }
@@ -274,21 +274,21 @@ pub fn percent_decode(s: &str) -> CmdResult<String> {
 }
 
 #[tauri::command]
-pub fn plugin_settings_get(app: AppHandle, id: String) -> CmdResult<Option<String>> {
+pub fn plugin_settings_get<R: Runtime>(app: AppHandle<R>, id: String) -> CmdResult<Option<String>> {
     validate_plugin_id(&id)?;
     let path = paths(&app)?.settings().join(format!("{id}.json"));
     if path.exists() { fs::read_to_string(path).map(Some).map_err(|e| e.to_string()) } else { Ok(None) }
 }
 
 #[tauri::command]
-pub fn plugin_settings_set(app: AppHandle, id: String, json: String) -> CmdResult<()> {
+pub fn plugin_settings_set<R: Runtime>(app: AppHandle<R>, id: String, json: String) -> CmdResult<()> {
     validate_plugin_id(&id)?;
     serde_json::from_str::<Value>(&json).map_err(|e| e.to_string())?;
     atomic_write(&paths(&app)?.settings().join(format!("{id}.json")), json.as_bytes())
 }
 
 #[tauri::command]
-pub fn vault_path(app: AppHandle) -> CmdResult<String> {
+pub fn vault_path<R: Runtime>(app: AppHandle<R>) -> CmdResult<String> {
     Ok(paths(&app)?.vault().to_string_lossy().into_owned())
 }
 

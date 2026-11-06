@@ -11,6 +11,8 @@ export type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error'
 
 interface DocState {
   doc: MapDoc | null
+  /** The version last written to disk (base for merging remote changes into unsaved edits). */
+  savedDoc: MapDoc | null
   layout: LayoutResult | null
   past: MapDoc[]
   future: MapDoc[]
@@ -29,6 +31,7 @@ interface DocState {
 
 export const useDoc = create<DocState>(() => ({
   doc: null,
+  savedDoc: null,
   layout: null,
   past: [],
   future: [],
@@ -57,6 +60,7 @@ function sanitizeSelection(doc: MapDoc, layout: LayoutResult, sel: string[]): st
 export function openDoc(doc: MapDoc) {
   set({
     doc,
+    savedDoc: doc,
     layout: relayout(doc, null),
     past: [],
     future: [],
@@ -72,7 +76,7 @@ export function openDoc(doc: MapDoc) {
 }
 
 export function closeDoc() {
-  set({ doc: null, layout: null, past: [], future: [], selection: [], editingId: null, draft: null, freshId: null, connectFrom: null })
+  set({ doc: null, savedDoc: null, layout: null, past: [], future: [], selection: [], editingId: null, draft: null, freshId: null, connectFrom: null })
 }
 
 /**
@@ -318,6 +322,34 @@ export function setConnectFrom(id: string | null) {
 
 export function expandToLevel(level: number | null) {
   commit((d) => T.collapseToLevel(d, level))
+}
+
+/** Record that `doc` is what is on disk now. */
+export function markSaved(doc: MapDoc) {
+  set({ savedDoc: doc })
+}
+
+/**
+ * Swap in a version that came from outside (e.g. a sync). History is cleared because older
+ * snapshots would undo the incoming changes. `dirty` keeps the map queued for saving.
+ */
+export function replaceDoc(next: MapDoc, dirty: boolean) {
+  const s = get()
+  if (!s.doc) return
+  const layout = relayout(next, null)
+  set({
+    doc: next,
+    layout,
+    past: [],
+    future: [],
+    selection: sanitizeSelection(next, layout, s.selection),
+    editingId: null,
+    draft: null,
+    freshId: null,
+    connectFrom: null,
+    saveState: dirty ? 'dirty' : 'saved',
+    lastCoalesce: null,
+  })
 }
 
 export function setSaveState(saveState: SaveState, saveError: string | null = null) {

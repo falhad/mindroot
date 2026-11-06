@@ -7,6 +7,7 @@ import {
 } from '../state/doc'
 import { flushSave } from '../state/persist'
 import { createMap } from '../state/library'
+import { useRegistry } from '../plugins/host'
 import { cycleTheme, goTo, toast, ui } from '../state/ui'
 import { fitView, setView, useView, zoomBy } from '../state/view'
 
@@ -119,11 +120,13 @@ export function buildCommands(): Command[] {
     c('Map', 'new', 'New map', () => void newMapAndOpen()),
     c('Map', 'home', 'All maps', () => void goHome()),
     c('Help', 'help', 'Keyboard shortcuts', () => ui.setHelp(true), '?'),
+    c('Help', 'settings', 'Settings and plugins…', () => ui.setSettings(true, 'general'), `${modKey} ,`),
   ]
   for (const l of LAYOUTS) list.push(c('Layout', `layout-${l.id}`, `Layout: ${l.name}`, () => setLayout(l.id)))
   for (const e of EDGES) list.push(c('Lines', `edge-${e.id}`, `Lines: ${e.name}`, () => setEdge(e.id)))
   for (const t of THEMES) list.push(c('Theme', `theme-${t.id}`, `Colour theme: ${t.name}`, () => setMapTheme(t.id)))
   for (const b of BGS) list.push(c('Theme', `bg-${b.id}`, `Background: ${b.name}`, () => setBg(b.id)))
+  for (const p of useRegistry.getState().commands) list.push({ id: p.id, title: p.title, group: p.group, hint: p.hint, run: p.run })
   return list
 }
 

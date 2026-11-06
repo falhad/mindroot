@@ -4,9 +4,9 @@ mod git;
 mod plugins;
 mod storage;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
+/// Adds the plugins and every command the frontend can call. Shared by the app and the tests.
+pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -31,6 +31,11 @@ pub fn run() {
             plugins::plugin_read,
             plugins::plugins_path,
         ])
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    configure(tauri::Builder::default())
         .run(tauri::generate_context!())
         .expect("error while running Branchmint");
 }
