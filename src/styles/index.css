@@ -1,0 +1,398 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/vazirmatn';
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+:root {
+  --bg: #f4f5f8;
+  --canvas: #f5f6f8;
+  --panel: rgba(255, 255, 255, 0.78);
+  --panel-solid: #ffffff;
+  --line: rgba(15, 23, 42, 0.09);
+  --line-strong: rgba(15, 23, 42, 0.16);
+  --ink: #0f172a;
+  --muted: #64748b;
+  --hover: rgba(15, 23, 42, 0.06);
+  --active: rgba(13, 148, 136, 0.14);
+  --accent: #0d9488;
+  --accent-ink: #ffffff;
+  --danger: #dc2626;
+  --dot: rgba(100, 116, 139, 0.32);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 24px -6px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 24px 60px -12px rgba(15, 23, 42, 0.28), 0 4px 14px rgba(15, 23, 42, 0.08);
+  --node-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 4px 12px -4px rgba(15, 23, 42, 0.12);
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  --bg: #0b0d12;
+  --canvas: #0e1016;
+  --panel: rgba(24, 28, 40, 0.78);
+  --panel-solid: #181c28;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --ink: #e8ebf2;
+  --muted: #8b93a7;
+  --hover: rgba(255, 255, 255, 0.07);
+  --active: rgba(45, 212, 191, 0.18);
+  --accent: #2dd4bf;
+  --accent-ink: #04201c;
+  --danger: #f87171;
+  --dot: rgba(139, 147, 167, 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -6px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 4px 14px rgba(0, 0, 0, 0.4);
+  --node-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 14px -4px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-solid: var(--panel-solid);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --font-sans: 'Inter Variable', 'Vazirmatn Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --shadow-pop: var(--shadow-md);
+  --shadow-float: var(--shadow-lg);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* ---------- reusable controls ---------- */
+@layer components {
+.glass {
+  background: var(--panel);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-md);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
+  user-select: none;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+.btn.on {
+  background: var(--active);
+  color: var(--accent);
+}
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-sm);
+}
+.btn.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+}
+.btn.outline {
+  border-color: var(--line-strong);
+}
+.btn.danger {
+  color: var(--danger);
+}
+.btn.icon {
+  padding: 0;
+  width: 32px;
+}
+kbd {
+  font: 500 11px/1 var(--font-sans);
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: var(--hover);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.field {
+  width: 100%;
+  background: var(--hover);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+.field:focus {
+  border-color: var(--accent);
+  background: var(--panel-solid);
+}
+.field::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--hover);
+  gap: 2px;
+}
+.seg > button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+}
+.seg > button.on {
+  background: var(--panel-solid);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+}
+
+/* ---------- canvas ---------- */
+.canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--canvas);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  outline: none;
+}
+.canvas.panning {
+  cursor: grabbing;
+}
+.canvas.connecting {
+  cursor: crosshair;
+}
+.world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.edges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+.node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  cursor: pointer;
+  box-shadow: var(--node-shadow);
+  transition: box-shadow 0.15s, opacity 0.2s, filter 0.2s;
+  animation: pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  touch-action: none;
+}
+.node.plain {
+  box-shadow: none;
+}
+.node.selected {
+  box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px var(--sel, var(--accent)), var(--node-shadow);
+}
+.node.plain.selected {
+  box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px var(--sel, var(--accent));
+}
+.node.dim {
+  opacity: 0.25;
+}
+.node.match {
+  box-shadow: 0 0 0 3px #facc15, 0 0 22px 2px rgba(250, 204, 21, 0.55);
+}
+.node.drop-into {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 24px 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.node.dragging {
+  opacity: 0.62;
+  z-index: 5;
+  cursor: grabbing;
+  transition: none;
+  animation: none;
+}
+.node.connect-target:hover {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+.node-text {
+  white-space: pre;
+  pointer-events: none;
+}
+.node-edit {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+  caret-color: currentColor;
+}
+.collapse-dot {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  background: var(--panel-solid);
+  border: 1.5px solid var(--dotc, var(--accent));
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s;
+}
+.collapse-dot:hover {
+  transform: scale(1.12);
+}
+.drop-line {
+  position: absolute;
+  background: var(--accent);
+  border-radius: 3px;
+  box-shadow: 0 0 10px var(--accent);
+  pointer-events: none;
+}
+.marquee {
+  position: absolute;
+  border: 1.5px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 4px;
+  pointer-events: none;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.88;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.rise {
+  animation: rise 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fade {
+  animation: fade 0.15s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+.mac-inset {
+  padding-left: 82px;
+}
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
