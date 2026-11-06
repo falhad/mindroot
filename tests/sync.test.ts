@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { execFile } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -17,6 +18,19 @@ const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C', GIT_CONFIG_
 
 let root: string
 let remote: string
+
+// Every git call the engine makes is recorded (with ids/messages/addresses normalised) and written to
+// src-tauri/tests/fixtures/git-calls.json. The Rust test `git_contract` replays them through the real
+// argument validator, so the TypeScript engine and the Rust allow-list cannot drift apart unnoticed.
+const recorded = new Set<string>()
+function record(args: string[]) {
+  const a = args.map((x, i) => {
+    if (args[i - 1] === '-m') return 'message'
+    if (args[0] === 'remote' && i === args.length - 1 && /^(add|set-url)$/.test(args[1])) return 'git@github.com:you/vault.git'
+    return x.replace(/maps\/[A-Za-z0-9_-]+\.jsonl?/g, 'maps/ID.jsonl')
+  })
+  recorded.add(JSON.stringify(a))
+}
 
 async function git(cwd: string, args: string[]) {
   try {
@@ -46,6 +60,7 @@ class Device {
       device: this.name,
       git: async (args) => {
         await hook?.(args)
+        record(args)
         return git(this.vault, args)
       },
       writeMap: async (id, text) => void writeFileSync(join(this.vault, 'maps', `${id}.jsonl`), text),
@@ -83,7 +98,12 @@ const edit = (d: MapDoc, at: number, fn: (x: MapDoc) => void) => produce(d, (x) 
 beforeAll(async () => {
   root = mkdtempSync(join(tmpdir(), 'bm-sync-'))
 })
-afterAll(() => rmSync(root, { recursive: true, force: true }))
+afterAll(() => {
+  rmSync(root, { recursive: true, force: true })
+  const file = fileURLToPath(new URL('../src-tauri/tests/fixtures/git-calls.json', import.meta.url))
+  mkdirSync(fileURLToPath(new URL('../src-tauri/tests/fixtures/', import.meta.url)), { recursive: true })
+  writeFileSync(file, JSON.stringify([...recorded].sort().map((l) => JSON.parse(l)), null, 1) + '\n')
+})
 
 async function freshRemote(name: string) {
   remote = join(root, `${name}.git`)

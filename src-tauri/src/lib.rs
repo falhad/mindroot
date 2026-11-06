@@ -4,6 +4,9 @@ mod git;
 mod plugins;
 mod storage;
 
+/// Exposed for the contract test in `tests/git_contract.rs`.
+pub use git::check_args as check_git_args;
+
 /// Adds the plugins and every command the frontend can call. Shared by the app and the tests.
 pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     builder
