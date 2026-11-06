@@ -36,10 +36,35 @@ export async function refreshLibrary() {
   try {
     const items = await store.list()
     set({ items, loaded: true })
+    void rebuildDerived(items)
   } catch (e) {
     toast(`Could not read your maps: ${e instanceof Error ? e.message : e}`, 'error')
   } finally {
     set({ loading: false })
+  }
+}
+
+let rebuilding = false
+
+/**
+ * Thumbnails and search text are not part of the synced file. Maps that arrived from another
+ * device (or an older version) have none yet, so build them in the background.
+ */
+async function rebuildDerived(items: MapMeta[]) {
+  if (rebuilding) return
+  const todo = items.filter((m) => !m.thumb).slice(0, 60)
+  if (!todo.length) return
+  rebuilding = true
+  try {
+    for (const m of todo) {
+      const doc = await store.load(m.id).catch(() => null)
+      if (!doc) continue
+      prepareForSave(doc)
+      await store.saveCache(doc).catch(() => {})
+      set((s) => ({ items: s.items.map((x) => (x.id === m.id ? { ...x, thumb: doc.meta.thumb, search: doc.meta.search } : x)) }))
+    }
+  } finally {
+    rebuilding = false
   }
 }
 
