@@ -1,0 +1,5 @@
+# Which dependencies may run install scripts (pnpm 12). `false` = deliberately denied.
+# core-js (a jspdf dependency) only prints a donation banner; the app does not need it.
+# Without this entry `pnpm install` fails in CI with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  core-js: false
