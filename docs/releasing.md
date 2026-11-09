@@ -7,6 +7,13 @@ Two GitHub Actions workflows live in `.github/workflows/`:
 | `ci.yml` | every push to `main` and every pull request | type-check, frontend tests (real git), the git-contract check, Rust tests, web build |
 | `release.yml` | you push a tag like `v0.2.0` (or run it by hand) | builds installers for macOS (Apple Silicon + Intel), Windows, Linux and attaches them to a **draft** GitHub release |
 
+## Security of the workflows
+
+- Every third-party action is pinned to a full commit SHA (the version is in the comment next to it), so a moved tag cannot change what runs with your token or signing secrets.
+- Dependabot (`.github/dependabot.yml`) opens a pull request weekly when a pinned action has a new release. CI runs on it before you merge.
+- Jobs get only the permissions they need: CI and the version check are read-only; only the build job can write to the release. Signing secrets are passed only to the one step that uses them, and checkouts do not keep the token.
+- When you add a new action, pin it the same way: `gh api repos/OWNER/REPO/git/ref/tags/TAG` gives the SHA (for an annotated tag, follow it with `git/tags/<sha>`).
+
 ## Make a release
 
 ```bash

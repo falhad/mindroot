@@ -1,0 +1,10 @@
+# Keeps the pinned GitHub Actions (full commit SHAs) up to date. It opens a pull request when a
+# new release exists; CI runs on that pull request before you merge it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
