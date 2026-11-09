@@ -8,7 +8,8 @@ A fast, keyboard-first mind-mapping app for the desktop. Built with **Tauri 2**,
 pnpm install
 pnpm tauri dev        # desktop app (hot reload)
 pnpm dev              # browser only: http://localhost:1420 (maps live in IndexedDB)
-pnpm tauri build      # release bundle (.app / .dmg / .msi / .deb ...)
+pnpm tauri build      # installer for this computer (.app/.dmg, .msi, .deb ...)
+                      # all platforms: push a tag, see docs/releasing.md
 pnpm test             # unit + sync tests (vitest; the sync tests use real git)
 cargo test --manifest-path src-tauri/Cargo.toml   # storage, git runner, and an IPC test of every command
 pnpm typecheck
@@ -80,6 +81,10 @@ Design notes:
 ## Roadmap hooks (not built yet)
 
 The model, storage and plugin API were shaped for these, but they are not built yet: AI-assisted brainstorming (a plugin with a `suggest children` command; needs a write API for plugins), real-time collaboration, share links, a template gallery beyond the six built-ins, and a version-history browser (Git sync already records every state; a UI to browse it is missing).
+
+## Releases
+
+GitHub Actions run the tests on every push (`ci.yml`) and build installers for macOS, Windows and Linux when you push a version tag (`release.yml`). See [docs/releasing.md](docs/releasing.md).
 
 ## License
 
