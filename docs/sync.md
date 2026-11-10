@@ -31,7 +31,9 @@ Sync runs on start, every N minutes, about 30 seconds after you stop editing, wh
 
 Every sync is a normal Git commit, so history is your version history: `git log -- maps/<id>.jsonl` and `git checkout <commit> -- maps/<id>.jsonl` work in the vault folder.
 
-## The map file (format version 2, JSON Lines)
+## The map file (format version 3, JSON Lines)
+
+Version 3 only **adds** optional things to version 2: more node fields, and `group` and `sum` records. A version 2 file opens as it is and is written as version 3 on the next save. The reader keeps every field and every record type it does not know and writes them back unchanged, so a newer file passes through this version without losing data. An older app (version 2) does not know the new records and drops them when it saves, so keep all your devices on the same version family.
 
 One record per line. Records are sorted by id, keys have a fixed order, so an edit changes only the lines of the ideas that changed and Git merges edits to different ideas without conflicts.
 
@@ -42,7 +44,10 @@ One record per line. Records are sorted by id, keys have a fixed order, so an ed
 {"t":"rel","id":"r1","from":"a1","to":"b2"}
 ```
 
-- Positions are not stored: layout is recomputed from the tree.
+- Positions are not stored: layout is recomputed from the tree. The one exception is a **floating** idea (no parent): it keeps `pos`.
+- New node fields: `tags`, `due`, `done`, `mapLink` (`{mapId, nodeId?}`), `attachments`, `pos`, `sticky`, `notesFmt`. New relation fields: `arrow`, `dash`.
+- New records: `{"t":"group","id":…,"ids":[…],"label":…}` (a boundary around sibling ideas) and `{"t":"sum","id":…,"parentId":…,"from":…,"to":…,"label":…}` (a bracket). New header fields: `font`, `dir`, `customTheme`.
+- Attachments are files in `assets/` named by their SHA-256, like images, so they sync with the vault. Templates are `templates/<id>.jsonl` and sync the same way.
 - Images are files in `assets/`, named by their SHA-256, so the same image is stored once.
 - Thumbnails and search text are derived data and live outside the vault.
 - Maps from earlier versions (`<id>.json`, one JSON document) still open and are rewritten in the new format on the next save.
@@ -61,6 +66,10 @@ The merge is per idea and per field (`src/sync/merge.ts`):
 | Concurrent moves that would create a loop | No idea is lost; the affected ideas are attached to the central idea. |
 | A map file one side damaged | The readable side wins; the damaged version stays in Git history. |
 | Merge impossible for another reason | Yours is kept and the other version becomes "<title> (conflict copy)". |
+
+## Map history
+
+Every sync is a commit, so each map has a version history. **⌘K → History of this map…** lists the commits that changed the map file, shows what changed since a version, lets you **compare** it side by side, **restore** the whole map (one undo step), or **bring back** a single deleted idea. It reads Git only and never changes the repository. It needs the desktop app with Git sync set up.
 
 ## Limits to know
 

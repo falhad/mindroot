@@ -20,15 +20,23 @@ Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system 
 ## What it does
 
 - Infinite canvas: pan, zoom (wheel / pinch / `⌘ +/-`), minimap, fit to screen, camera remembered per map.
-- Six layouts: mind map (both sides), right tree, left tree, org chart down/up, radial. Three line styles.
+- Six layouts: mind map (both sides), right tree, left tree, org chart down/up, radial. Three line styles. Right-to-left maps (the whole layout mirrors) for Persian, Arabic and Hebrew.
 - Nodes: add child/sibling, inline editing (multi-line, RTL aware), delete, duplicate, drag to re-parent or re-order, multi-select (shift-click / marquee), collapse/expand (Space, or the ⊖ button that appears on hover), cross-links between any two nodes.
-- Per node: colour (theme slots or custom), shape, icon (lucide or emoji), notes, link, image, checklist with progress.
+- Per node: colour (theme slots or custom), shape, icon (lucide or emoji), notes (Markdown, code, LaTeX), link, image, checklist with progress, tags, due date and done state, attached files, and a link to another map or to one idea in it.
+- Structure: groups (a boundary around siblings), summary brackets, labelled cross-links with arrows and line styles, floating ideas and sticky notes (double-click empty canvas; Shift for a sticky note).
+- Views: **focus mode** (one branch on its own, `⌘.`), **outline** (an editable list beside the map, `⌘⇧O`), **presentation** (`F5` one idea at a time, `⇧F5` one branch at a time), tag filter, **compare** two maps or versions, **tasks** across all maps, backlinks.
+- Customise a map: eight own colours, per-map font (Inter, Vazirmatn, serif, mono), direction (left to right or mirrored).
+- Quick capture: a system-wide shortcut (default `Alt+Shift+Space`) opens a small window; a thought goes into your Inbox map.
 - Undo/redo (300 steps), copy/cut/paste (rich inside the app, outlines as plain text, images from the clipboard).
 - Dashboard: search across titles and node text, sort, star, tags, trash with restore, rename, duplicate, six templates, import by file picker or drag-and-drop.
 - Autosave (600 ms debounce, atomic writes, flushed on close/hide), save-state indicator.
 - **Git sync** (built-in plugin): keep your maps in a private Git repository and in step across computers, with idea-by-idea merging. See [docs/sync.md](docs/sync.md).
 - **Plugins**: add commands, header chips, settings panels and event listeners; built-in and installed plugins share one API. See [docs/plugins.md](docs/plugins.md).
-- Import: Branchmint JSON, any `{text|title, children}` JSON, Markdown/indented outlines. Export: JSON, Markdown, PNG, SVG, PDF.
+- Import: Branchmint JSON, any `{text|title, children}` JSON, Markdown/indented outlines, FreeMind (`.mm`), OPML, XMind, Obsidian canvas. Export: JSON, Markdown, OPML, PNG, SVG, PDF (vector with selectable text, or image), and a single-file **web page** you can open anywhere.
+- **Live collaboration** with a small relay server you run, with presence, and undo that only undoes your own edits. See [docs/collab.md](docs/collab.md).
+- **AI assistant** (plugin): expand an idea, find gaps, summarize, rewrite, with any OpenAI-compatible or Anthropic-compatible service. See [docs/ai.md](docs/ai.md).
+- **Plugin gallery** and signed **automatic updates**. See [docs/plugins.md](docs/plugins.md) and [docs/releasing.md](docs/releasing.md).
+- Map history from Git (restore a version or one idea). Custom templates.
 - Fonts: Inter + Vazirmatn (Persian/Arabic), bundled for offline use and embedded in SVG/PNG/PDF exports.
 - Light / dark / system appearance; six colour themes; responsive down to phone width (touch pan, pinch zoom).
 - Command palette (`⌘K`), in-map find (`⌘F`), shortcut sheet (`?`).
@@ -42,6 +50,10 @@ Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system 
 | While typing: new sibling / new child / newline / finish | `Enter` / `Tab` / `Shift Enter` / `Esc` |
 | Delete / duplicate | `Del` / `⌘D` |
 | Collapse or expand | `Space` |
+| Focus on a branch / leave focus | `⌘.` / `Esc` |
+| Outline panel | `⌘⇧O` |
+| Present (by idea / by branch) | `F5` / `⇧F5` |
+| New floating idea / sticky note | double-click / `⇧`+double-click on empty canvas |
 | Move selection | arrow keys (`Shift` extends) |
 | Reorder / indent / outdent | `⌥↑↓` / `⌥→` / `⌥←` |
 | Undo / redo | `⌘Z` / `⌘⇧Z` |
@@ -55,7 +67,7 @@ Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system 
 ## Architecture
 
 ```
-src/core     Pure TypeScript, no React, fully unit-tested
+src/core     Pure TypeScript, no React, fully unit-tested (also: focus, present, diff, links, tasks, tags, import/ and export/)
   tree.ts      document model + every edit (works on Immer drafts)
   layout.ts    6 layout algorithms, spatial navigation, hit-testing
   measure.ts   canvas text measurement + wrapping (shared by DOM and SVG)
