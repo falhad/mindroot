@@ -18,13 +18,15 @@ export interface NodeViewProps {
   dim: boolean
   /** Part of the path to a tag-filter match: shown a little faded. */
   soft?: boolean
+  /** Not revealed yet in a presentation. */
+  stepHidden?: boolean
   match: boolean
   dropInto: boolean
   dragging: boolean
   connecting: boolean
 }
 
-function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, match, dropInto, dragging, connecting }: NodeViewProps) {
+function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, stepHidden, match, dropInto, dragging, connecting }: NodeViewProps) {
   const plain = !vis.fill && !vis.stroke
   const style: CSSProperties = {
     transform: `translate(${box.x}px, ${box.y}px)`,
@@ -37,7 +39,7 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, m
     ['--sel' as string]: vis.accent,
     font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px var(--font-sans)`,
   }
-  const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', soft && 'soft', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
+  const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', soft && 'soft', stepHidden && 'step-hidden', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
     .filter(Boolean)
     .join(' ')
   const textW = box.w - m.padX * 2 - m.iconW - m.badgeW

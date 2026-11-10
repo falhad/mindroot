@@ -6,6 +6,7 @@ import {
   selectAll, setConnectFrom, toggleFocus, startEdit, summarizeSelection, toggleCollapse, undo, ungroupSelection, useDoc, primary,
 } from '../state/doc'
 import { flushSave } from '../state/persist'
+import { startPresentation } from '../state/present'
 import { createMap } from '../state/library'
 import { useRegistry } from '../plugins/host'
 import { cycleTheme, goTo, toast, ui } from '../state/ui'
@@ -125,6 +126,8 @@ export function buildCommands(): Command[] {
     }),
     c('Arrange', 'new-float', 'Add floating node', () => addFloatAt(...centre())),
     c('Arrange', 'new-sticky', 'Add sticky note', () => addFloatAt(...centre(), true)),
+    c('View', 'present', 'Present: one idea at a time', () => { if (!startPresentation('node')) toast('Add some ideas to present first') }, 'F5'),
+    c('View', 'present-branch', 'Present: one branch at a time', () => { if (!startPresentation('branch')) toast('Add some ideas to present first') }),
     c('View', 'focus', 'Focus on selected branch / leave focus', () => { toggleFocus(); setTimeout(fitCurrent, 30) }, `${modKey} .`),
     c('View', 'collapse', 'Collapse / expand', () => toggleCollapse(), 'Space'),
     c('View', 'expand-all', 'Expand all', () => expandToLevel(null)),

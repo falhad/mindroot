@@ -11,6 +11,7 @@ import { addFloatAt, commit, connectNodes, dropNodes, select, setConnectFrom, st
 import { useSearch } from '../state/search'
 import { ui, useUi } from '../state/ui'
 import { MAX_ZOOM, MIN_ZOOM, screenToWorld, setView, setViewport, useView, zoomAt } from '../state/view'
+import { usePresent } from '../state/present'
 import { GroupBoxes, SummaryBraces } from './GroupView'
 import { NodeView } from './NodeView'
 import { useTweenedBoxes } from './useTween'
@@ -373,6 +374,11 @@ export function Canvas({ doc, layout, onContext }: Props) {
   const matches = useMemo(() => new Set(search.hits.map((h) => h.id)), [search.hits])
   const searching = search.query.trim() !== ''
   const selSet = useMemo(() => new Set(selection), [selection])
+  const presentActive = usePresent((s) => s.active)
+  const presentStep = usePresent((s) => s.step)
+  const presentSteps = usePresent((s) => s.steps)
+  // ids shown so far in a presentation; null when not presenting
+  const shown = useMemo(() => (presentActive ? new Set(presentSteps.slice(0, presentStep + 1).flat()) : null), [presentActive, presentStep, presentSteps])
   const tagFilter = useUi((s) => s.tagFilter)
   const tagState = useMemo(() => tagFilterState(doc, tagFilter), [doc, tagFilter])
 
@@ -416,7 +422,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
       onContextMenu={onContextMenu}
     >
       <div className="world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
-        <GroupBoxes doc={doc} layout={layout} dark={dark} />
+        <GroupBoxes doc={doc} layout={layout} dark={dark} shown={shown} />
         <svg className="edges" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -425,7 +431,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
           </defs>
           {layout.order.map((id) => {
             const n = doc.nodes[id]
-            if (!n.parentId || n.sticky) return null
+            if (!n.parentId || n.sticky || (shown && !(shown.has(id) && shown.has(n.parentId)))) return null
             const hot = selSet.has(id) || selSet.has(n.parentId)
             return (
               <EdgeView
@@ -437,9 +443,9 @@ export function Canvas({ doc, layout, onContext }: Props) {
               />
             )
           })}
-          <SummaryBraces doc={doc} layout={layout} />
+          <SummaryBraces doc={doc} layout={layout} shown={shown} />
           {doc.relations.map((r) => {
-            if (!layout.boxes[r.from] || !layout.boxes[r.to]) return null
+            if (!layout.boxes[r.from] || !layout.boxes[r.to] || (shown && !(shown.has(r.from) && shown.has(r.to)))) return null
             const p = relationPath(renderBox(r.from), renderBox(r.to))
             const arrow = r.arrow ?? 'end'
             return (
@@ -466,6 +472,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
             editing={editingId === id}
             dim={searching ? !matches.has(id) : tagState?.get(id) === 'dim'}
             soft={!searching && tagState?.get(id) === 'path'}
+            stepHidden={!!shown && !shown.has(id)}
             match={searching && matches.has(id)}
             dropInto={drag?.drop?.kind === 'into' && drag.drop.id === id}
             dragging={!!drag && drag.skip.has(id)}

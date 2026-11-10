@@ -368,3 +368,62 @@ describe('focus mode', async () => {
     expect(store.useDoc.getState().focusId).toBeNull()
   })
 })
+
+describe('presentation mode', async () => {
+  const { presentationSteps } = await import('../src/core/present')
+  const present = await import('../src/state/present')
+  const store = await import('../src/state/doc')
+  const T = await import('../src/core/tree')
+  const names = (d: MapDoc, steps: string[][]) => steps.map((s) => s.map((i) => d.nodes[i].text))
+
+  it('node mode reveals one node per step, in document order', () => {
+    const d = sample()
+    expect(names(d, presentationSteps(d, 'node'))).toEqual([['Root'], ['A'], ['A1'], ['A2'], ['B'], ['B1'], ['C']])
+  })
+
+  it('branch mode: the central idea first, then one whole first-level branch per step', () => {
+    const d = sample()
+    expect(names(d, presentationSteps(d, 'branch'))).toEqual([['Root'], ['A', 'A1', 'A2'], ['B', 'B1'], ['C']])
+  })
+
+  it('a collapsed branch is one step and is not opened', () => {
+    const d = sample()
+    d.nodes[id(d, 'A')].collapsed = true
+    expect(names(d, presentationSteps(d, 'node'))).toEqual([['Root'], ['A'], ['B'], ['B1'], ['C']])
+    expect(names(d, presentationSteps(d, 'branch'))[1]).toEqual(['A'])
+  })
+
+  it('floating nodes are not part of the walk-through', () => {
+    const d = sample()
+    T.addFloat(d, 0, 0, 'Loose')
+    expect(presentationSteps(d, 'node').flat().map((i) => d.nodes[i].text)).not.toContain('Loose')
+  })
+
+  it('an empty map has no steps', () => {
+    expect(presentationSteps(T.createDoc(''), 'node')).toEqual([])
+  })
+
+  it('store: starts at step 0, clamps at both ends, reveals cumulatively, and stops cleanly', () => {
+    const d = sample()
+    store.openDoc(d)
+    expect(present.startPresentation('node')).toBe(true)
+    const s = () => present.usePresent.getState()
+    expect(s().active && s().step).toBe(0)
+    present.prevStep()
+    expect(s().step).toBe(0)
+    present.nextStep()
+    present.nextStep()
+    expect([...present.revealed(s())!].map((i) => d.nodes[i].text)).toEqual(['Root', 'A', 'A1'])
+    for (let i = 0; i < 20; i++) present.nextStep()
+    expect(s().step).toBe(s().steps.length - 1)
+    present.stopPresentation()
+    expect(s().active).toBe(false)
+    expect(present.revealed(s())).toBeNull()
+  })
+
+  it('store: an empty map does not start a presentation', () => {
+    store.openDoc(T.createDoc(''))
+    expect(present.startPresentation('node')).toBe(false)
+    expect(present.usePresent.getState().active).toBe(false)
+  })
+})

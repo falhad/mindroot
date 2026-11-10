@@ -468,3 +468,9 @@ kbd {
 :root[data-theme='dark'] .notes-md .hljs-string, :root[data-theme='dark'] .notes-md .hljs-attr { color: #5eead4; }
 :root[data-theme='dark'] .notes-md .hljs-number, :root[data-theme='dark'] .notes-md .hljs-literal { color: #fdba74; }
 :root[data-theme='dark'] .notes-md .hljs-title, :root[data-theme='dark'] .notes-md .hljs-function { color: #93c5fd; }
+
+/* presentation: ideas that are not revealed yet */
+.node.step-hidden {
+  opacity: 0;
+  pointer-events: none;
+}

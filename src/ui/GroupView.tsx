@@ -6,7 +6,7 @@ import { isRtl } from '../core/visual'
 import type { MapDoc } from '../core/types'
 
 /** Group boundaries (behind the nodes). Pointer events pass through to the canvas. */
-export const GroupBoxes = memo(function GroupBoxes({ doc, layout, dark }: { doc: MapDoc; layout: LayoutResult; dark: boolean }) {
+export const GroupBoxes = memo(function GroupBoxes({ doc, layout, dark, shown }: { doc: MapDoc; layout: LayoutResult; dark: boolean; shown?: Set<string> | null }) {
   const groups = doc.groups ?? []
   if (!groups.length) return null
   const theme = getTheme(doc.themeId)
@@ -14,7 +14,7 @@ export const GroupBoxes = memo(function GroupBoxes({ doc, layout, dark }: { doc:
     <>
       {groups.map((g) => {
         const b = layout.groupBoxes[g.id]
-        if (!b) return null
+        if (!b || (shown && !g.ids.every((id) => shown.has(id)))) return null
         const c = resolveColor(g.color, theme, dark) ?? 'var(--muted)'
         return (
           <div
@@ -38,12 +38,12 @@ export const GroupBoxes = memo(function GroupBoxes({ doc, layout, dark }: { doc:
 })
 
 /** Summary braces, drawn inside the edges SVG. */
-export function SummaryBraces({ doc, layout }: { doc: MapDoc; layout: LayoutResult }) {
+export function SummaryBraces({ doc, layout, shown }: { doc: MapDoc; layout: LayoutResult; shown?: Set<string> | null }) {
   return (
     <>
       {(doc.summaries ?? []).map((s) => {
         const sb = layout.summaryBoxes[s.id]
-        if (!sb) return null
+        if (!sb || (shown && !(shown.has(s.from) && shown.has(s.to)))) return null
         return (
           <g key={s.id} data-summary={s.id}>
             <path d={bracketPath(sb.bracket, sb.side)} stroke="var(--muted)" strokeWidth={2} />

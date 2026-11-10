@@ -21,7 +21,9 @@ import { fitCurrent, goHome, setLayout, resetZoom, LAYOUTS } from './commands'
 import { ExportDialog } from './ExportDialog'
 import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
+import { usePresent } from '../state/present'
 import { FocusBar } from './FocusBar'
+import { Presentation } from './Presentation'
 import { Minimap } from './Minimap'
 import { StatusSlot } from './StatusSlot'
 import { TagFilter } from './TagFilter'
@@ -103,7 +105,8 @@ export function Editor({ id }: { id: string }) {
 
 function Workspace({ restore }: { restore: { x: number; y: number; k: number } | null }) {
   useEditorHotkeys()
-  const panelOpen = useUi((s) => s.inspectorOpen)
+  const presenting = usePresent((s) => s.active)
+  const panelOpen = useUi((s) => s.inspectorOpen) && !presenting
   // The floating inspector covers the right edge on wide screens; fits should avoid it.
   useLayoutEffect(() => {
     setInsetRight(panelOpen && innerWidth >= 900 ? 340 : 0)
@@ -151,11 +154,16 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
   return (
     <div ref={wrapRef} className="relative h-full overflow-hidden" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       <Canvas doc={doc} layout={layout} onContext={setMenu} />
-      <TopBar />
-      <FocusBar />
-      <Minimap doc={doc} layout={layout} />
-      <Dock />
-      <SearchBar />
+      {!presenting && (
+        <>
+          <TopBar />
+          <FocusBar />
+          <Minimap doc={doc} layout={layout} />
+          <Dock />
+          <SearchBar />
+        </>
+      )}
+      <Presentation />
       {connectFrom && (
         <div className="glass rise absolute left-1/2 top-16 z-30 flex -translate-x-1/2 items-center gap-3 rounded-xl py-2 pl-4 pr-2 text-[13px]">
           <Link2 size={15} className="text-accent" />
@@ -163,7 +171,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
           <button className="btn" style={{ height: 26 }} onClick={() => setConnectFrom(null)}><X size={14} /> Cancel</button>
         </div>
       )}
-      {inspectorOpen && <Inspector onClose={() => ui.setInspector(false)} />}
+      {inspectorOpen && !presenting && <Inspector onClose={() => ui.setInspector(false)} />}
       <ContextMenu state={menu} onClose={closeMenu} />
       <Palette />
       <ExportDialog />

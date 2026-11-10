@@ -6,6 +6,7 @@ import {
   setConnectFrom, startEdit, toggleCollapse, undo, useDoc, activeFocus, exitFocus, toggleFocus,
 } from '../state/doc'
 import { flushSave } from '../state/persist'
+import { startPresentation, usePresent } from '../state/present'
 import { clearSearch, focusNode } from '../state/search'
 import { toast, ui, useUi } from '../state/ui'
 import { revealBox, zoomBy } from '../state/view'
@@ -19,6 +20,7 @@ export function useEditorHotkeys() {
       const k = e.key.toLowerCase()
       const ds = useDoc.getState()
       if (!ds.doc) return
+      if (usePresent.getState().active) return // the presentation owns the keyboard
 
       // overlays that own the keyboard
       const u = useUi.getState()
@@ -60,6 +62,7 @@ export function useEditorHotkeys() {
         case 'Tab': e.preventDefault(); addChild(); return
         case 'Enter': e.preventDefault(); addSibling(e.shiftKey); return
         case 'F2': e.preventDefault(); startEdit(); return
+        case 'F5': e.preventDefault(); if (!startPresentation(e.shiftKey ? 'branch' : 'node')) toast('Add some ideas to present first'); return
         case 'Delete': case 'Backspace': e.preventDefault(); deleteSelection(); return
         case ' ': e.preventDefault(); toggleCollapse(); return
         case '?': e.preventDefault(); ui.setHelp(true); return
