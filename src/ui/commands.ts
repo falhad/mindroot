@@ -115,6 +115,7 @@ export function buildCommands(): Command[] {
     c('View', 'zout', 'Zoom out', () => zoomBy(0.8), `${modKey} -`),
     c('View', 'inspector', 'Toggle side panel', ui.toggleInspector, `${modKey} I`),
     c('View', 'theme-mode', 'Switch light / dark / system', cycleTheme),
+    c('View', 'clear-tags', 'Clear tag filter', () => ui.setTagFilter([])),
     c('Map', 'search', 'Find in map', () => ui.setSearch(true), `${modKey} F`),
     c('Map', 'export', 'Export…', () => ui.setExport(true), `${modKey} E`),
     c('Map', 'new', 'New map', () => void newMapAndOpen()),

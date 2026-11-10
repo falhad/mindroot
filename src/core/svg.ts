@@ -118,6 +118,7 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
     if (n.notes?.trim()) badge('¶')
     if (n.link) badge('↗')
     if (n.checklist?.length) badge('☑')
+    if (n.tags?.length) badge('#')
 
     if (n.image) {
       out.push(`<image x="${(bx.w - m.imgW) / 2}" y="${top + textBlockH + 8}" width="${m.imgW}" height="${m.imgH}" href="${esc(n.image.src)}" preserveAspectRatio="xMidYMid slice"/>`)

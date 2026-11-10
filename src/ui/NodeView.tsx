@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
+import { Hash, Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
 import { PLACEHOLDER, type NodeMetrics } from '../core/measure'
 import type { Box, MindNode } from '../core/types'
 import { isRtl, type NodeVisual } from '../core/visual'
@@ -16,13 +16,15 @@ export interface NodeViewProps {
   selected: boolean
   editing: boolean
   dim: boolean
+  /** Part of the path to a tag-filter match: shown a little faded. */
+  soft?: boolean
   match: boolean
   dropInto: boolean
   dragging: boolean
   connecting: boolean
 }
 
-function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, dropInto, dragging, connecting }: NodeViewProps) {
+function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, match, dropInto, dragging, connecting }: NodeViewProps) {
   const plain = !vis.fill && !vis.stroke
   const style: CSSProperties = {
     transform: `translate(${box.x}px, ${box.y}px)`,
@@ -35,7 +37,7 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, 
     ['--sel' as string]: vis.accent,
     font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px var(--font-sans)`,
   }
-  const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
+  const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', soft && 'soft', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
     .filter(Boolean)
     .join(' ')
   const textW = box.w - m.padX * 2 - m.iconW - m.badgeW
@@ -71,6 +73,9 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, 
             )}
             {node.checklist?.length ? (
               <span data-badge="check" title="Checklist" style={badge}><SquareCheckBig size={13} /></span>
+            ) : null}
+            {node.tags?.length ? (
+              <span data-badge="tags" title={node.tags.map((t) => `#${t}`).join(' ')} style={badge}><Hash size={13} /></span>
             ) : null}
           </span>
         )}

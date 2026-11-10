@@ -114,7 +114,7 @@ export function depthStyle(depth: number) {
 }
 
 export function badgeCount(n: MindNode): number {
-  return (n.notes?.trim() ? 1 : 0) + (n.link ? 1 : 0) + (n.checklist?.length ? 1 : 0)
+  return (n.notes?.trim() ? 1 : 0) + (n.link ? 1 : 0) + (n.checklist?.length ? 1 : 0) + (n.tags?.length ? 1 : 0)
 }
 
 /** `textOverride` lets the editor measure the live draft while typing. */

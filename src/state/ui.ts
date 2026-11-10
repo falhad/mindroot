@@ -31,6 +31,8 @@ interface UiState {
   settingsOpen: boolean
   /** Tab id in the settings dialog: `general`, `plugins`, or a plugin id. */
   settingsTab: string
+  /** Tags selected in the tag filter (empty = no filter). Not saved with the map. */
+  tagFilter: string[]
   toasts: Toast[]
 }
 
@@ -66,6 +68,7 @@ export const useUi = create<UiState>(() => ({
   helpOpen: false,
   settingsOpen: false,
   settingsTab: 'general',
+  tagFilter: [],
   toasts: [],
   confirm: null,
 }))
@@ -109,6 +112,8 @@ export const ui = {
   setSearch: (searchOpen: boolean) => set({ searchOpen }),
   setExport: (exportOpen: boolean) => set({ exportOpen }),
   setHelp: (helpOpen: boolean) => set({ helpOpen }),
+  setTagFilter: (tagFilter: string[]) => set({ tagFilter }),
+  toggleTag: (tag: string) => set((s) => ({ tagFilter: s.tagFilter.includes(tag) ? s.tagFilter.filter((t) => t !== tag) : [...s.tagFilter, tag] })),
   setSettings: (settingsOpen: boolean, settingsTab?: string) => set((s) => ({ settingsOpen, settingsTab: settingsTab ?? s.settingsTab })),
 }
 

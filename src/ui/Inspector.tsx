@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ExternalLink, ImagePlus, Link2, Plus, Trash2, X, Check, Smile } from 'lucide-react'
 import { THEMES, getTheme } from '../core/themes'
 import * as T from '../core/tree'
+import { normalizeTag, setNodeTags } from '../core/tags'
 import type { MindNode, ShapeKind } from '../core/types'
 import { openExternal, pickFile, readImage } from '../io/files'
 import { commit, primary, setConnectFrom, useDoc } from '../state/doc'
@@ -41,6 +42,48 @@ export function Inspector({ onClose }: { onClose: () => void }) {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">{active === 'node' && node ? <NodePanel node={node} /> : <MapPanel />}</div>
     </aside>
+  )
+}
+
+// ---------------- tags ----------------
+
+/** Chips plus an input. Enter or comma adds; Backspace on an empty input removes the last tag. */
+function TagEditor({ ids, tags }: { ids: string[]; tags: string[] }) {
+  const [v, setV] = useState('')
+  const add = (raw: string) => {
+    const parts = raw.split(/[,،]/).map(normalizeTag).filter(Boolean)
+    if (!parts.length) return
+    commit((d) => setNodeTags(d, ids, [...new Set([...tags, ...parts])]))
+    setV('')
+  }
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5" aria-label="Tags">
+        {tags.map((t) => (
+          <span key={t} data-tag={t} className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-[12px]" dir="auto">
+            #{t}
+            <button className="grid h-4 w-4 place-items-center rounded-full hover:bg-line" aria-label={`Remove tag ${t}`} onClick={() => commit((d) => setNodeTags(d, ids, tags.filter((x) => x !== t)))}>
+              <X size={11} />
+            </button>
+          </span>
+        ))}
+      </div>
+      <input
+        className="field mt-2"
+        dir="auto"
+        placeholder="Add a tag, press Enter"
+        aria-label="Add tag"
+        value={v}
+        spellCheck={false}
+        onChange={(e) => (/[,،]$/.test(e.target.value) ? add(e.target.value) : setV(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return
+          if (e.key === 'Enter') { e.preventDefault(); add(v) }
+          else if (e.key === 'Backspace' && !v && tags.length) commit((d) => setNodeTags(d, ids, tags.slice(0, -1)))
+        }}
+        onBlur={() => add(v)}
+      />
+    </div>
   )
 }
 
@@ -144,6 +187,10 @@ function NodePanel({ node }: { node: MindNode }) {
             </div>
           </div>
         )}
+      </Section>
+
+      <Section title="Tags">
+        <TagEditor ids={selection} tags={node.tags ?? []} />
       </Section>
 
       <Section title="Notes">

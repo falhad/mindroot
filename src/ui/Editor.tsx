@@ -24,6 +24,7 @@ import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
 import { Minimap } from './Minimap'
 import { StatusSlot } from './StatusSlot'
+import { TagFilter } from './TagFilter'
 import { ContextMenu, Palette, SearchBar, type ContextState } from './Overlays'
 
 type Phase = 'loading' | 'ready' | 'missing' | 'error'
@@ -37,6 +38,7 @@ export function Editor({ id }: { id: string }) {
     let alive = true
     let opened = false
     setPhase('loading')
+    ui.setTagFilter([])
     store
       .load(id)
       .then(async (doc) => {
@@ -213,6 +215,7 @@ function TopBar() {
         <button className="btn icon" aria-label="Redo" title="Redo (⇧⌘Z)" disabled={!canRedo} onClick={redo}><Redo2 size={16} /></button>
         <span className="mx-1 h-5 w-px bg-line" />
         <LayoutMenu />
+        <TagFilter />
         <button className="btn icon" aria-label="Find" title="Find (⌘F)" onClick={() => ui.setSearch(true)}><Search size={16} /></button>
         <button className="btn icon" aria-label="Command palette" title="Commands (⌘K)" onClick={() => ui.setPalette(true)}><Command size={16} /></button>
         <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>

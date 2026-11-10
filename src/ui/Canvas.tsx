@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { edgePath, relationPath } from '../core/edges'
 import { hitTest, type LayoutResult } from '../core/layout'
+import { tagFilterState } from '../core/tags'
 import { subtreeIds, movable } from '../core/tree'
 import type { Box, MapDoc } from '../core/types'
 import { makeVisualContext, nodeVisual } from '../core/visual'
@@ -349,6 +350,8 @@ export function Canvas({ doc, layout, onContext }: Props) {
   const matches = useMemo(() => new Set(search.hits.map((h) => h.id)), [search.hits])
   const searching = search.query.trim() !== ''
   const selSet = useMemo(() => new Set(selection), [selection])
+  const tagFilter = useUi((s) => s.tagFilter)
+  const tagState = useMemo(() => tagFilterState(doc, tagFilter), [doc, tagFilter])
 
   const dropIndicator = (() => {
     if (!drag?.drop || drag.drop.kind === 'into') return null
@@ -426,7 +429,8 @@ export function Canvas({ doc, layout, onContext }: Props) {
             side={childSide(doc, layout, id)}
             selected={selSet.has(id)}
             editing={editingId === id}
-            dim={searching && !matches.has(id)}
+            dim={searching ? !matches.has(id) : tagState?.get(id) === 'dim'}
+            soft={!searching && tagState?.get(id) === 'path'}
             match={searching && matches.has(id)}
             dropInto={drag?.drop?.kind === 'into' && drag.drop.id === id}
             dragging={!!drag && drag.skip.has(id)}
