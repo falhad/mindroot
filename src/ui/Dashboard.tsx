@@ -6,6 +6,8 @@ import { TEMPLATES } from '../core/templates'
 import type { MapMeta } from '../core/types'
 import { isMac, isTauri } from '../io/env'
 import { pickFile } from '../io/files'
+import { importAccept } from '../io/importers'
+import { useRegistry } from '../plugins/host'
 import {
   createMap, deleteForever, duplicateMap, emptyTrash, importFile, libraryActions, refreshLibrary, renameMap, restoreMap, setTags, toggleStar,
   trashMap, useLibrary, visibleItems, type Sort,
@@ -123,7 +125,7 @@ export function Dashboard() {
           <StatusSlot />
           <button className="btn icon" aria-label="Settings" title="Settings and plugins (⌘,)" onClick={() => ui.setSettings(true, 'general')}><Settings size={16} /></button>
           <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
-          <button className="btn outline" aria-label="Import" onClick={async () => void importFiles(await pickFile('.json,.md,.markdown,.txt,application/json', true))}>
+          <button className="btn outline" aria-label="Import" onClick={async () => void importFiles(await pickFile(importAccept(useRegistry.getState().importers), true))}>
             <Upload size={15} /> <span className="hidden sm:inline">Import</span>
           </button>
           <button className="btn primary" aria-label="New map" disabled={busy} onClick={() => void open('blank')}>

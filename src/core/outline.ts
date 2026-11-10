@@ -8,6 +8,14 @@ export interface OutNode {
   notes?: string
   link?: string
   checklist?: { text: string; done: boolean }[]
+  collapsed?: boolean
+  /** `#rrggbb` */
+  color?: string
+  /** Mind-map side for a child of the central idea. */
+  side?: 'left' | 'right'
+  tags?: string[]
+  /** An id from the source file. `buildOutlineDoc` returns the node id made for it. */
+  ref?: string
   children: OutNode[]
 }
 
@@ -81,25 +89,36 @@ export function parseOutline(text: string): OutNode[] {
 
 /** Build a document from an outline. A single top-level item becomes the root. */
 export function docFromOutline(forest: OutNode[], fallbackTitle = 'Imported map'): MapDoc {
+  return buildOutlineDoc(forest, fallbackTitle).doc
+}
+
+/** Like `docFromOutline`, and also tells which node id was made for each `ref` of the outline. */
+export function buildOutlineDoc(forest: OutNode[], fallbackTitle = 'Imported map'): { doc: MapDoc; idByRef: Map<string, string> } {
   const rootOut: OutNode = forest.length === 1 ? forest[0] : { text: fallbackTitle, children: forest }
   const doc = createDoc(rootOut.text || fallbackTitle)
-  const apply = (n: MindNode, o: OutNode) => {
+  const idByRef = new Map<string, string>()
+  const apply = (n: MindNode, o: OutNode, isRootChild: boolean) => {
     if (o.notes) n.notes = o.notes
     if (o.link) n.link = o.link
     if (o.checklist?.length) n.checklist = o.checklist.map((c) => ({ id: uid(8), text: c.text, done: c.done }))
+    if (o.collapsed) n.collapsed = true
+    if (o.color && /^#[0-9a-fA-F]{6}$/.test(o.color)) n.color = o.color
+    if (isRootChild && o.side) n.side = o.side
+    if (o.tags?.length) n.tags = [...o.tags]
+    if (o.ref !== undefined) idByRef.set(o.ref, n.id)
   }
   const build = (parentId: string, o: OutNode) => {
     for (const c of o.children) {
       const id = uid()
       doc.nodes[id] = { id, parentId, children: [], text: c.text }
       doc.nodes[parentId].children.push(id)
-      apply(doc.nodes[id], c)
+      apply(doc.nodes[id], c, parentId === doc.root)
       build(id, c)
     }
   }
-  apply(doc.nodes[doc.root], rootOut)
+  apply(doc.nodes[doc.root], rootOut, false)
   build(doc.root, rootOut)
-  return doc
+  return { doc, idByRef }
 }
 
 export function toMarkdown(doc: MapDoc): string {
