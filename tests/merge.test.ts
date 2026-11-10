@@ -185,3 +185,85 @@ describe('merge: edge cases', () => {
     expect(mergeMapTexts(r.text, r.text, r.text).text).toBe(r.text)
   })
 })
+
+describe('merge: v3 data', () => {
+  const sib = (d: MapDoc, a: string, b: string) => [id(d, a), id(d, b)]
+
+  it('groups added on both sides are both kept (merged by id)', () => {
+    const b = base()
+    const o = edit(b, 2000, (x) => void (x.groups = [{ id: 'g1', ids: sib(x, 'A', 'B'), label: 'ours' }]))
+    const t = edit(b, 3000, (x) => void (x.groups = [{ id: 'g2', ids: sib(x, 'B', 'C') }]))
+    const d = load(merge(b, o, t).text)
+    expect(d.groups!.map((g) => g.id).sort()).toEqual(['g1', 'g2'])
+  })
+
+  it('group member lists merge as sets', () => {
+    const b = edit(base(), 1000, (x) => void (x.groups = [{ id: 'g1', ids: sib(x, 'A', 'B') }]))
+    const o = edit(b, 2000, (x) => void (x.groups![0].ids = [id(x, 'A'), id(x, 'B'), id(x, 'C')]))
+    const t = edit(b, 3000, (x) => void (x.groups![0].label = 'named'))
+    const g = load(merge(b, o, t).text).groups![0]
+    expect(g.ids).toHaveLength(3)
+    expect(g.label).toBe('named')
+  })
+
+  it('group removed on one side and edited on the other keeps the edit', () => {
+    const b = edit(base(), 1000, (x) => void (x.groups = [{ id: 'g1', ids: sib(x, 'A', 'B') }]))
+    const o = edit(b, 2000, (x) => void (x.groups = []))
+    const t = edit(b, 3000, (x) => void (x.groups![0].label = 'kept'))
+    expect(load(merge(b, o, t).text).groups![0].label).toBe('kept')
+  })
+
+  it('a summary whose node was deleted on the other side is dropped, not left dangling', () => {
+    const b = edit(base(), 1000, (x) => void (x.summaries = [{ id: 's1', parentId: x.root, from: id(x, 'A'), to: id(x, 'B'), label: 'AB' }]))
+    const o = edit(b, 2000, (x) => void T.removeNodes(x, [id(x, 'B')]))
+    const t = edit(b, 3000, (x) => void (x.nodes[id(x, 'C')].text = 'C2'))
+    const d = load(merge(b, o, t).text)
+    expect(d.summaries ?? []).toEqual([])
+    expect(d.nodes[id(b, 'C')].text).toBe('C2')
+  })
+
+  it('new node fields merge per field and the newer edit wins on overlap', () => {
+    const b = base()
+    const o = edit(b, 2000, (x) => {
+      x.nodes[id(x, 'A')].tags = ['one']
+      x.nodes[id(x, 'A')].due = '2026-12-01'
+    })
+    const t = edit(b, 3000, (x) => {
+      x.nodes[id(x, 'A')].done = true
+      x.nodes[id(x, 'A')].due = '2026-12-09'
+    })
+    const r = merge(b, o, t)
+    const a = load(r.text).nodes[id(b, 'A')]
+    expect([a.tags, a.done, a.due]).toEqual([['one'], true, '2026-12-09'])
+    expect(r.conflicts).toBe(1)
+  })
+
+  it('floating nodes survive a merge and are not re-attached to the root', () => {
+    const b = edit(base(), 1000, (x) => void (x.nodes.fl = { id: 'fl', parentId: null, children: [], text: 'Loose', pos: { x: 5, y: 6 } }))
+    const o = edit(b, 2000, (x) => void (x.nodes.fl.pos = { x: 50, y: 60 }))
+    const t = edit(b, 3000, (x) => void (x.nodes[id(x, 'B')].text = 'B2'))
+    const r = merge(b, o, t)
+    const d = load(r.text)
+    expect(d.nodes.fl.parentId).toBeNull()
+    expect(d.nodes.fl.pos).toEqual({ x: 50, y: 60 })
+    expect(r.rescued).toBe(0)
+  })
+
+  it('unknown records and header fields from both sides are unioned', () => {
+    const b = base()
+    const addLine = (s: string, extra: string) => s.trimEnd() + '\n' + extra + '\n'
+    const o = addLine(text(b), '{"t":"widget","id":"w1"}')
+    const t = addLine(text(b), '{"t":"gadget","id":"g9"}')
+    const r = mergeMapTexts(text(b), o, t)
+    expect(r.text).toContain('{"t":"widget","id":"w1"}')
+    expect(r.text).toContain('{"t":"gadget","id":"g9"}')
+  })
+
+  it('font, direction and custom theme merge like other settings', () => {
+    const b = base()
+    const o = edit(b, 2000, (x) => void (x.font = 'mono'))
+    const t = edit(b, 3000, (x) => void (x.dir = 'rtl'))
+    const d = load(merge(b, o, t).text)
+    expect([d.font, d.dir]).toEqual(['mono', 'rtl'])
+  })
+})
