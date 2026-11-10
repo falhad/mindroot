@@ -96,7 +96,7 @@ function TagEditor({ ids, tags }: { ids: string[]; tags: string[] }) {
   }
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5" aria-label="Tags">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tags">
         {tags.map((t) => (
           <span key={t} data-tag={t} className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-[12px]" dir="auto">
             #{t}

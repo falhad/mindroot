@@ -7,7 +7,6 @@ import { usePresence, type Peer } from '../../../state/presence'
 import { mergeDocs } from '../../../sync/merge'
 import type { PluginContext } from '../../types'
 import { applyDocToY, docToY, isEmptyY, LOCAL, yToDoc } from './bind'
-import { roomName, roomToken } from './crypto'
 
 export type CollabStatus = 'off' | 'connecting' | 'live' | 'offline' | 'denied' | 'error'
 
@@ -28,7 +27,9 @@ const COLORS = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#9333ea', '#0891b2'
 export interface SessionOptions {
   ctx: PluginContext
   serverUrl: string
-  secret: string
+  /** The room of this map and its token (never the master secret). */
+  room: string
+  token: string
   name: string
   mapId: string
 }
@@ -83,9 +84,8 @@ export class Session {
     })
   }
 
-  static async open(o: SessionOptions): Promise<Session> {
-    const room = await roomName(o.secret, o.mapId)
-    return new Session(o, room, await roomToken(o.secret, room))
+  static open(o: SessionOptions): Session {
+    return new Session(o, o.room, o.token)
   }
 
   /** The first sync with the room finished: write our map into an empty room, or merge with what is there. */

@@ -10,6 +10,28 @@ import { buildCommands, fitCurrent } from './commands'
 import { expandToLevel } from '../state/doc'
 
 export function Modal({ onClose, children, width = 520, top = '12vh', label }: { onClose: () => void; children: ReactNode; width?: number; top?: string; label: string }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  // While the dialog is open nothing behind it can be reached (keyboard or screen reader): everything outside
+  // the dialog's own branch of the page is made inert. Focus moves into the dialog and returns to what opened it.
+  useEffect(() => {
+    const el = dialogRef.current
+    if (!el) return
+    const opener = document.activeElement as HTMLElement | null
+    const inerted: HTMLElement[] = []
+    for (let n: HTMLElement | null = el; n && n !== document.body; n = n.parentElement) {
+      for (const s of Array.from(n.parentElement?.children ?? []) as HTMLElement[]) {
+        if (s === n || s.inert || s.tagName === 'SCRIPT' || s.hasAttribute('data-keep-live')) continue
+        s.inert = true
+        inerted.push(s)
+      }
+    }
+    const first = el.querySelector<HTMLElement>('[autofocus], input:not([type=hidden]), select, textarea, button, [href]')
+    ;(first ?? el).focus({ preventScroll: true })
+    return () => {
+      for (const s of inerted) s.inert = false
+      if (opener && document.contains(opener)) opener.focus({ preventScroll: true })
+    }
+  }, [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -23,12 +45,23 @@ export function Modal({ onClose, children, width = 520, top = '12vh', label }: {
   return (
     <div className="fixed inset-0 z-50 fade" style={{ background: 'rgba(8,10,16,0.42)', backdropFilter: 'blur(3px)' }} onMouseDown={onClose}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-label={label}
         aria-modal="true"
         className="glass rise absolute left-1/2 overflow-hidden rounded-2xl"
         style={{ top, width: `min(${width}px, calc(100vw - 24px))`, transform: 'translateX(-50%)', background: 'var(--panel-solid)', boxShadow: 'var(--shadow-lg)' }}
         onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Tab and Shift+Tab go round inside the dialog instead of leaving it
+          if (e.key !== 'Tab' || !dialogRef.current) return
+          const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter((el) => el.offsetParent !== null)
+          if (!items.length) return e.preventDefault()
+          const active = document.activeElement
+          if (e.shiftKey && (active === items[0] || active === dialogRef.current)) { e.preventDefault(); items[items.length - 1].focus() }
+          else if (!e.shiftKey && active === items[items.length - 1]) { e.preventDefault(); items[0].focus() }
+        }}
       >
         {children}
       </div>
@@ -39,7 +72,7 @@ export function Modal({ onClose, children, width = 520, top = '12vh', label }: {
 export function Toasts() {
   const toasts = useUi((s) => s.toasts)
   return (
-    <div className="pointer-events-none fixed bottom-20 left-1/2 z-[70] flex -translate-x-1/2 flex-col items-center gap-2" aria-live="polite">
+    <div data-keep-live className="pointer-events-none fixed bottom-20 left-1/2 z-[70] flex -translate-x-1/2 flex-col items-center gap-2" aria-live="polite">
       {toasts.map((t) => (
         <div
           key={t.id}

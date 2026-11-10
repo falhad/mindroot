@@ -214,34 +214,49 @@ describe('invites and room names', async () => {
   const { roomName, roomToken } = await import('../src/plugins/builtin/collab/crypto')
   const { createHmac } = await import('node:crypto')
   const secret = 'abcdefghijklmnop0123456789'
+  const room = 'a'.repeat(40)
+  const token = 'b'.repeat(64)
+  const make = (o: object) => 'branchmint-invite:' + btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  const ok = { s: 'wss://relay.example.com', r: room, k: token, m: 'map1', t: 'x' }
 
   it('an invite survives encode and decode, including a Persian title', () => {
-    const text = encodeInvite({ serverUrl: 'wss://relay.example.com', secret, mapId: 'map_1-x', title: 'نقشه من' })
+    const text = encodeInvite({ serverUrl: 'wss://relay.example.com', room, token, mapId: 'map_1-x', title: 'نقشه من' })
     expect(text.startsWith('branchmint-invite:')).toBe(true)
-    expect(decodeInvite(`  ${text}\n`)).toEqual({ serverUrl: 'wss://relay.example.com', secret, mapId: 'map_1-x', title: 'نقشه من' })
+    expect(decodeInvite(`  ${text}\n`)).toEqual({ serverUrl: 'wss://relay.example.com', room, token, mapId: 'map_1-x', title: 'نقشه من' })
+  })
+
+  it('an invite never contains the master secret: only one room and that room’s token', () => {
+    const r = await_room()
+    function await_room() {
+      return encodeInvite({ serverUrl: 'wss://relay.example.com', room, token, mapId: 'm', title: '' })
+    }
+    const body = atob(r.slice('branchmint-invite:'.length).replace(/-/g, '+').replace(/_/g, '/'))
+    expect(Object.keys(JSON.parse(body)).sort()).toEqual(['k', 'm', 'r', 's', 't'])
+    expect(body).not.toContain(secret)
   })
 
   it('rejects text that is not an invite or has unsafe or invalid parts', () => {
-    const make = (o: object) => 'branchmint-invite:' + btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-    const ok = { s: 'wss://relay.example.com', k: secret, m: 'map1', t: 'x' }
     expect(decodeInvite(make(ok))).not.toBeNull()
     expect(decodeInvite('hello')).toBeNull()
     expect(decodeInvite('branchmint-invite:%%%')).toBeNull()
     expect(decodeInvite(make({ ...ok, s: 'ws://relay.example.com' }))).toBeNull() // plain ws only for this computer
     expect(decodeInvite(make({ ...ok, s: 'ws://localhost:8787' }))).not.toBeNull()
     expect(decodeInvite(make({ ...ok, s: 'https://relay.example.com' }))).toBeNull()
+    expect(decodeInvite(make({ ...ok, r: 'short' }))).toBeNull()
+    expect(decodeInvite(make({ ...ok, r: 'A'.repeat(40) }))).toBeNull()
     expect(decodeInvite(make({ ...ok, k: 'short' }))).toBeNull()
+    expect(decodeInvite(make({ ...ok, k: 'g'.repeat(64) }))).toBeNull()
     expect(decodeInvite(make({ ...ok, m: '../x' }))).toBeNull()
     expect(decodeInvite(make({ ...ok, m: '' }))).toBeNull()
     expect(decodeInvite('branchmint-invite:' + 'A'.repeat(5000))).toBeNull()
   })
 
   it('room names and tokens match what the relay computes with Node’s HMAC', async () => {
-    const room = await roomName(secret, 'map-42')
-    expect(room).toBe(createHmac('sha256', secret).update('room:map-42').digest('hex').slice(0, 40))
-    expect(room).toMatch(/^[0-9a-f]{40}$/)
-    expect(await roomToken(secret, room)).toBe(createHmac('sha256', secret).update(`token:${room}`).digest('hex'))
-    expect(await roomName(secret, 'other')).not.toBe(room)
-    expect(await roomName('different-secret-0123456789', 'map-42')).not.toBe(room)
+    const r = await roomName(secret, 'map-42')
+    expect(r).toBe(createHmac('sha256', secret).update('room:map-42').digest('hex').slice(0, 40))
+    expect(r).toMatch(/^[0-9a-f]{40}$/)
+    expect(await roomToken(secret, r)).toBe(createHmac('sha256', secret).update(`token:${r}`).digest('hex'))
+    expect(await roomName(secret, 'other')).not.toBe(r)
+    expect(await roomName('different-secret-0123456789', 'map-42')).not.toBe(r)
   })
 })

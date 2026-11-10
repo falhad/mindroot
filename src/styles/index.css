@@ -12,10 +12,10 @@
   --line: rgba(15, 23, 42, 0.09);
   --line-strong: rgba(15, 23, 42, 0.16);
   --ink: #0f172a;
-  --muted: #64748b;
+  --muted: #586577; /* 4.8:1 or better on every surface (WCAG AA) */
   --hover: rgba(15, 23, 42, 0.06);
   --active: rgba(13, 148, 136, 0.14);
-  --accent: #0d9488;
+  --accent: #0b625b; /* white text on it is 6.8:1, and it is 5.6:1 on the selected tint */
   --accent-ink: #ffffff;
   --danger: #dc2626;
   --dot: rgba(100, 116, 139, 0.32);
@@ -33,7 +33,7 @@
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.16);
   --ink: #e8ebf2;
-  --muted: #8b93a7;
+  --muted: #9ca4b8; /* 4.7:1 or better, also on the selected tint */
   --hover: rgba(255, 255, 255, 0.07);
   --active: rgba(45, 212, 191, 0.18);
   --accent: #2dd4bf;
@@ -79,12 +79,15 @@ body {
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
-button,
-input,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
+/* in the base layer, so the component classes (.btn.primary ...) can set their own colour */
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
 }
 :focus-visible {
   outline: 2px solid var(--accent);

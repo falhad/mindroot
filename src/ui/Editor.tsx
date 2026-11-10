@@ -24,6 +24,7 @@ import { ExportDialog } from './ExportDialog'
 import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
 import { usePresent } from '../state/present'
+import { A11yLive } from './A11yLive'
 import { ComparePicker, CompareView } from './Compare'
 import { HistoryPanel } from './History'
 import { FocusBar } from './FocusBar'
@@ -189,6 +190,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
         </>
       )}
       <Presentation />
+      <A11yLive />
       {connectFrom && (
         <div className="glass rise absolute left-1/2 top-16 z-30 flex -translate-x-1/2 items-center gap-3 rounded-xl py-2 pl-4 pr-2 text-[13px]">
           <Link2 size={15} className="text-accent" />

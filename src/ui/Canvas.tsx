@@ -426,6 +426,9 @@ export function Canvas({ doc, layout, onContext }: Props) {
       style={background}
       tabIndex={-1}
       data-testid="canvas"
+      role="tree"
+      aria-label="Mind map"
+      aria-multiselectable="true"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finish(e)}
@@ -434,9 +437,9 @@ export function Canvas({ doc, layout, onContext }: Props) {
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
     >
-      <div className="world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
+      <div className="world" role="presentation" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
         <GroupBoxes doc={doc} layout={layout} dark={dark} shown={shown} />
-        <svg className="edges" fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="edges" aria-hidden="true" focusable="false" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M1 1L9 5L1 9" fill="none" stroke="var(--muted)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -485,6 +488,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
             editing={editingId === id}
             dim={searching ? !matches.has(id) : tagState?.get(id) === 'dim'}
             soft={!searching && tagState?.get(id) === 'path'}
+            level={layout.depth[id] + 1}
             stepHidden={!!shown && !shown.has(id)}
             peer={peerBy.get(id)}
             match={searching && matches.has(id)}

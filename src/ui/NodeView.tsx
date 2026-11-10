@@ -20,6 +20,8 @@ export interface NodeViewProps {
   soft?: boolean
   /** Not revealed yet in a presentation. */
   stepHidden?: boolean
+  /** Depth in the map, the central idea is 1. */
+  level?: number
   /** Another person who has this idea selected (live collaboration). */
   peer?: { name: string; color: string }
   match: boolean
@@ -28,7 +30,7 @@ export interface NodeViewProps {
   connecting: boolean
 }
 
-function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, stepHidden, peer, match, dropInto, dragging, connecting }: NodeViewProps) {
+function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, stepHidden, level, peer, match, dropInto, dragging, connecting }: NodeViewProps) {
   const plain = !vis.fill && !vis.stroke
   const style: CSSProperties = {
     transform: `translate(${box.x}px, ${box.y}px)`,
@@ -48,7 +50,16 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, s
   const textW = box.w - m.padX * 2 - m.iconW - m.badgeW
 
   return (
-    <div className={cls} style={style} data-node-id={node.id}>
+    <div
+      className={cls}
+      style={style}
+      data-node-id={node.id}
+      role="treeitem"
+      aria-level={level}
+      aria-selected={selected}
+      aria-expanded={node.children.length ? !node.collapsed : undefined}
+      aria-label={node.text.replace(/\s+/g, ' ').trim() || 'New idea'}
+    >
       <div style={{ display: 'flex', padding: `${m.padY}px ${m.padX}px 0`, height: m.lines.length * m.lineH }}>
         {node.icon && (
           <span style={{ width: m.iconW, display: 'grid', placeItems: 'center start', height: m.lineH, flex: 'none' }}>

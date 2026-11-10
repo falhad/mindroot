@@ -132,7 +132,7 @@ test.describe('live collaboration (two browsers and the relay)', () => {
     await ctxB.close()
   })
 
-  test('a wrong secret is refused: no map is downloaded and the message says why', async ({ browser }) => {
+  test('a wrong token is refused: no map is downloaded and nothing is remembered', async ({ browser }) => {
     const ctxA = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
     const a = await ctxA.newPage()
     await newMap(a, '# Private\n- One')
@@ -143,7 +143,7 @@ test.describe('live collaboration (two browsers and the relay)', () => {
 
     // the same invite with a different secret inside
     const body = JSON.parse(Buffer.from(invite.slice('branchmint-invite:'.length), 'base64url').toString('utf8'))
-    body.k = 'another-secret-0123456789-xyz'
+    body.k = 'c'.repeat(64) // a token the relay did not issue for this room
     const forged = 'branchmint-invite:' + Buffer.from(JSON.stringify(body)).toString('base64url')
 
     const ctxC = await browser.newContext()
@@ -152,10 +152,55 @@ test.describe('live collaboration (two browsers and the relay)', () => {
     await openSettingsTab(c)
     await c.getByLabel('Invite').fill(forged)
     await c.getByRole('button', { name: 'Join', exact: true }).click()
-    await expect(c.getByText(/did not accept the secret/)).toBeVisible({ timeout: 20_000 })
+    await expect(c.getByText(/did not accept this invite/)).toBeVisible({ timeout: 20_000 })
     await c.keyboard.press('Escape')
     await expect(c.getByRole('button', { name: /Open Private/ })).toHaveCount(0)
     await ctxA.close()
     await ctxC.close()
+  })
+
+  test('an invite opens one map only: the invitee has no secret and cannot share anything else', async ({ browser }) => {
+    const ctxA = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const ctxB = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const { a, b } = await startSession(ctxA, ctxB)
+    // the invite text does not contain the master secret
+    const invite = await a.evaluate(() => navigator.clipboard.readText())
+    expect(Buffer.from(invite.slice('branchmint-invite:'.length), 'base64url').toString('utf8')).not.toContain(SECRET)
+    // B can use the map it was invited to ...
+    await expect(status(b)).toHaveAttribute('data-collab-status', 'live')
+    // ... but has no secret and no server of its own, so it cannot share another map
+    await b.getByRole('button', { name: 'All maps' }).click()
+    await newMap(b, '# Ben private\n- X')
+    await runCommand(b, 'Share this map live')
+    await expect(b.getByText(/Set the server address and the secret first/)).toBeVisible()
+    await ctxA.close()
+    await ctxB.close()
+  })
+
+  test('an invite that would re-point an already shared map asks first, and Cancel changes nothing', async ({ browser }) => {
+    const ctxA = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const ctxB = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const { a, b } = await startSession(ctxA, ctxB)
+    const invite = await a.evaluate(() => navigator.clipboard.readText())
+    const body = JSON.parse(Buffer.from(invite.slice('branchmint-invite:'.length), 'base64url').toString('utf8'))
+    body.s = 'ws://127.0.0.1:8799' // a different (not running) server, for the same map
+    const other = 'branchmint-invite:' + Buffer.from(JSON.stringify(body)).toString('base64url')
+
+    await openSettingsTab(b)
+    await b.getByLabel('Invite').fill(other)
+    await b.getByRole('button', { name: 'Join', exact: true }).click()
+    await expect(b.getByRole('dialog', { name: /Replace how this map is shared/ })).toBeVisible()
+    await b.getByRole('button', { name: 'Cancel' }).click()
+    await expect(b.getByText(/Cancelled. Nothing was changed./)).toBeVisible()
+    await b.keyboard.press('Escape')
+    // still connected to the original server
+    await expect(status(b)).toHaveAttribute('data-collab-status', 'live')
+    await node(a, 'Alpha').click()
+    await a.keyboard.press('Tab')
+    await a.keyboard.type('Still shared')
+    await a.keyboard.press('Escape')
+    await expect(node(b, 'Still shared')).toBeVisible({ timeout: 5000 })
+    await ctxA.close()
+    await ctxB.close()
   })
 })

@@ -51,7 +51,7 @@ export function CollabSettings({ ctx }: { ctx: PluginContext }) {
         <input className="field" aria-label="Your name" dir="auto" value={cfg.name} onChange={(e) => save({ ...cfg, name: e.target.value })} />
       </label>
       <div className="text-[12.5px]">
-        <span className="mb-1 block text-muted">Shared secret {hasSecret && <b className="text-ink">· saved</b>}</span>
+        <span className="mb-1 block text-muted">Relay secret (only needed to share your own maps) {hasSecret && <b className="text-ink">· saved</b>}</span>
         <div className="flex gap-2">
           <input className="field" type="password" aria-label="Shared secret" autoComplete="off" placeholder={hasSecret ? '•••••••• (saved, type a new one to replace)' : 'At least 16 characters'} value={secretInput} onChange={(e) => setSecretInput(e.target.value)} />
           <button className="btn outline" disabled={!secretInput.trim()} onClick={() => void saveSecret(secretInput)}>Save</button>
@@ -76,7 +76,7 @@ export function CollabSettings({ ctx }: { ctx: PluginContext }) {
         }}>{busy ? 'Joining…' : 'Join'}</button>
       </div>
       {msg && <p className="text-[12.5px]" role="status" style={{ color: msg.ok ? undefined : 'var(--danger)' }}>{msg.text}</p>}
-      <p className="text-[12px] text-muted">Maps you share: {cfg.shared.length}. Use “Stop sharing this map” in the command palette (⌘K) to stop.</p>
+      <p className="text-[12px] text-muted">Shared maps on this computer: {Object.keys(cfg.connections).length}. An invite opens one map only and never contains your secret. Use “Stop sharing this map” in the command palette (⌘K) to stop.</p>
     </div>
   )
 }
