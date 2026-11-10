@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  ArrowLeft, Check, CloudOff, Download, Loader2, Maximize, Minus, Moon, PanelRight, Plus, Redo2, Search, Sun, Monitor,
+  ArrowLeft, Check, CloudOff, Download, Loader2, Maximize, Minus, Moon, PanelLeft, PanelRight, Plus, Redo2, Search, Sun, Monitor,
   Command, Undo2, CornerDownRight, ListTree, Link2, X,
 } from 'lucide-react'
 import { resetMeasureCache } from '../core/measure'
@@ -15,7 +15,7 @@ import {
 import { emit } from '../plugins/host'
 import { flushSave } from '../state/persist'
 import { cycleTheme, toast, ui, useUi } from '../state/ui'
-import { revealBox, setInsetRight, setView, useView, zoomBy } from '../state/view'
+import { animateTo, revealBox, setInsetLeft, setInsetRight, setView, useView, zoomBy } from '../state/view'
 import { Canvas } from './Canvas'
 import { fitCurrent, goHome, setLayout, resetZoom, LAYOUTS } from './commands'
 import { ExportDialog } from './ExportDialog'
@@ -23,6 +23,7 @@ import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
 import { usePresent } from '../state/present'
 import { FocusBar } from './FocusBar'
+import { Outline } from './Outline'
 import { Presentation } from './Presentation'
 import { Minimap } from './Minimap'
 import { StatusSlot } from './StatusSlot'
@@ -106,7 +107,21 @@ export function Editor({ id }: { id: string }) {
 function Workspace({ restore }: { restore: { x: number; y: number; k: number } | null }) {
   useEditorHotkeys()
   const presenting = usePresent((s) => s.active)
+  const outlineOpen = useUi((s) => s.outlineOpen) && !presenting
   const panelOpen = useUi((s) => s.inspectorOpen) && !presenting
+  const firstOutline = useRef(true)
+  useLayoutEffect(() => {
+    const next = outlineOpen && innerWidth >= 900 ? 336 : 0
+    const before = useView.getState().insetLeft
+    setInsetLeft(next)
+    // the visible centre moves by half the panel width: slide the map so it stays in view
+    if (!firstOutline.current && next !== before) {
+      const v = useView.getState()
+      animateTo({ x: v.x + (next - before) / 2, y: v.y, k: v.k }, 220)
+    }
+    firstOutline.current = false
+  }, [outlineOpen])
+  useEffect(() => () => setInsetLeft(0), [])
   // The floating inspector covers the right edge on wide screens; fits should avoid it.
   useLayoutEffect(() => {
     setInsetRight(panelOpen && innerWidth >= 900 ? 340 : 0)
@@ -171,6 +186,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
           <button className="btn" style={{ height: 26 }} onClick={() => setConnectFrom(null)}><X size={14} /> Cancel</button>
         </div>
       )}
+      {outlineOpen && <Outline />}
       {inspectorOpen && !presenting && <Inspector onClose={() => ui.setInspector(false)} />}
       <ContextMenu state={menu} onClose={closeMenu} />
       <Palette />
@@ -191,6 +207,7 @@ function SaveStatus() {
 
 function TopBar() {
   const doc = useDoc((s) => s.doc)!
+  const outlineOpen = useUi((s) => s.outlineOpen)
   const mode = useUi((s) => s.themeMode)
   const inspectorOpen = useUi((s) => s.inspectorOpen)
   const canUndo = useDoc((s) => s.past.length > 0)
@@ -222,6 +239,7 @@ function TopBar() {
         <button className="btn icon" aria-label="Undo" title="Undo (⌘Z)" disabled={!canUndo} onClick={undo}><Undo2 size={16} /></button>
         <button className="btn icon" aria-label="Redo" title="Redo (⇧⌘Z)" disabled={!canRedo} onClick={redo}><Redo2 size={16} /></button>
         <span className="mx-1 h-5 w-px bg-line" />
+        <button className={`btn icon ${outlineOpen ? 'on' : ''}`} aria-label="Toggle outline" aria-pressed={outlineOpen} title="Outline (⌘⇧O)" onClick={ui.toggleOutline}><PanelLeft size={16} /></button>
         <LayoutMenu />
         <TagFilter />
         <button className="btn icon" aria-label="Find" title="Find (⌘F)" onClick={() => ui.setSearch(true)}><Search size={16} /></button>

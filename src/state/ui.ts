@@ -24,6 +24,7 @@ interface UiState {
   themeMode: ThemeMode
   dark: boolean
   inspectorOpen: boolean
+  outlineOpen: boolean
   paletteOpen: boolean
   searchOpen: boolean
   exportOpen: boolean
@@ -62,6 +63,7 @@ export const useUi = create<UiState>(() => ({
   themeMode: mode,
   dark: mode === 'dark' || (mode === 'system' && systemDark()),
   inspectorOpen: typeof innerWidth === 'undefined' ? true : innerWidth >= 1100,
+  outlineOpen: false,
   paletteOpen: false,
   searchOpen: false,
   exportOpen: false,
@@ -108,6 +110,8 @@ export const dismissToast = (id: number) => set((s) => ({ toasts: s.toasts.filte
 export const ui = {
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
   setInspector: (inspectorOpen: boolean) => set({ inspectorOpen }),
+  toggleOutline: () => set((s) => ({ outlineOpen: !s.outlineOpen })),
+  setOutline: (outlineOpen: boolean) => set({ outlineOpen }),
   setPalette: (paletteOpen: boolean) => set({ paletteOpen }),
   setSearch: (searchOpen: boolean) => set({ searchOpen }),
   setExport: (exportOpen: boolean) => set({ exportOpen }),

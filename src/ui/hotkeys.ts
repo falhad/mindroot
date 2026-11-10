@@ -40,6 +40,7 @@ export function useEditorHotkeys() {
           case 'd': e.preventDefault(); duplicateSelection(); return
           case 'e': e.preventDefault(); ui.setExport(true); return
           case 'i': e.preventDefault(); ui.toggleInspector(); return
+          case 'o': if (e.shiftKey) { e.preventDefault(); ui.toggleOutline() } return
           case 's': e.preventDefault(); void flushSave().then(() => toast('Saved', 'success')); return
           case '0': e.preventDefault(); fitCurrent(); return
           case '1': e.preventDefault(); resetZoom(); return

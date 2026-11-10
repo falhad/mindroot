@@ -138,6 +138,7 @@ export function buildCommands(): Command[] {
     c('View', 'zoom100', 'Actual size', resetZoom, `${modKey} 1`),
     c('View', 'zin', 'Zoom in', () => zoomBy(1.25), `${modKey} =`),
     c('View', 'zout', 'Zoom out', () => zoomBy(0.8), `${modKey} -`),
+    c('View', 'outline', 'Toggle outline panel', ui.toggleOutline, `${modKey} ⇧ O`),
     c('View', 'inspector', 'Toggle side panel', ui.toggleInspector, `${modKey} I`),
     c('View', 'theme-mode', 'Switch light / dark / system', cycleTheme),
     c('View', 'clear-tags', 'Clear tag filter', () => ui.setTagFilter([])),

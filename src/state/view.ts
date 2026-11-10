@@ -16,9 +16,11 @@ interface ViewState extends View {
   h: number
   /** Width on the right covered by a floating panel; fits avoid it. */
   insetRight: number
+  /** Width on the left covered by the outline panel. */
+  insetLeft: number
 }
 
-export const useView = create<ViewState>(() => ({ x: 0, y: 0, k: 1, w: 800, h: 600, insetRight: 0 }))
+export const useView = create<ViewState>(() => ({ x: 0, y: 0, k: 1, w: 800, h: 600, insetRight: 0, insetLeft: 0 }))
 const set = useView.setState
 const get = useView.getState
 
@@ -29,6 +31,7 @@ export function setViewport(w: number, h: number) {
 }
 
 export const setInsetRight = (insetRight: number) => set({ insetRight })
+export const setInsetLeft = (insetLeft: number) => set({ insetLeft })
 
 export function setView(v: Partial<View>) {
   cancelAnimationFrame(anim)
@@ -74,11 +77,11 @@ export function animateTo(target: View, ms = 260) {
 
 /** View that fits `b` inside the viewport with `pad` px margin. */
 export function fitTarget(b: Box, pad = 70, maxK = 1.25): View {
-  const { h, insetRight } = get()
-  const w = get().w - insetRight
-  if (b.w <= 0 || b.h <= 0) return { x: w / 2, y: h / 2, k: 1 }
+  const { h, insetRight, insetLeft } = get()
+  const w = get().w - insetRight - insetLeft
+  if (b.w <= 0 || b.h <= 0) return { x: insetLeft + w / 2, y: h / 2, k: 1 }
   const k = Math.min(maxK, Math.max(MIN_ZOOM, Math.min((w - pad * 2) / b.w, (h - pad * 2) / b.h)))
-  return { k, x: w / 2 - (b.x + b.w / 2) * k, y: h / 2 - (b.y + b.h / 2) * k }
+  return { k, x: insetLeft + w / 2 - (b.x + b.w / 2) * k, y: h / 2 - (b.y + b.h / 2) * k }
 }
 
 export function fitView(b: Box, animate = true) {
