@@ -1,4 +1,5 @@
 import { prepareForSave, store } from '../io/storage'
+import { updateDigest } from './digest'
 import { markSaved, setSaveState, useDoc } from './doc'
 
 const DEBOUNCE_MS = 600
@@ -40,6 +41,7 @@ export async function flushSave(): Promise<void> {
       const copy = structuredClone(doc)
       prepareForSave(copy)
       await store.save(copy)
+      updateDigest(copy)
       // If the user kept typing while we wrote, stay dirty and save again.
       markSaved(doc)
       for (const fn of saveListeners) {

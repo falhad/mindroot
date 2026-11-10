@@ -14,6 +14,8 @@ import {
 } from '../state/doc'
 import { emit } from '../plugins/host'
 import { flushSave } from '../state/persist'
+import { refreshLibrary, useLibrary } from '../state/library'
+import { focusNode } from '../state/search'
 import { cycleTheme, toast, ui, useUi } from '../state/ui'
 import { animateTo, revealBox, setInsetLeft, setInsetRight, setView, useView, zoomBy } from '../state/view'
 import { Canvas } from './Canvas'
@@ -48,6 +50,12 @@ export function Editor({ id }: { id: string }) {
         if (!alive) return
         if (!doc) return setPhase('missing')
         openDoc(doc)
+        const pend = useUi.getState().pendingSelect
+        if (pend && pend.mapId === id) {
+          useUi.setState({ pendingSelect: null })
+          if (doc.nodes[pend.nodeId]) setTimeout(() => focusNode(pend.nodeId), 60)
+        }
+        if (!useLibrary.getState().loaded) void refreshLibrary() // for the map picker and link checks
         try {
           const saved = JSON.parse(localStorage.getItem(`bm.view.${id}`) ?? 'null')
           restore.current = saved && Number.isFinite(saved.k) ? saved : null

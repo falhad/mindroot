@@ -7,6 +7,7 @@ import type { Plugin } from '../plugins/types'
 import { flushSave, startAutosave } from '../state/persist'
 import { applyTheme, parseRoute, ui, useUi } from '../state/ui'
 import { Dashboard } from './Dashboard'
+import { TasksView } from './TasksView'
 import { Editor } from './Editor'
 import { ConfirmDialog, HelpDialog, Toasts } from './Overlays'
 import { SettingsDialog } from './SettingsDialog'
@@ -82,7 +83,7 @@ export function App() {
 
   return (
     <>
-      {route.name === 'editor' ? <Editor key={route.id} id={route.id} /> : <Dashboard />}
+      {route.name === 'editor' ? <Editor key={route.id} id={route.id} /> : route.name === 'tasks' ? <TasksView /> : <Dashboard />}
       {route.name === 'editor' && <Toasts />}
       <HelpDialog />
       <SettingsDialog />

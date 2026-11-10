@@ -5,6 +5,7 @@ import { createDoc, plainTitle } from '../core/tree'
 import { uid } from '../core/ids'
 import type { MapDoc, MapMeta } from '../core/types'
 import { prepareForSave, store } from '../io/storage'
+import { refreshDigests } from './digest'
 import { toast } from './ui'
 
 export type Filter = 'all' | 'starred' | 'trash'
@@ -37,6 +38,7 @@ export async function refreshLibrary() {
     const items = await store.list()
     set({ items, loaded: true })
     void rebuildDerived(items)
+    void refreshDigests(items)
   } catch (e) {
     toast(`Could not read your maps: ${e instanceof Error ? e.message : e}`, 'error')
   } finally {
@@ -98,7 +100,8 @@ export async function importFile(file: File): Promise<string | null> {
   }
 }
 
-async function mutate(id: string, fn: (d: MapDoc) => void) {
+/** Change a map on disk (it is not open in the editor), then refresh the library. */
+export async function mutate(id: string, fn: (d: MapDoc) => void) {
   const doc = await store.load(id)
   if (!doc) return
   fn(doc)

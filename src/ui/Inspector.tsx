@@ -11,6 +11,7 @@ import { BGS, EDGES, LAYOUTS, setBg, setDirection, setEdge, setFont, setLayout, 
 import { FONT_CHOICES } from '../core/measure'
 import type { FontId } from '../core/types'
 import { AttachmentList } from './AttachmentList'
+import { Backlinks, MapLinkFields, TaskFields } from './LinkPanels'
 import { EMOJIS, NodeIcon, lucideIcons } from './icons'
 import { NotesView } from './NotesView'
 
@@ -241,6 +242,10 @@ function NodePanel({ node }: { node: MindNode }) {
         <ArrangeLists nodeId={node.id} />
       </Section>
 
+      <Section title="Task">
+        <TaskFields node={node} ids={selection} />
+      </Section>
+
       <Section title="Tags">
         <TagEditor ids={selection} tags={node.tags ?? []} />
       </Section>
@@ -278,6 +283,12 @@ function NodePanel({ node }: { node: MindNode }) {
 
       <Section title="Files" right={node.attachments?.length ? <span className="text-[12px] tabular-nums text-muted">{node.attachments.length}</span> : null}>
         <AttachmentList nodeId={node.id} items={node.attachments ?? []} />
+      </Section>
+
+      <Section title="Map link">
+        <MapLinkFields node={node} />
+        <div className="label mb-1.5 mt-3.5">Linked from</div>
+        <Backlinks nodeId={node.id} />
       </Section>
 
       <Section title="Link" right={node.link ? <button className="btn icon" style={{ width: 24, height: 24 }} aria-label="Open link" onClick={() => void openExternal(node.link!)}><ExternalLink size={14} /></button> : null}>
@@ -447,6 +458,9 @@ function MapPanel() {
             <button key={b.id} style={{ flex: 1 }} className={doc.bg === b.id ? 'on' : ''} onClick={() => setBg(b.id)}>{b.name}</button>
           ))}
         </div>
+      </Section>
+      <Section title="Linked from">
+        <Backlinks />
       </Section>
       <Section title="About this map">
         <dl className="grid grid-cols-2 gap-y-1 text-[12.5px]">

@@ -126,6 +126,9 @@ export function Dashboard() {
               <Icon size={16} /> <span className="flex-1 text-left">{label}</span> <span className="text-[12px] tabular-nums text-muted">{n}</span>
             </button>
           ))}
+          <button className="btn justify-start" style={{ height: 36 }} onClick={() => goTo({ name: 'tasks' })}>
+            <ListChecks size={16} /> <span className="flex-1 text-left">Tasks</span>
+          </button>
           {tags.length > 0 && <div className="label mb-1 mt-4 px-2">Tags</div>}
           {tags.map(([t, n]) => (
             <button key={t} className={`btn justify-start ${lib.tag === t ? 'on' : ''}`} onClick={() => libraryActions.setTag(lib.tag === t ? null : t)}>

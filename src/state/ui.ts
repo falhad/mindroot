@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
-export type Route = { name: 'dashboard' } | { name: 'editor'; id: string }
+export type Route = { name: 'dashboard' } | { name: 'editor'; id: string } | { name: 'tasks' }
 
 export interface Toast {
   id: number
@@ -32,6 +32,8 @@ interface UiState {
   settingsOpen: boolean
   /** Tab id in the settings dialog: `general`, `plugins`, or a plugin id. */
   settingsTab: string
+  /** A node to select when a map finishes loading (set when following a link between maps). */
+  pendingSelect: { mapId: string; nodeId: string } | null
   /** Tags selected in the tag filter (empty = no filter). Not saved with the map. */
   tagFilter: string[]
   toasts: Toast[]
@@ -53,6 +55,7 @@ function systemDark() {
 
 export function parseRoute(hash: string): Route {
   const m = /^#\/m\/([A-Za-z0-9_-]+)/.exec(hash)
+  if (hash.startsWith('#/tasks')) return { name: 'tasks' }
   return m ? { name: 'editor', id: m[1] } : { name: 'dashboard' }
 }
 
@@ -70,6 +73,7 @@ export const useUi = create<UiState>(() => ({
   helpOpen: false,
   settingsOpen: false,
   settingsTab: 'general',
+  pendingSelect: null,
   tagFilter: [],
   toasts: [],
   confirm: null,
@@ -94,7 +98,7 @@ export function cycleTheme() {
 }
 
 export function goTo(route: Route) {
-  const hash = route.name === 'editor' ? `#/m/${route.id}` : '#/'
+  const hash = route.name === 'editor' ? `#/m/${route.id}` : route.name === 'tasks' ? '#/tasks' : '#/'
   if (location.hash !== hash) history.pushState(null, '', hash)
   set({ route })
 }

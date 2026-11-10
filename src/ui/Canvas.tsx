@@ -11,6 +11,7 @@ import { addFloatAt, commit, connectNodes, dropNodes, select, setConnectFrom, st
 import { useSearch } from '../state/search'
 import { ui, useUi } from '../state/ui'
 import { MAX_ZOOM, MIN_ZOOM, screenToWorld, setView, setViewport, useView, zoomAt } from '../state/view'
+import { followMapLink } from '../state/links'
 import { usePresent } from '../state/present'
 import { GroupBoxes, SummaryBraces } from './GroupView'
 import { NodeView } from './NodeView'
@@ -336,7 +337,8 @@ export function Canvas({ doc, layout, onContext }: Props) {
     if (bd && nodeEl) {
       const n = doc.nodes[nodeEl.dataset.nodeId!]
       select([n.id])
-      if (bd.dataset.badge === 'link' && n.link && (e.metaKey || e.ctrlKey)) void openExternal(n.link)
+      if (bd.dataset.badge === 'maplink' && n.mapLink) followMapLink(n.mapLink)
+      else if (bd.dataset.badge === 'link' && n.link && (e.metaKey || e.ctrlKey)) void openExternal(n.link)
       else ui.setInspector(true)
     }
   }

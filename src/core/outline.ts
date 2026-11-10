@@ -1,4 +1,5 @@
 import { uid } from './ids'
+import { isDueDate } from './tasks'
 import { createDoc, orderedIds } from './tree'
 import { SCHEMA_VERSION, type Group, type MapDoc, type MindNode, type Summary } from './types'
 
@@ -206,7 +207,6 @@ export function sanitizeDoc(raw: unknown): MapDoc {
 
 const FONTS = ['inter', 'vazirmatn', 'serif', 'mono']
 const HEX = /^#[0-9a-fA-F]{6}$/
-const DUE = /^\d{4}-\d{2}-\d{2}$/
 const isPos = (p: unknown): p is { x: number; y: number } =>
   !!p && typeof p === 'object' && Number.isFinite((p as { x: unknown }).x) && Number.isFinite((p as { y: unknown }).y)
 
@@ -218,7 +218,7 @@ function cleanNodeFields(n: MindNode) {
     if (tags.length) n.tags = tags
     else delete o.tags
   } else delete o.tags
-  if (typeof n.due !== 'string' || !DUE.test(n.due)) delete o.due
+  if (typeof n.due !== 'string' || !isDueDate(n.due)) delete o.due
   if (typeof n.done !== 'boolean') delete o.done
   if (!n.mapLink || typeof n.mapLink.mapId !== 'string' || !n.mapLink.mapId) delete o.mapLink
   else if (n.mapLink.nodeId !== undefined && typeof n.mapLink.nodeId !== 'string') n.mapLink = { mapId: n.mapLink.mapId }

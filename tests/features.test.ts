@@ -515,3 +515,132 @@ describe('themes, fonts and right-to-left', async () => {
     }
   })
 })
+
+describe('cross-map links', async () => {
+  const { collectLinks, backlinksTo, linkStatus } = await import('../src/core/links')
+  const { digestDoc } = await import('../src/core/digest')
+  const T = await import('../src/core/tree')
+
+  const linked = () => {
+    const d = sample()
+    d.nodes[id(d, 'A')].mapLink = { mapId: 'other-map', nodeId: 'n1' }
+    d.nodes[id(d, 'B')].mapLink = { mapId: 'third-map' }
+    return d
+  }
+
+  it('collectLinks lists node links with the source node and its text', () => {
+    const d = linked()
+    expect(collectLinks(d).map((l) => [l.fromText, l.mapId, l.nodeId])).toEqual(expect.arrayContaining([['A', 'other-map', 'n1'], ['B', 'third-map', undefined]]))
+    expect(collectLinks(d)).toHaveLength(2)
+  })
+
+  it('backlinksTo finds the source nodes in other maps, for a map or for one node', () => {
+    const d = linked()
+    d.meta.id = 'src-map'
+    const digests = { 'src-map': digestDoc(d) }
+    expect(backlinksTo(digests, 'other-map').map((b) => [b.fromMapId, b.fromText])).toEqual([['src-map', 'A']])
+    expect(backlinksTo(digests, 'other-map', 'n1')).toHaveLength(1)
+    expect(backlinksTo(digests, 'other-map', 'zzz')).toHaveLength(0)
+    expect(backlinksTo(digests, 'third-map')).toHaveLength(1)
+    expect(backlinksTo(digests, 'nobody')).toHaveLength(0)
+  })
+
+  it('a link to a map in the trash or a map that does not exist is marked unavailable', () => {
+    const metas = [{ id: 'ok', trashedAt: null }, { id: 'gone', trashedAt: 5 }] as never
+    expect(linkStatus({ mapId: 'ok' }, metas)).toBe('ok')
+    expect(linkStatus({ mapId: 'gone' }, metas)).toBe('trashed')
+    expect(linkStatus({ mapId: 'nope' }, metas)).toBe('missing')
+  })
+
+  it('a link is by map id, so renaming the target map does not break it', () => {
+    const d = linked()
+    const before = JSON.stringify(d.nodes[id(d, 'A')].mapLink)
+    const target = sample()
+    target.meta.id = 'other-map'
+    T.setText(target, target.root, 'Renamed map')
+    expect(JSON.stringify(d.nodes[id(d, 'A')].mapLink)).toBe(before)
+    expect(linkStatus(d.nodes[id(d, 'A')].mapLink!, [{ id: 'other-map', trashedAt: null }] as never)).toBe('ok')
+  })
+
+  it('digestDoc is small: title, update time, links and tasks only', () => {
+    const d = linked()
+    const g = digestDoc(d)
+    expect(Object.keys(g).sort()).toEqual(['links', 'tasks', 'title', 'updatedAt'])
+  })
+})
+
+import * as T_ from '../src/core/tree'
+
+describe('tasks', async () => {
+  const { collectTasks, bucketTasks, addDays, todayString, isDueDate } = await import('../src/core/tasks')
+
+  const withTasks = () => {
+    const d = sample()
+    d.meta.id = 'm1'
+    d.meta.title = 'My map'
+    d.nodes[id(d, 'A')].due = '2026-11-09'
+    d.nodes[id(d, 'A1')].due = '2026-11-10'
+    d.nodes[id(d, 'A2')].due = '2026-11-14'
+    d.nodes[id(d, 'B')].due = '2026-12-25'
+    d.nodes[id(d, 'B1')].done = false
+    d.nodes[id(d, 'C')].due = '2026-11-01'
+    d.nodes[id(d, 'C')].done = true
+    return d
+  }
+
+  it('collectTasks takes nodes that have a due date or a done state, and ignores plain nodes', () => {
+    const t = collectTasks(withTasks())
+    expect(t.map((x) => x.text).sort()).toEqual(['A', 'A1', 'A2', 'B', 'B1', 'C'])
+    expect(collectTasks(sample())).toEqual([])
+  })
+
+  it('collectTasks reports checklist progress', () => {
+    const d = withTasks()
+    T_.addChecklistItem(d, id(d, 'A'), 'x', true)
+    T_.addChecklistItem(d, id(d, 'A'), 'y', false)
+    expect(collectTasks(d).find((x) => x.text === 'A')!.checklist).toEqual({ done: 1, total: 2 })
+  })
+
+  it('bucketTasks uses the given today, not the clock', () => {
+    const tasks = collectTasks(withTasks()).map((t) => ({ ...t, mapId: 'm1', mapTitle: 'My map' }))
+    const b = bucketTasks(tasks, '2026-11-10')
+    expect(b.overdue.map((t) => t.text)).toEqual(['A'])
+    expect(b.today.map((t) => t.text)).toEqual(['A1'])
+    expect(b.week.map((t) => t.text)).toEqual(['A2'])
+    expect(b.later.map((t) => t.text)).toEqual(['B'])
+    expect(b.noDate.map((t) => t.text)).toEqual(['B1'])
+    expect(b.done.map((t) => t.text)).toEqual(['C']) // done tasks leave every other bucket, even when overdue
+  })
+
+  it('a task due today is not overdue, and day 7 is still this week while day 8 is later', () => {
+    const base = { mapId: 'm', mapTitle: 'M', nodeId: 'n', done: false }
+    const b = bucketTasks(
+      [{ ...base, text: 't', due: '2026-11-10' }, { ...base, text: 'w', due: '2026-11-17' }, { ...base, text: 'l', due: '2026-11-18' }],
+      '2026-11-10',
+    )
+    expect([b.overdue.length, b.today.length, b.week.length, b.later.length]).toEqual([0, 1, 1, 1])
+  })
+
+  it('addDays works on calendar strings across month and year ends and leap days', () => {
+    expect(addDays('2026-12-31', 1)).toBe('2027-01-01')
+    expect(addDays('2028-02-28', 1)).toBe('2028-02-29')
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28')
+  })
+
+  it('todayString is the local calendar day', () => {
+    expect(todayString(new Date(2026, 10, 10, 23, 59))).toBe('2026-11-10')
+    expect(todayString(new Date(2026, 0, 5, 0, 1))).toBe('2026-01-05')
+  })
+
+  it('isDueDate accepts real dates only', () => {
+    expect(isDueDate('2026-02-28')).toBe(true)
+    expect(isDueDate('2026-02-30')).toBe(false)
+    expect(isDueDate('tomorrow')).toBe(false)
+  })
+
+  it('tasks are sorted by due date then text inside a bucket', () => {
+    const base = { mapId: 'm', mapTitle: 'M', nodeId: 'n', done: false }
+    const b = bucketTasks([{ ...base, text: 'z', due: '2026-11-12' }, { ...base, text: 'b', due: '2026-11-11' }, { ...base, text: 'a', due: '2026-11-11' }], '2026-11-10')
+    expect(b.week.map((t) => t.text)).toEqual(['a', 'b', 'z'])
+  })
+})

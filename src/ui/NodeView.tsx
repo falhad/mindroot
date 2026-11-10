@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Hash, Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
+import { ArrowUpRight, Hash, Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
 import { PLACEHOLDER, type NodeMetrics } from '../core/measure'
 import type { Box, MindNode } from '../core/types'
 import { isRtl, type NodeVisual } from '../core/visual'
@@ -75,6 +75,9 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, s
             )}
             {node.checklist?.length ? (
               <span data-badge="check" title="Checklist" style={badge}><SquareCheckBig size={13} /></span>
+            ) : null}
+            {node.mapLink ? (
+              <span data-badge="maplink" title="Linked map (click to open)" style={badge}><ArrowUpRight size={13} /></span>
             ) : null}
             {node.tags?.length ? (
               <span data-badge="tags" title={node.tags.map((t) => `#${t}`).join(' ')} style={badge}><Hash size={13} /></span>
