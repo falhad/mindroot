@@ -72,6 +72,19 @@ function dropToDest(layout: LayoutResult, doc: MapDoc, drop: Drop, px: number): 
   return dest
 }
 
+/** The side of a node its children grow towards (where the collapse button goes). */
+function childSide(doc: MapDoc, layout: LayoutResult, id: string): 'left' | 'right' | 'up' | 'down' {
+  if (!doc.nodes[id].parentId) {
+    return doc.layout === 'right' ? 'right' : doc.layout === 'left' ? 'left' : doc.layout === 'up' ? 'up' : 'down'
+  }
+  const a = layout.attach[id]
+  if (a === 'radial') {
+    const b = layout.boxes[id]
+    return b.x + b.w / 2 >= 0 ? 'right' : 'left' // the root sits at the origin; children grow outwards
+  }
+  return a
+}
+
 const EdgeView = memo(function EdgeView({ d, color, width, hot }: { d: string; color: string; width: number; hot: boolean }) {
   return <path d={d} stroke={color} strokeWidth={hot ? width + 1 : width} opacity={hot ? 1 : 0.82} />
 })
@@ -312,7 +325,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
 
   const onDoubleClick = (e: React.MouseEvent) => {
     const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null
-    if (nodeEl && !(e.target as HTMLElement).closest('.node-edit')) startEdit(nodeEl.dataset.nodeId!)
+    if (nodeEl && !(e.target as HTMLElement).closest('.node-edit,[data-collapse],[data-badge]')) startEdit(nodeEl.dataset.nodeId!)
   }
 
   const onContextMenu = (e: React.MouseEvent) => {
@@ -410,7 +423,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
             box={renderBox(id)}
             m={layout.metrics[id]}
             vis={visuals[id]}
-            attach={layout.attach[id]}
+            side={childSide(doc, layout, id)}
             selected={selSet.has(id)}
             editing={editingId === id}
             dim={searching && !matches.has(id)}

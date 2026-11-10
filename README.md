@@ -21,7 +21,7 @@ Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system 
 
 - Infinite canvas: pan, zoom (wheel / pinch / `⌘ +/-`), minimap, fit to screen, camera remembered per map.
 - Six layouts: mind map (both sides), right tree, left tree, org chart down/up, radial. Three line styles.
-- Nodes: add child/sibling, inline editing (multi-line, RTL aware), delete, duplicate, drag to re-parent or re-order, multi-select (shift-click / marquee), collapse/expand, cross-links between any two nodes.
+- Nodes: add child/sibling, inline editing (multi-line, RTL aware), delete, duplicate, drag to re-parent or re-order, multi-select (shift-click / marquee), collapse/expand (Space, or the ⊖ button that appears on hover), cross-links between any two nodes.
 - Per node: colour (theme slots or custom), shape, icon (lucide or emoji), notes, link, image, checklist with progress.
 - Undo/redo (300 steps), copy/cut/paste (rich inside the app, outlines as plain text, images from the clipboard).
 - Dashboard: search across titles and node text, sort, star, tags, trash with restore, rename, duplicate, six templates, import by file picker or drag-and-drop.

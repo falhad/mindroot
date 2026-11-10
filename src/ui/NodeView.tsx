@@ -1,6 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link2, NotebookText, SquareCheckBig } from 'lucide-react'
-import type { Attach } from '../core/layout'
+import { Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
 import { PLACEHOLDER, type NodeMetrics } from '../core/measure'
 import type { Box, MindNode } from '../core/types'
 import { isRtl, type NodeVisual } from '../core/visual'
@@ -12,7 +11,8 @@ export interface NodeViewProps {
   box: Box
   m: NodeMetrics
   vis: NodeVisual
-  attach: Attach | undefined
+  /** Side of the node where its children grow; the collapse button sits there. */
+  side: 'left' | 'right' | 'up' | 'down'
   selected: boolean
   editing: boolean
   dim: boolean
@@ -22,7 +22,7 @@ export interface NodeViewProps {
   connecting: boolean
 }
 
-function NodeViewImpl({ node, box, m, vis, attach, selected, editing, dim, match, dropInto, dragging, connecting }: NodeViewProps) {
+function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, dropInto, dragging, connecting }: NodeViewProps) {
   const plain = !vis.fill && !vis.stroke
   const style: CSSProperties = {
     transform: `translate(${box.x}px, ${box.y}px)`,
@@ -86,22 +86,34 @@ function NodeViewImpl({ node, box, m, vis, attach, selected, editing, dim, match
       {vis.underline && (
         <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: 2, background: vis.underline }} />
       )}
-      {node.collapsed && node.children.length > 0 && (
+      {node.children.length > 0 && (
         <button
           data-collapse={node.id}
-          className="collapse-dot"
-          style={{
-            ['--dotc' as string]: vis.accent,
-            top: box.h / 2 - 11,
-            ...(attach === 'left' ? { left: -30 } : attach === 'up' ? { top: -30, left: box.w / 2 - 11 } : attach === 'down' ? { top: box.h + 8, left: box.w / 2 - 11 } : { right: -30 }),
-          }}
-          title="Expand (Space)"
+          className={node.collapsed ? 'collapse-dot' : 'collapse-btn'}
+          style={{ ['--dotc' as string]: vis.accent, ...buttonPosition(side, box.w, box.h, node.collapsed ? 22 : 20, -6) }}
+          aria-label={node.collapsed ? `Expand (${node.children.length} hidden)` : 'Collapse'}
+          title={node.collapsed ? 'Expand (Space)' : 'Collapse (Space)'}
         >
-          {node.children.length}
+          {node.collapsed ? node.children.length : <Minus size={12} strokeWidth={2.75} />}
         </button>
       )}
     </div>
   )
+}
+
+/**
+ * Place a `size` px button on `side` of a w x h box. A negative `gap` overlaps the edge, so the
+ * pointer can move from the node onto the button without leaving the node's hover area.
+ * Expanded and collapsed use the same anchor, so the button does not jump when you click it.
+ */
+function buttonPosition(side: 'left' | 'right' | 'up' | 'down', w: number, h: number, size: number, gap: number): CSSProperties {
+  const mid = (len: number) => len / 2 - size / 2
+  switch (side) {
+    case 'left': return { left: -size - gap, top: mid(h) }
+    case 'up': return { top: -size - gap, left: mid(w) }
+    case 'down': return { top: h + gap, left: mid(w) }
+    default: return { left: w + gap, top: mid(h) }
+  }
 }
 
 const badge: CSSProperties = { display: 'grid', placeItems: 'center', width: 16, height: 14, opacity: 0.8 }

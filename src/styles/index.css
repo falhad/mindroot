@@ -331,6 +331,42 @@ kbd {
 .collapse-dot:hover {
   transform: scale(1.12);
 }
+/* Button on an expanded node: appears on hover / selection (always on touch screens). */
+.collapse-btn {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 99px;
+  background: var(--panel-solid);
+  border: 1.5px solid var(--dotc, var(--accent));
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.12s, transform 0.12s;
+}
+.node:hover > .collapse-btn,
+.node.selected > .collapse-btn,
+.collapse-btn:focus-visible {
+  opacity: 1;
+  transform: none;
+}
+.collapse-btn:hover {
+  transform: scale(1.12) !important;
+}
+.node.dragging > .collapse-btn {
+  display: none;
+}
+@media (hover: none) {
+  .collapse-btn {
+    opacity: 0.85;
+    transform: none;
+  }
+}
 .drop-line {
   position: absolute;
   background: var(--accent);

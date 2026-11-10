@@ -259,7 +259,7 @@ const SHORTCUTS: [string, [string, string][]][] = [
   ['Build', [
     ['Add child', 'Tab'], ['Add sibling', '↵'], ['Add sibling above', '⇧ ↵'], ['Edit text', 'F2 / double-click'],
     ['While typing: new sibling', '↵'], ['While typing: new child', 'Tab'], ['While typing: newline', '⇧ ↵'], ['Finish typing', 'Esc'],
-    ['Delete', 'Del'], ['Duplicate', `${modKey} D`], ['Collapse / expand', 'Space'],
+    ['Delete', 'Del'], ['Duplicate', `${modKey} D`], ['Collapse / expand', 'Space or the ⊖ button'],
   ]],
   ['Move around', [
     ['Select neighbour', '← ↑ → ↓'], ['Extend selection', '⇧ + arrows'], ['Select all', `${modKey} A`], ['Move among siblings', '⌥ ↑ ↓'],
