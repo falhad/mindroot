@@ -8,7 +8,9 @@ import { openExternal, pickFile, readImage } from '../io/files'
 import { commit, floatSelection, groupSelection, primary, setConnectFrom, summarizeSelection, useDoc } from '../state/doc'
 import { toast, useUi } from '../state/ui'
 import { BGS, EDGES, LAYOUTS, setBg, setEdge, setLayout, setMapTheme } from './commands'
+import { AttachmentList } from './AttachmentList'
 import { EMOJIS, NodeIcon, lucideIcons } from './icons'
+import { NotesView } from './NotesView'
 
 const Section = ({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) => (
   <section className="border-b border-line px-4 py-3.5">
@@ -133,6 +135,7 @@ function NodePanel({ node }: { node: MindNode }) {
     { id: undefined, label: 'Auto' }, { id: 'pill', label: 'Pill' }, { id: 'rounded', label: 'Round' }, { id: 'rect', label: 'Box' }, { id: 'plain', label: 'Text' },
   ]
   const [iconOpen, setIconOpen] = useState(false)
+  const [preview, setPreview] = useState(false)
   const [newItem, setNewItem] = useState('')
 
   const attachImage = async (file?: File) => {
@@ -240,15 +243,39 @@ function NodePanel({ node }: { node: MindNode }) {
         <TagEditor ids={selection} tags={node.tags ?? []} />
       </Section>
 
-      <Section title="Notes">
-        <textarea
-          className="field"
-          rows={4}
-          style={{ resize: 'vertical', minHeight: 84 }}
-          placeholder="Write details, context, links…"
-          value={node.notes ?? ''}
-          onChange={(e) => commit((d) => void (d.nodes[node.id].notes = e.target.value || undefined), { coalesce: `notes:${node.id}` })}
-        />
+      <Section
+        title="Notes"
+        right={
+          <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-muted" title="Headings, lists, **bold**, `code`, links and $math$">
+            <input type="checkbox" className="h-3.5 w-3.5 accent-[var(--accent)]" checked={node.notesFmt === 'md'}
+              onChange={(e) => { setPreview(false); commit((d) => { if (e.target.checked) d.nodes[node.id].notesFmt = 'md'; else delete d.nodes[node.id].notesFmt }) }} />
+            Markdown
+          </label>
+        }
+      >
+        {node.notesFmt === 'md' && (
+          <div className="seg mb-2">
+            <button className={!preview ? 'on' : ''} style={{ flex: 1 }} onClick={() => setPreview(false)}>Write</button>
+            <button className={preview ? 'on' : ''} style={{ flex: 1 }} onClick={() => setPreview(true)}>Preview</button>
+          </div>
+        )}
+        {node.notesFmt === 'md' && preview ? (
+          <NotesView md={node.notes ?? ''} />
+        ) : (
+          <textarea
+            className="field"
+            rows={4}
+            dir="auto"
+            style={{ resize: 'vertical', minHeight: 84 }}
+            placeholder={node.notesFmt === 'md' ? '## Heading, - list, `code`, $x^2$ …' : 'Write details, context, links…'}
+            value={node.notes ?? ''}
+            onChange={(e) => commit((d) => void (d.nodes[node.id].notes = e.target.value || undefined), { coalesce: `notes:${node.id}` })}
+          />
+        )}
+      </Section>
+
+      <Section title="Files" right={node.attachments?.length ? <span className="text-[12px] tabular-nums text-muted">{node.attachments.length}</span> : null}>
+        <AttachmentList nodeId={node.id} items={node.attachments ?? []} />
       </Section>
 
       <Section title="Link" right={node.link ? <button className="btn icon" style={{ width: 24, height: 24 }} aria-label="Open link" onClick={() => void openExternal(node.link!)}><ExternalLink size={14} /></button> : null}>

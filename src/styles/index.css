@@ -435,3 +435,36 @@ kbd {
 .no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* ---------- Markdown notes ---------- */
+.notes-md {
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.notes-md > :first-child { margin-top: 0; }
+.notes-md > :last-child { margin-bottom: 0; }
+.notes-md h1, .notes-md h2, .notes-md h3, .notes-md h4 { font-weight: 650; margin: 0.9em 0 0.35em; line-height: 1.25; }
+.notes-md h1 { font-size: 1.3em; }
+.notes-md h2 { font-size: 1.15em; }
+.notes-md h3, .notes-md h4 { font-size: 1.03em; }
+.notes-md p, .notes-md ul, .notes-md ol, .notes-md blockquote, .notes-md pre { margin: 0.5em 0; }
+.notes-md ul { list-style: disc; padding-inline-start: 1.3em; }
+.notes-md ol { list-style: decimal; padding-inline-start: 1.4em; }
+.notes-md a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.notes-md blockquote { border-inline-start: 3px solid var(--line-strong, var(--line)); padding-inline-start: 0.8em; color: var(--muted); }
+.notes-md code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 0.92em; background: var(--hover); border-radius: 4px; padding: 0.1em 0.35em; }
+.notes-md pre { background: var(--hover); border-radius: 8px; padding: 0.6em 0.75em; overflow-x: auto; direction: ltr; text-align: left; }
+.notes-md pre code { background: none; padding: 0; }
+.notes-md table { border-collapse: collapse; font-size: 0.95em; }
+.notes-md th, .notes-md td { border: 1px solid var(--line); padding: 0.25em 0.55em; }
+.notes-md .katex-display { margin: 0.6em 0; overflow-x: auto; overflow-y: hidden; }
+.notes-md .hljs-keyword, .notes-md .hljs-selector-tag, .notes-md .hljs-built_in { color: #9333ea; }
+.notes-md .hljs-string, .notes-md .hljs-attr, .notes-md .hljs-symbol { color: #0f766e; }
+.notes-md .hljs-number, .notes-md .hljs-literal { color: #c2410c; }
+.notes-md .hljs-comment, .notes-md .hljs-quote { color: var(--muted); font-style: italic; }
+.notes-md .hljs-title, .notes-md .hljs-function { color: #2563eb; }
+:root[data-theme='dark'] .notes-md .hljs-keyword, :root[data-theme='dark'] .notes-md .hljs-built_in { color: #c4a1ff; }
+:root[data-theme='dark'] .notes-md .hljs-string, :root[data-theme='dark'] .notes-md .hljs-attr { color: #5eead4; }
+:root[data-theme='dark'] .notes-md .hljs-number, :root[data-theme='dark'] .notes-md .hljs-literal { color: #fdba74; }
+:root[data-theme='dark'] .notes-md .hljs-title, :root[data-theme='dark'] .notes-md .hljs-function { color: #93c5fd; }
