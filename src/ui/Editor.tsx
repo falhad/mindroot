@@ -3,7 +3,6 @@ import {
   ArrowLeft, Check, CloudOff, Download, Loader2, Maximize, Minus, Moon, PanelRight, Plus, Redo2, Search, Sun, Monitor,
   Command, Undo2, CornerDownRight, ListTree, Link2, X,
 } from 'lucide-react'
-import { computeLayout } from '../core/layout'
 import { resetMeasureCache } from '../core/measure'
 import { plainTitle } from '../core/tree'
 import * as T from '../core/tree'
@@ -11,7 +10,7 @@ import { isMac } from '../io/env'
 import { readImage } from '../io/files'
 import { store } from '../io/storage'
 import {
-  addChild, addSibling, closeDoc, commit, openDoc, redo, setConnectFrom, undo, useDoc,
+  addChild, addSibling, closeDoc, commit, layoutNow, openDoc, redo, setConnectFrom, undo, useDoc, useRenderDoc,
 } from '../state/doc'
 import { emit } from '../plugins/host'
 import { flushSave } from '../state/persist'
@@ -22,6 +21,7 @@ import { fitCurrent, goHome, setLayout, resetZoom, LAYOUTS } from './commands'
 import { ExportDialog } from './ExportDialog'
 import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
+import { FocusBar } from './FocusBar'
 import { Minimap } from './Minimap'
 import { StatusSlot } from './StatusSlot'
 import { TagFilter } from './TagFilter'
@@ -55,8 +55,7 @@ export function Editor({ id }: { id: string }) {
           void document.fonts.ready.then(() => {
             // text widths measured before the web font loaded are stale
             resetMeasureCache()
-            const s = useDoc.getState()
-            if (s.doc) useDoc.setState({ layout: computeLayout(s.doc) })
+            layoutNow()
           })
         }
         opened = true
@@ -72,7 +71,7 @@ export function Editor({ id }: { id: string }) {
     const onFont = () => {
       resetMeasureCache()
       const s = useDoc.getState()
-      if (s.doc) useDoc.setState({ layout: computeLayout(s.doc, { draft: s.draft ?? undefined }) })
+      if (s.doc) layoutNow()
     }
     document.fonts?.addEventListener('loadingdone', onFont)
     return () => {
@@ -115,7 +114,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
     if (restore) setView(restore)
     else fitCurrent(false)
   }, [restore])
-  const doc = useDoc((s) => s.doc)!
+  const doc = useRenderDoc()!
   const layout = useDoc((s) => s.layout)!
   const inspectorOpen = useUi((s) => s.inspectorOpen)
   const connectFrom = useDoc((s) => s.connectFrom)
@@ -153,6 +152,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
     <div ref={wrapRef} className="relative h-full overflow-hidden" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       <Canvas doc={doc} layout={layout} onContext={setMenu} />
       <TopBar />
+      <FocusBar />
       <Minimap doc={doc} layout={layout} />
       <Dock />
       <SearchBar />

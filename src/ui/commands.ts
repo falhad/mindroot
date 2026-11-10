@@ -3,7 +3,7 @@ import type { BgKind, EdgeKind, LayoutKind } from '../core/types'
 import { modKey } from '../io/env'
 import {
   addChild, addFloatAt, addSibling, commit, deleteSelection, duplicateSelection, expandToLevel, floatSelection, groupSelection, indent, outdent, redo, reorder, select,
-  selectAll, setConnectFrom, startEdit, summarizeSelection, toggleCollapse, undo, ungroupSelection, useDoc, primary,
+  selectAll, setConnectFrom, toggleFocus, startEdit, summarizeSelection, toggleCollapse, undo, ungroupSelection, useDoc, primary,
 } from '../state/doc'
 import { flushSave } from '../state/persist'
 import { createMap } from '../state/library'
@@ -125,6 +125,7 @@ export function buildCommands(): Command[] {
     }),
     c('Arrange', 'new-float', 'Add floating node', () => addFloatAt(...centre())),
     c('Arrange', 'new-sticky', 'Add sticky note', () => addFloatAt(...centre(), true)),
+    c('View', 'focus', 'Focus on selected branch / leave focus', () => { toggleFocus(); setTimeout(fitCurrent, 30) }, `${modKey} .`),
     c('View', 'collapse', 'Collapse / expand', () => toggleCollapse(), 'Space'),
     c('View', 'expand-all', 'Expand all', () => expandToLevel(null)),
     c('View', 'collapse-1', 'Collapse to level 1', () => expandToLevel(1)),

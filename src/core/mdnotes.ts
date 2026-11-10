@@ -20,6 +20,8 @@ function ensureHook() {
       node.setAttribute('rel', 'noopener noreferrer')
       node.setAttribute('target', '_blank')
     }
+    // text direction follows the first strong character, so Persian and English both read correctly
+    if (/^(P|LI|H[1-6]|BLOCKQUOTE|TD|TH)$/.test(node.tagName)) node.setAttribute('dir', 'auto')
   })
 }
 
@@ -84,18 +86,21 @@ function loadHighlighter(): Promise<Hljs> {
   return hljsPromise
 }
 
-/** Markdown to safe HTML. Empty or blank text gives an empty string. */
+/**
+ * Markdown to safe HTML. Empty or blank text gives an empty string.
+ *
+ * Order matters: Markdown, then code highlighting and math are put into the page, and DOMPurify
+ * runs LAST over everything. Nothing is changed after sanitizing.
+ */
 export async function renderNotes(md: string): Promise<string> {
   if (!md.trim()) return ''
   ensureHook()
-  const { text, parts } = extractMath(md)
+  // the placeholder characters are private to this function: remove them from the input first
+  const { text, parts } = extractMath(md.replace(/[\uE000\uE001]/g, ''))
   const raw = marked.parse(text, { async: false, gfm: true, breaks: true }) as string
-  const clean = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } })
 
-  const doc = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html')
-  for (const el of doc.body.querySelectorAll('p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th')) el.setAttribute('dir', 'auto')
-
-  // code highlighting (trusted output: highlight.js escapes the source)
+  // an inert document (DOMParser runs no scripts and loads nothing); its output is sanitized below
+  const doc = new DOMParser().parseFromString(`<body>${raw}</body>`, 'text/html')
   const blocks = [...doc.body.querySelectorAll('pre code')].filter((c) => /language-/.test(c.className))
   if (blocks.length) {
     const hljs = await loadHighlighter()
@@ -107,13 +112,12 @@ export async function renderNotes(md: string): Promise<string> {
     }
   }
 
-  // math: placeholders become KaTeX output (trusted: KaTeX escapes its input)
   let html = doc.body.innerHTML
   if (parts.length) {
     const katex = (await import('katex')).default
-    html = html.replace(new RegExp(`${OPEN}(\\d+)${CLOSE}`, 'g'), (whole, i: string) => {
+    html = html.replace(new RegExp(`${OPEN}(\\d+)${CLOSE}`, 'g'), (_whole, i: string) => {
       const part = parts[Number(i)]
-      if (!part) return whole
+      if (!part) return ''
       try {
         return katex.renderToString(part.tex, { displayMode: part.display, throwOnError: true, output: 'html', trust: false })
       } catch {
@@ -122,5 +126,5 @@ export async function renderNotes(md: string): Promise<string> {
       }
     })
   }
-  return html
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true, svg: true } })
 }

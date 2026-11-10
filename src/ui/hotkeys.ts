@@ -3,7 +3,7 @@ import { navigate } from '../core/layout'
 import { inTextField, handleCopy, handlePaste } from '../state/clipboard'
 import {
   addChild, addSibling, deleteSelection, duplicateSelection, indent, outdent, primary, redo, reorder, select, selectAll,
-  setConnectFrom, startEdit, toggleCollapse, undo, useDoc,
+  setConnectFrom, startEdit, toggleCollapse, undo, useDoc, activeFocus, exitFocus, toggleFocus,
 } from '../state/doc'
 import { flushSave } from '../state/persist'
 import { clearSearch, focusNode } from '../state/search'
@@ -44,6 +44,7 @@ export function useEditorHotkeys() {
           case '=': case '+': e.preventDefault(); zoomBy(1.25); return
           case '-': e.preventDefault(); zoomBy(0.8); return
           case '/': e.preventDefault(); ui.setHelp(true); return
+          case '.': e.preventDefault(); toggleFocus(); setTimeout(fitCurrent, 30); return
         }
         return
       }
@@ -66,6 +67,7 @@ export function useEditorHotkeys() {
         case 'Escape':
           if (ds.connectFrom) setConnectFrom(null)
           else if (useUi.getState().searchOpen) { ui.setSearch(false); clearSearch() }
+          else if (activeFocus(ds)) { exitFocus(); setTimeout(fitCurrent, 30) }
           else select([])
           return
         case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': {

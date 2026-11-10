@@ -1,5 +1,6 @@
 import { produce } from 'immer'
 import { create } from 'zustand'
+import { projectDoc } from '../core/focus'
 import { computeLayout, type LayoutResult } from '../core/layout'
 import * as T from '../core/tree'
 import type { MapDoc } from '../core/types'
@@ -27,6 +28,8 @@ interface DocState {
   saveState: SaveState
   saveError: string | null
   lastCoalesce: { key: string; at: number } | null
+  /** Branch shown on its own (focus mode). Not saved. Use `activeFocus` to read it safely. */
+  focusId: string | null
 }
 
 export const useDoc = create<DocState>(() => ({
@@ -43,22 +46,67 @@ export const useDoc = create<DocState>(() => ({
   saveState: 'idle',
   saveError: null,
   lastCoalesce: null,
+  focusId: null,
 }))
 
 const get = useDoc.getState
 const set = useDoc.setState
 
+/** The focused branch, or null when there is none or the node no longer exists. */
+export const activeFocus = (s: Pick<DocState, 'doc' | 'focusId'>): string | null =>
+  s.doc && s.focusId && s.focusId !== s.doc.root && s.doc.nodes[s.focusId] ? s.focusId : null
+
 function relayout(doc: MapDoc, draft: DocState['draft']): LayoutResult {
-  return computeLayout(doc, { draft: draft ?? undefined })
+  const f = get().focusId
+  return computeLayout(projectDoc(doc, f && doc.nodes[f] ? f : null), { draft: draft ?? undefined })
+}
+
+/** Recompute the layout of the open map (after fonts load, or the focus changes). */
+export function layoutNow() {
+  const s = get()
+  if (s.doc) set({ layout: relayout(s.doc, s.draft) })
+}
+
+/** The map as drawn: the focused branch in focus mode, else the whole map. */
+export function useRenderDoc(): MapDoc | null {
+  return useDoc((s) => (s.doc ? projectDoc(s.doc, activeFocus(s)) : null))
+}
+
+/** Show one branch on its own. Edits still change the real map. */
+export function enterFocus(id: string) {
+  const s = get()
+  if (!s.doc || id === s.doc.root || !s.doc.nodes[id]) return
+  set({ focusId: id })
+  const layout = relayout(s.doc, s.draft)
+  set({ layout, selection: sanitizeSelection(s.doc, layout, [id]) })
+}
+
+export function exitFocus() {
+  const s = get()
+  if (!s.focusId) return
+  const was = s.focusId
+  set({ focusId: null })
+  if (s.doc) {
+    const layout = relayout(s.doc, s.draft)
+    set({ layout, selection: s.doc.nodes[was] ? [was] : sanitizeSelection(s.doc, layout, s.selection) })
+  }
+}
+
+export function toggleFocus(id?: string | null) {
+  const s = get()
+  if (activeFocus(s)) return exitFocus()
+  const target = id ?? primary(s)
+  if (target) enterFocus(target)
 }
 
 function sanitizeSelection(doc: MapDoc, layout: LayoutResult, sel: string[]): string[] {
   const ok = sel.filter((id) => layout.boxes[id])
-  return ok.length ? ok : [doc.root]
+  return ok.length ? ok : [layout.order[0] ?? doc.root]
 }
 
 export function openDoc(doc: MapDoc) {
   set({
+    focusId: null,
     doc,
     savedDoc: doc,
     layout: relayout(doc, null),
@@ -76,7 +124,7 @@ export function openDoc(doc: MapDoc) {
 }
 
 export function closeDoc() {
-  set({ doc: null, savedDoc: null, layout: null, past: [], future: [], selection: [], editingId: null, draft: null, freshId: null, connectFrom: null })
+  set({ focusId: null, doc: null, savedDoc: null, layout: null, past: [], future: [], selection: [], editingId: null, draft: null, freshId: null, connectFrom: null })
 }
 
 /**
@@ -225,6 +273,8 @@ export function addSibling(before = false) {
   const s = get()
   if (!s.doc) return
   const p = primary(s) ?? s.doc.root
+  // the focused branch is the whole map on screen: a sibling of it would be invisible, so add a child
+  if (p === activeFocus(s)) return addChild(p)
   let id = ''
   commit((d) => {
     id = T.addSibling(d, p, before)

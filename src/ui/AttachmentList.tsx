@@ -35,7 +35,7 @@ export function AttachmentList({ nodeId, items }: { nodeId: string; items: Attac
           {items.map((a) => (
             <li key={a.id} data-attachment={a.id} className="flex items-center gap-2 rounded-lg border border-line px-2 py-1.5 text-[13px]">
               <FileText size={15} className="shrink-0 text-muted" />
-              <button className="min-w-0 flex-1 truncate text-left hover:underline" dir="auto" title={`Open ${a.name}`} onClick={() => openAttachment(a).catch((e) => toast(e instanceof Error ? e.message : String(e), 'error'))}>
+              <button className="min-w-0 flex-1 truncate text-left hover:underline" dir="auto" title={`Open ${a.name}`} onClick={() => openAttachment(a).then((how) => how === 'revealed' && toast('Shown in your file manager (this file type is not opened from Branchmint)')).catch((e) => toast(e instanceof Error ? e.message : String(e), 'error'))}>
                 {a.name}
               </button>
               <span className="shrink-0 text-[11.5px] tabular-nums text-muted">{formatSize(a.size)}</span>

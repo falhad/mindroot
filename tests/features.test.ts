@@ -288,3 +288,83 @@ describe('floating nodes and sticky notes', async () => {
     expect(f).toBeTruthy()
   })
 })
+
+describe('focus mode', async () => {
+  const { focusDoc, projectDoc, focusPath } = await import('../src/core/focus')
+  const { computeLayout } = await import('../src/core/layout')
+  const T = await import('../src/core/tree')
+  const store = await import('../src/state/doc')
+
+  it('focusDoc contains only the subtree, with the focus node as a parentless root; the real doc is untouched', () => {
+    const d = sample()
+    const f = focusDoc(d, id(d, 'A'))
+    expect(Object.keys(f.nodes).sort()).toEqual([id(d, 'A'), id(d, 'A1'), id(d, 'A2')].sort())
+    expect(f.root).toBe(id(d, 'A'))
+    expect(f.nodes[f.root].parentId).toBeNull()
+    expect(d.nodes[id(d, 'A')].parentId).toBe(d.root) // not modified
+    expect(Object.keys(d.nodes)).toHaveLength(7)
+  })
+
+  it('links that leave the subtree are hidden; links inside stay', () => {
+    const d = sample()
+    T.addRelation(d, id(d, 'A1'), id(d, 'A2'))
+    T.addRelation(d, id(d, 'A1'), id(d, 'B'))
+    const f = focusDoc(d, id(d, 'A'))
+    expect(f.relations).toHaveLength(1)
+  })
+
+  it('projectDoc returns the same doc when there is no usable focus, and memoizes per doc and id', () => {
+    const d = sample()
+    expect(projectDoc(d, null)).toBe(d)
+    expect(projectDoc(d, d.root)).toBe(d)
+    expect(projectDoc(d, 'missing')).toBe(d)
+    expect(projectDoc(d, id(d, 'A'))).toBe(projectDoc(d, id(d, 'A')))
+  })
+
+  it('focusPath lists the ancestors from the root', () => {
+    const d = sample()
+    expect(focusPath(d, id(d, 'A1'))).toEqual([d.root, id(d, 'A'), id(d, 'A1')])
+  })
+
+  it('layout in focus mode shows only the branch, centred', () => {
+    const d = sample()
+    const l = computeLayout(focusDoc(d, id(d, 'A')))
+    expect(Object.keys(l.boxes).sort()).toEqual([id(d, 'A'), id(d, 'A1'), id(d, 'A2')].sort())
+    const b = l.boxes[id(d, 'A')]
+    expect(b.x + b.w / 2).toBeCloseTo(0, 0)
+  })
+
+  it('store: focusing shows only the branch; adding a child in focus mode edits the real doc; Enter on the focus root adds a child', () => {
+    const d = sample()
+    store.openDoc(d)
+    store.enterFocus(id(d, 'A'))
+    expect(Object.keys(store.useDoc.getState().layout!.boxes)).toHaveLength(3)
+    store.select([id(d, 'A')])
+    store.addSibling() // on the focus root: must add a child, not a sibling outside the view
+    store.endEdit('New in A')
+    const real = store.useDoc.getState().doc!
+    const a = real.nodes[id(d, 'A')]
+    expect(a.children.map((c) => real.nodes[c].text)).toContain('New in A')
+    expect(real.nodes[real.root].children).toHaveLength(3)
+    expect(Object.keys(store.useDoc.getState().layout!.boxes)).toHaveLength(4)
+    store.exitFocus()
+    expect(Object.keys(store.useDoc.getState().layout!.boxes)).toHaveLength(8)
+  })
+
+  it('store: deleting the focused node ends focus mode', () => {
+    const d = sample()
+    store.openDoc(d)
+    store.enterFocus(id(d, 'B'))
+    store.commit((x) => void T.removeNodes(x, [id(x, 'B')]))
+    expect(store.activeFocus(store.useDoc.getState())).toBeNull()
+    expect(Object.keys(store.useDoc.getState().layout!.boxes).length).toBeGreaterThan(3)
+  })
+
+  it('store: opening another map clears focus; undo that restores the focused node resumes it', () => {
+    const d = sample()
+    store.openDoc(d)
+    store.enterFocus(id(d, 'A'))
+    store.openDoc(sample())
+    expect(store.useDoc.getState().focusId).toBeNull()
+  })
+})

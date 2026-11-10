@@ -1,10 +1,13 @@
 //! Opening an attached file with the system's default app.
 //!
-//! The vault keeps files under hash names. To open one we copy it to a temporary folder under its
-//! real name (so the viewer shows a readable title), then ask the OS to open that copy. Program
-//! files are refused: opening one would run it.
+//! The vault keeps files under hash names. To open one we copy it into a private folder under its
+//! real name (so the viewer shows a readable title), then ask the OS to open that copy.
+//! Only document, image, audio and video types on an allowlist are opened. For any other type
+//! (programs, scripts, archives, unknown) the file is only *shown* in the file manager, so
+//! nothing can run by a click inside Branchmint.
 
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Runtime};
@@ -12,13 +15,13 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::storage::{paths, validate_asset_name, CmdResult};
 
-/// Extensions that can run code when opened. Must match `RISKY` in `src/io/attachments.ts`.
-const RISKY: &[&str] = &[
-    "exe", "bat", "cmd", "com", "scr", "msi", "sh", "command", "app", "jar", "js", "vbs", "ps1", "dmg", "pkg", "lnk", "desktop", "appimage", "deb", "rpm",
+/// Extensions that are safe to open with the default app. Must match `OPENABLE` in `src/io/attachments.ts`.
+const OPENABLE: &[&str] = &[
+    "pdf", "png", "jpg", "jpeg", "gif", "webp", "txt", "md", "csv", "rtf", "docx", "xlsx", "pptx", "odt", "ods", "odp", "mp3", "m4a", "wav", "mp4", "mov", "webm",
 ];
 
-pub fn is_risky(asset: &str) -> bool {
-    asset.rsplit('.').next().is_some_and(|e| RISKY.contains(&e))
+pub fn is_openable(asset: &str) -> bool {
+    asset.rsplit('.').next().is_some_and(|e| OPENABLE.contains(&e))
 }
 
 /// A file name that is safe to create: no folders, no control characters, no leading dot, at most 100 characters,
@@ -37,23 +40,41 @@ pub fn display_file_name(display: &str, asset: &str) -> String {
     if base.to_lowercase().ends_with(&format!(".{ext}")) { base } else { format!("{base}.{ext}") }
 }
 
-/// Copy the asset to `<temp>/branchmint-open/<hash-prefix>/<name>` and return that path.
-pub fn prepare_copy(assets: &Path, temp: &Path, asset: &str, display: &str) -> CmdResult<PathBuf> {
+/// Copy the asset to `<private>/<hash-prefix>/<name>` and return that path. The folder is only
+/// accessible to the user, an old copy is replaced, and the file is created with `create_new` so a
+/// planted link or file cannot redirect the write.
+pub fn prepare_copy(assets: &Path, private: &Path, asset: &str, display: &str) -> CmdResult<PathBuf> {
     validate_asset_name(asset)?;
-    if is_risky(asset) {
-        return Err("Program files are not opened from Branchmint".into());
-    }
-    let dir = temp.join("branchmint-open").join(&asset[..16]);
+    let bytes = fs::read(assets.join(asset)).map_err(|e| format!("Could not read the attachment: {e}"))?;
+    let dir = private.join(&asset[..16]);
+    let _ = fs::remove_dir_all(&dir); // a viewer may still hold the old copy on Windows; then create_new below fails clearly
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(private, fs::Permissions::from_mode(0o700));
+        let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
+    }
     let target = dir.join(display_file_name(display, asset));
-    fs::copy(assets.join(asset), &target).map_err(|e| format!("Could not read the attachment: {e}"))?;
+    let mut f = fs::OpenOptions::new().write(true).create_new(true).open(&target).map_err(|e| format!("Could not create the copy: {e}"))?;
+    f.write_all(&bytes).map_err(|e| e.to_string())?;
+    f.sync_all().map_err(|e| e.to_string())?;
     Ok(target)
 }
 
+/// Open a safe type with its default app; show any other type in the file manager instead.
+/// Returns `"opened"` or `"revealed"`.
 #[tauri::command]
-pub fn open_attachment<R: Runtime>(app: AppHandle<R>, name: String, display: String) -> CmdResult<()> {
-    let target = prepare_copy(&paths(&app)?.assets(), &std::env::temp_dir(), &name, &display)?;
-    app.opener().open_path(target.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+pub fn open_attachment<R: Runtime>(app: AppHandle<R>, name: String, display: String) -> CmdResult<String> {
+    let p = paths(&app)?;
+    let target = prepare_copy(&p.assets(), &p.cache().join("open"), &name, &display)?;
+    if is_openable(&name) {
+        app.opener().open_path(target.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())?;
+        Ok("opened".into())
+    } else {
+        app.opener().reveal_item_in_dir(&target).map_err(|e| e.to_string())?;
+        Ok("revealed".into())
+    }
 }
 
 #[cfg(test)]
@@ -74,19 +95,41 @@ mod tests {
     }
 
     #[test]
-    fn risky_files_are_refused_and_others_are_copied() {
+    fn only_allowlisted_types_are_openable() {
+        for ok in ["pdf", "png", "docx", "txt", "mp4"] {
+            assert!(is_openable(&format!("{H}.{ok}")), "{ok}");
+        }
+        for bad in ["sh", "exe", "app", "command", "zip", "svg", "html", "bin", "py", "jar", "docm", "xlsm", "workflow", "terminal"] {
+            assert!(!is_openable(&format!("{H}.{bad}")), "{bad}");
+        }
+    }
+
+    #[test]
+    fn copies_into_a_private_folder_and_replaces_planted_files() {
         let base = std::env::temp_dir().join(format!("bm-attach-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let assets = base.join("assets");
         fs::create_dir_all(&assets).unwrap();
-        fs::write(assets.join(format!("{H}.sh")), b"echo hi").unwrap();
         fs::write(assets.join(format!("{H}.pdf")), b"%PDF").unwrap();
-        let temp = base.join("tmp");
-        assert!(prepare_copy(&assets, &temp, &format!("{H}.sh"), "run.sh").is_err());
-        let out = prepare_copy(&assets, &temp, &format!("{H}.pdf"), "My plan").unwrap();
-        assert_eq!(fs::read(&out).unwrap(), b"%PDF");
+        let private = base.join("private");
+        // a planted symlink where the copy will go must not be written through
+        #[cfg(unix)]
+        {
+            let victim = base.join("victim.txt");
+            fs::write(&victim, b"keep").unwrap();
+            let dir = private.join(&H[..16]);
+            fs::create_dir_all(&dir).unwrap();
+            std::os::unix::fs::symlink(&victim, dir.join("My plan.pdf")).unwrap();
+            let out = prepare_copy(&assets, &private, &format!("{H}.pdf"), "My plan").unwrap();
+            assert_eq!(fs::read(&out).unwrap(), b"%PDF");
+            assert_eq!(fs::read(&victim).unwrap(), b"keep");
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(fs::metadata(&private).unwrap().permissions().mode() & 0o077, 0);
+        }
+        let out = prepare_copy(&assets, &private, &format!("{H}.pdf"), "My plan").unwrap();
         assert!(out.file_name().unwrap().to_string_lossy().ends_with("My plan.pdf"));
-        assert!(prepare_copy(&assets, &temp, "../evil.pdf", "x").is_err());
+        assert!(prepare_copy(&assets, &private, "../evil.pdf", "x").is_err());
+        assert!(prepare_copy(&assets, &private, &format!("{}.pdf", "b".repeat(64)), "x").is_err()); // missing asset
         let _ = fs::remove_dir_all(&base);
     }
 }

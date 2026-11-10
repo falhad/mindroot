@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderNotes } from '../src/core/mdnotes'
-import { MAX_ATTACHMENT, addAttachment, attachmentExt, formatSize } from '../src/io/attachments'
+import { MAX_ATTACHMENT, addAttachment, attachmentExt, downloadName, formatSize, isOpenable } from '../src/io/attachments'
 import type { AssetIO } from '../src/io/assets'
 
 describe('renderNotes (Markdown, code, math)', () => {
@@ -95,6 +95,21 @@ describe('attachments', () => {
     await expect(addAttachment(file('big.bin', MAX_ATTACHMENT + 1), io)).rejects.toThrow(/25 MB/)
     await expect(addAttachment(file('empty.txt', 0), io)).rejects.toThrow(/empty/i)
     expect(io.files.size).toBe(0)
+  })
+
+  it('only document, image, audio and video types are opened; programs and scripts are not', () => {
+    const h = 'a'.repeat(64)
+    for (const e of ['pdf', 'png', 'docx', 'txt']) expect(isOpenable({ asset: `${h}.${e}` })).toBe(true)
+    for (const e of ['sh', 'exe', 'app', 'command', 'zip', 'html', 'svg', 'bin', 'docm']) expect(isOpenable({ asset: `${h}.${e}` })).toBe(false)
+  })
+
+  it('the download name is cleaned and always carries the asset extension, whatever the stored name says', () => {
+    const h = 'a'.repeat(64)
+    expect(downloadName({ name: '../../etc/passwd', asset: `${h}.txt` })).toBe('_.._etc_passwd.txt')
+    expect(downloadName({ name: 'run.sh', asset: `${h}.pdf` })).toBe('run.sh.pdf')
+    expect(downloadName({ name: 'Plan.PDF', asset: `${h}.pdf` })).toBe('Plan.PDF')
+    expect(downloadName({ name: '', asset: `${h}.pdf` })).toBe('attachment.pdf')
+    expect(downloadName({ name: '.hidden', asset: `${h}.pdf` })).toBe('hidden.pdf')
   })
 
   it('formatSize is short and readable', () => {
