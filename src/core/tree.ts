@@ -1,5 +1,5 @@
 import { uid } from './ids'
-import { SCHEMA_VERSION, type MapDoc, type MindNode, type ChecklistItem, type NodeImage, type ShapeKind } from './types'
+import { SCHEMA_VERSION, type MapDoc, type MindNode, type ChecklistItem, type NodeImage, type Relation, type ShapeKind } from './types'
 
 export function createDoc(title = 'Central idea'): MapDoc {
   const rootId = uid()
@@ -294,6 +294,25 @@ export function addRelation(doc: MapDoc, from: string, to: string): boolean {
   if (doc.relations.some((r) => (r.from === from && r.to === to) || (r.from === to && r.to === from))) return false
   doc.relations.push({ id: uid(8), from, to })
   return true
+}
+
+/** Change a cross link's label, arrow or line style. Default values and empty text are removed. */
+export function updateRelation(doc: MapDoc, id: string, patch: Partial<Pick<Relation, 'label' | 'arrow' | 'dash'>>) {
+  const r = doc.relations.find((x) => x.id === id)
+  if (!r) return
+  if ('label' in patch) {
+    const label = (patch.label ?? '').trim()
+    if (label) r.label = label
+    else delete r.label
+  }
+  if ('arrow' in patch) {
+    if (patch.arrow && patch.arrow !== 'end') r.arrow = patch.arrow
+    else delete r.arrow
+  }
+  if ('dash' in patch) {
+    if (patch.dash && patch.dash !== 'dashed') r.dash = patch.dash
+    else delete r.dash
+  }
 }
 
 export function removeRelation(doc: MapDoc, id: string) {

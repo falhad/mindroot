@@ -51,3 +51,60 @@ describe('tags', () => {
     expect(tagFilterState(d, [])).toBeNull()
   })
 })
+
+describe('relations: labels, arrows, styles', async () => {
+  const { relationPath } = await import('../src/core/edges')
+  const { updateRelation, addRelation } = await import('../src/core/tree')
+  const { computeLayout } = await import('../src/core/layout')
+  const { renderSvg } = await import('../src/core/svg')
+
+  it('relationPath returns a midpoint that lies on the curve and start/end angles', () => {
+    const a = { x: 0, y: 0, w: 40, h: 20 }
+    const b = { x: 300, y: 0, w: 40, h: 20 }
+    const p = relationPath(a, b)
+    // the path is  M a Q c b ; the midpoint of a quadratic curve is (a + 2c + b) / 4
+    const m = /^M([-\d.]+) ([-\d.]+)Q([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)$/.exec(p.d)!.slice(1).map(Number)
+    const [ax, ay, cx, cy, bx, by] = m
+    expect(p.mid.x).toBeCloseTo((ax + 2 * cx + bx) / 4, 1)
+    expect(p.mid.y).toBeCloseTo((ay + 2 * cy + by) / 4, 1)
+    expect(p.start.x).toBeCloseTo(ax, 1)
+    expect(Number.isFinite(p.startAngle)).toBe(true)
+  })
+
+  it('hitRelation finds the link near a point and nothing far away', async () => {
+    const { hitRelation } = await import('../src/core/edges')
+    const a = { x: 0, y: 0, w: 40, h: 20 }
+    const b = { x: 300, y: 0, w: 40, h: 20 }
+    const rels = [{ id: 'r1', from: 'a', to: 'b' }]
+    const g = relationPath(a, b)
+    expect(hitRelation(rels, { a, b }, g.mid.x + 2, g.mid.y - 2, 10)).toBe('r1')
+    expect(hitRelation(rels, { a, b }, g.mid.x, g.mid.y + 200, 10)).toBeNull()
+    expect(hitRelation(rels, { a }, g.mid.x, g.mid.y, 10)).toBeNull() // a missing node never throws
+  })
+
+  it('updateRelation sets label, arrow and dash; defaults and empty values are removed; unknown ids are ignored', () => {
+    const d = sample()
+    addRelation(d, id(d, 'A'), id(d, 'B'))
+    const rid = d.relations[0].id
+    updateRelation(d, rid, { label: ' blocks ', arrow: 'both', dash: 'dotted' })
+    expect(d.relations[0]).toMatchObject({ label: 'blocks', arrow: 'both', dash: 'dotted' })
+    updateRelation(d, rid, { label: '', arrow: 'end', dash: 'dashed' })
+    expect('label' in d.relations[0] || 'arrow' in d.relations[0] || 'dash' in d.relations[0]).toBe(false)
+    const before = JSON.stringify(d.relations)
+    updateRelation(d, 'nope', { label: 'x' })
+    expect(JSON.stringify(d.relations)).toBe(before)
+  })
+
+  it('svg export draws the label, both arrowheads, and the dash style', () => {
+    const d = sample()
+    addRelation(d, id(d, 'A'), id(d, 'B'))
+    updateRelation(d, d.relations[0].id, { label: 'blocks <b>', arrow: 'both', dash: 'solid' })
+    const { svg } = renderSvg(d, computeLayout(d), { dark: false, background: false })
+    expect(svg).toContain('blocks &lt;b&gt;')
+    expect(svg.match(/data-arrow="/g)).toHaveLength(2)
+    expect(svg).not.toContain('stroke-dasharray="6 5"')
+    const none = structuredClone(d)
+    updateRelation(none, none.relations[0].id, { arrow: 'none' })
+    expect(renderSvg(none, computeLayout(none), { dark: false, background: false }).svg).not.toContain('data-arrow')
+  })
+})

@@ -87,8 +87,32 @@ export function edgePath(kind: EdgeKind, from: Box, to: Box, attach: Attach): st
   )
 }
 
-/** Dashed cross-link between two arbitrary nodes, bowed away from the straight line. */
-export function relationPath(from: Box, to: Box): { d: string; end: Pt; angle: number } {
+export const DASH: Record<'dashed' | 'solid' | 'dotted', string | undefined> = { dashed: '6 5', solid: undefined, dotted: '1.5 5' }
+
+/** Arrowhead (two short strokes) with its tip at `tip`, pointing along `angle`. */
+export function arrowHead(tip: Pt, angle: number, size = 8): string {
+  const x1 = tip.x - Math.cos(angle - 0.45) * size
+  const y1 = tip.y - Math.sin(angle - 0.45) * size
+  const x2 = tip.x - Math.cos(angle + 0.45) * size
+  const y2 = tip.y - Math.sin(angle + 0.45) * size
+  return `M${f(x1)} ${f(y1)}L${f(tip.x)} ${f(tip.y)}L${f(x2)} ${f(y2)}`
+}
+
+export interface RelationGeometry {
+  d: string
+  start: Pt
+  end: Pt
+  /** Direction of travel at the end point (arrow tip) and, pointing outward, at the start point. */
+  angle: number
+  startAngle: number
+  /** Middle of the curve: where the label sits. */
+  mid: Pt
+  /** Control point of the quadratic curve. */
+  ctrl: Pt
+}
+
+/** Cross-link between two arbitrary nodes, bowed away from the straight line. */
+export function relationPath(from: Box, to: Box): RelationGeometry {
   const fc = { x: from.x + from.w / 2, y: from.y + from.h / 2 }
   const tc = { x: to.x + to.w / 2, y: to.y + to.h / 2 }
   const a = edgePoint(from, tc)
@@ -100,5 +124,35 @@ export function relationPath(from: Box, to: Box): { d: string; end: Pt; angle: n
   const cx = mx + (-(b.y - a.y) / len) * bow
   const cy = my + ((b.x - a.x) / len) * bow
   const angle = Math.atan2(b.y - cy, b.x - cx)
-  return { d: `M${f(a.x)} ${f(a.y)}Q${f(cx)} ${f(cy)} ${f(b.x)} ${f(b.y)}`, end: b, angle }
+  const startAngle = Math.atan2(a.y - cy, a.x - cx)
+  const mid = { x: (a.x + 2 * cx + b.x) / 4, y: (a.y + 2 * cy + b.y) / 4 }
+  return { d: `M${f(a.x)} ${f(a.y)}Q${f(cx)} ${f(cy)} ${f(b.x)} ${f(b.y)}`, start: a, end: b, angle, startAngle, mid, ctrl: { x: cx, y: cy } }
+}
+
+/**
+ * The cross link closest to the point (x, y) within `tol` world units, or null. Used for
+ * double-click: the canvas captures the pointer, so the line itself never receives the event.
+ */
+export function hitRelation(relations: { id: string; from: string; to: string }[], boxes: Record<string, Box>, x: number, y: number, tol: number): string | null {
+  let best: string | null = null
+  let bestD = tol
+  for (const r of relations) {
+    const a = boxes[r.from]
+    const b = boxes[r.to]
+    if (!a || !b) continue
+    const g = relationPath(a, b)
+    const steps = 28
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps
+      const u = 1 - t
+      const px = u * u * g.start.x + 2 * u * t * g.ctrl.x + t * t * g.end.x
+      const py = u * u * g.start.y + 2 * u * t * g.ctrl.y + t * t * g.end.y
+      const d = Math.hypot(px - x, py - y)
+      if (d < bestD) {
+        bestD = d
+        best = r.id
+      }
+    }
+  }
+  return best
 }

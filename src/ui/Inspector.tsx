@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { ExternalLink, ImagePlus, Link2, Plus, Trash2, X, Check, Smile } from 'lucide-react'
 import { THEMES, getTheme } from '../core/themes'
 import * as T from '../core/tree'
 import { normalizeTag, setNodeTags } from '../core/tags'
-import type { MindNode, ShapeKind } from '../core/types'
+import type { MindNode, Relation, ShapeKind } from '../core/types'
 import { openExternal, pickFile, readImage } from '../io/files'
 import { commit, primary, setConnectFrom, useDoc } from '../state/doc'
 import { toast, useUi } from '../state/ui'
@@ -261,10 +261,24 @@ function NodePanel({ node }: { node: MindNode }) {
             {related.map((r) => {
               const other = doc.nodes[r.from === node.id ? r.to : r.from]
               return (
-                <li key={r.id} className="flex items-center gap-2 text-[13px]">
+                <Fragment key={r.id}>
+                <li className="flex items-center gap-2 text-[13px]">
                   <span className="flex-1 truncate">{r.from === node.id ? '→' : '←'} {other?.text || 'New idea'}</span>
                   <button className="btn icon" style={{ width: 24, height: 24 }} aria-label="Remove link" onClick={() => commit((d) => T.removeRelation(d, r.id))}><X size={13} /></button>
                 </li>
+                <li className="-mt-0.5 mb-2 flex items-center gap-1.5 pl-5">
+                  <input className="field" style={{ height: 28, flex: 1, minWidth: 0 }} dir="auto" placeholder="Label" aria-label="Link label" value={r.label ?? ''}
+                    onChange={(e) => commit((d) => T.updateRelation(d, r.id, { label: e.target.value }), { coalesce: `rel:${r.id}` })} />
+                  <select className="field" style={{ height: 28, width: 62, padding: '0 4px' }} aria-label="Arrow" value={r.arrow ?? 'end'}
+                    onChange={(e) => commit((d) => T.updateRelation(d, r.id, { arrow: e.target.value as Relation['arrow'] }))}>
+                    <option value="end">→</option><option value="both">↔</option><option value="none">—</option>
+                  </select>
+                  <select className="field" style={{ height: 28, width: 62, padding: '0 4px' }} aria-label="Line style" value={r.dash ?? 'dashed'}
+                    onChange={(e) => commit((d) => T.updateRelation(d, r.id, { dash: e.target.value as Relation['dash'] }))}>
+                    <option value="dashed">- -</option><option value="solid">——</option><option value="dotted">···</option>
+                  </select>
+                </li>
+                </Fragment>
               )
             })}
           </ul>

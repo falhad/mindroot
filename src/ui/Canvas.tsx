@@ -1,13 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { edgePath, relationPath } from '../core/edges'
+import { DASH, edgePath, hitRelation, relationPath } from '../core/edges'
 import { hitTest, type LayoutResult } from '../core/layout'
 import { tagFilterState } from '../core/tags'
-import { subtreeIds, movable } from '../core/tree'
+import { subtreeIds, movable, updateRelation } from '../core/tree'
 import type { Box, MapDoc } from '../core/types'
-import { makeVisualContext, nodeVisual } from '../core/visual'
+import { isRtl, makeVisualContext, nodeVisual } from '../core/visual'
 import { openExternal } from '../io/files'
 import { inTextField } from '../state/clipboard'
-import { connectNodes, dropNodes, select, setConnectFrom, startEdit, toggleCollapse, useDoc, type DropDest } from '../state/doc'
+import { commit, connectNodes, dropNodes, select, setConnectFrom, startEdit, toggleCollapse, useDoc, type DropDest } from '../state/doc'
 import { useSearch } from '../state/search'
 import { ui, useUi } from '../state/ui'
 import { MAX_ZOOM, MIN_ZOOM, screenToWorld, setView, setViewport, useView, zoomAt } from '../state/view'
@@ -109,6 +109,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
   const [drag, setDrag] = useState<DragState | null>(null)
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [panning, setPanning] = useState(false)
+  const [editingRel, setEditingRel] = useState<string | null>(null)
   const gesture = useRef<Gesture | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const selRef = useRef(selection)
@@ -326,7 +327,13 @@ export function Canvas({ doc, layout, onContext }: Props) {
 
   const onDoubleClick = (e: React.MouseEvent) => {
     const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null
-    if (nodeEl && !(e.target as HTMLElement).closest('.node-edit,[data-collapse],[data-badge]')) startEdit(nodeEl.dataset.nodeId!)
+    if (nodeEl && !(e.target as HTMLElement).closest('.node-edit,[data-collapse],[data-badge]')) return startEdit(nodeEl.dataset.nodeId!)
+    if ((e.target as HTMLElement).closest('.node-edit,input')) return
+    // the canvas captures the pointer, so find a link line by distance instead of by event target
+    const p = local(e)
+    const w = screenToWorld(p.x, p.y)
+    const rel = hitRelation(doc.relations, layout.boxes, w.x, w.y, 10 / useView.getState().k)
+    if (rel) setEditingRel(rel)
   }
 
   const onContextMenu = (e: React.MouseEvent) => {
@@ -416,7 +423,17 @@ export function Canvas({ doc, layout, onContext }: Props) {
           {doc.relations.map((r) => {
             if (!layout.boxes[r.from] || !layout.boxes[r.to]) return null
             const p = relationPath(renderBox(r.from), renderBox(r.to))
-            return <path key={r.id} d={p.d} stroke="var(--muted)" strokeWidth={1.8} strokeDasharray="6 5" markerEnd="url(#arrow)" />
+            const arrow = r.arrow ?? 'end'
+            return (
+              <g key={r.id} data-relation={r.id}>
+                <path d={p.d} stroke="var(--muted)" strokeWidth={1.8} strokeDasharray={DASH[r.dash ?? 'dashed']}
+                  markerEnd={arrow !== 'none' ? 'url(#arrow)' : undefined} markerStart={arrow === 'both' ? 'url(#arrow)' : undefined} />
+                {r.label && editingRel !== r.id && (
+                  <text x={p.mid.x} y={p.mid.y} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={500} fill="var(--muted)" stroke="var(--canvas)" strokeWidth={4}
+                    paintOrder="stroke" strokeLinejoin="round" pointerEvents="none" direction={isRtl(r.label) ? 'rtl' : 'ltr'}>{r.label}</text>
+                )}
+              </g>
+            )
           })}
         </svg>
         {layout.order.map((id) => (
@@ -438,6 +455,35 @@ export function Canvas({ doc, layout, onContext }: Props) {
           />
         ))}
         {dropIndicator && <div className="drop-line" style={dropIndicator} />}
+        {editingRel && (() => {
+          const r = doc.relations.find((x) => x.id === editingRel)
+          if (!r || !layout.boxes[r.from] || !layout.boxes[r.to]) return null
+          const mid = relationPath(renderBox(r.from), renderBox(r.to)).mid
+          const done = (save: boolean, value: string) => {
+            setEditingRel(null)
+            if (save) commit((d) => updateRelation(d, r.id, { label: value }))
+          }
+          return (
+            <input
+              autoFocus
+              aria-label="Link label"
+              className="field"
+              dir="auto"
+              defaultValue={r.label ?? ''}
+              placeholder="Label"
+              style={{ position: 'absolute', left: mid.x, top: mid.y, transform: 'translate(-50%, -50%)', width: 140, height: 28, textAlign: 'center', zIndex: 6 }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.nativeEvent.isComposing) return
+                if (e.key === 'Enter') done(true, e.currentTarget.value)
+                else if (e.key === 'Escape') done(false, '')
+              }}
+              onBlur={(e) => done(true, e.currentTarget.value)}
+            />
+          )
+        })()}
       </div>
       {marquee && (
         <div

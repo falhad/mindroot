@@ -1,4 +1,4 @@
-import { relationPath, edgePath } from './edges'
+import { arrowHead, DASH, relationPath, edgePath } from './edges'
 import type { LayoutResult } from './layout'
 import { boundsOf } from './layout'
 import { PLACEHOLDER } from './measure'
@@ -61,13 +61,17 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
     const c = layout.boxes[r.to]
     if (!a || !c) continue
     const p = relationPath(a, c)
-    const ah = 8
-    const x1 = p.end.x - Math.cos(p.angle - 0.45) * ah
-    const y1 = p.end.y - Math.sin(p.angle - 0.45) * ah
-    const x2 = p.end.x - Math.cos(p.angle + 0.45) * ah
-    const y2 = p.end.y - Math.sin(p.angle + 0.45) * ah
-    out.push(`<path d="${p.d}" stroke="${pal.muted}" stroke-width="1.8" stroke-dasharray="6 5"/>`)
-    out.push(`<path d="M${x1} ${y1}L${p.end.x} ${p.end.y}L${x2} ${y2}" stroke="${pal.muted}" stroke-width="1.8"/>`)
+    const dash = DASH[r.dash ?? 'dashed']
+    const arrow = r.arrow ?? 'end'
+    out.push(`<path d="${p.d}" stroke="${pal.muted}" stroke-width="1.8"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`)
+    if (arrow !== 'none') out.push(`<path data-arrow="end" d="${arrowHead(p.end, p.angle)}" stroke="${pal.muted}" stroke-width="1.8"/>`)
+    if (arrow === 'both') out.push(`<path data-arrow="start" d="${arrowHead(p.start, p.startAngle)}" stroke="${pal.muted}" stroke-width="1.8"/>`)
+    if (r.label) {
+      // a halo in the background colour keeps the text readable over the line
+      out.push(
+        `<text x="${p.mid.x}" y="${p.mid.y}" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="500" fill="${pal.muted}" stroke="${pal.bg}" stroke-width="4" paint-order="stroke" stroke-linejoin="round">${esc(r.label)}</text>`,
+      )
+    }
   }
   out.push('</g>')
 
