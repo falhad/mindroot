@@ -730,3 +730,105 @@ describe('vector PDF eligibility', async () => {
     expect(canExportVectorPdf(s)).toBe(false)
   })
 })
+
+describe('diffDocs and restoring ideas', async () => {
+  const { diffDocs, restoreSubtree } = await import('../src/core/diff')
+  const T = await import('../src/core/tree')
+  const copy = (d: MapDoc) => structuredClone(d)
+
+  it('identical docs have no differences', () => {
+    const d = sample()
+    expect(diffDocs(d, copy(d))).toMatchObject({ added: [], removed: [], changed: [], moved: [] })
+  })
+
+  it('a renamed node (same id) is changed, not added and removed', () => {
+    const a = sample()
+    const b = copy(a)
+    b.nodes[id(b, 'A1')].text = 'A1 renamed'
+    const r = diffDocs(a, b)
+    expect(r.changed).toEqual([id(a, 'A1')])
+    expect([r.added, r.removed, r.moved]).toEqual([[], [], []])
+  })
+
+  it('added and removed nodes are reported in the right doc: removed in A, added in B', () => {
+    const a = sample()
+    const b = copy(a)
+    T.removeNodes(b, [id(b, 'C')])
+    const n = T.addChild(b, id(b, 'B'), 'Fresh')
+    const r = diffDocs(a, b)
+    expect(r.removed).toEqual([id(a, 'C')])
+    expect(r.added).toEqual([n])
+  })
+
+  it('a node under a new parent is moved; its subtree is not reported again', () => {
+    const a = sample()
+    const b = copy(a)
+    T.moveNode(b, id(b, 'A'), id(b, 'B'))
+    const r = diffDocs(a, b)
+    expect(r.moved).toEqual([id(a, 'A')])
+    expect(r.added).toEqual([])
+    expect(r.changed).toEqual([])
+  })
+
+  it('maps with different ids are matched by their path of texts', () => {
+    const a = sample()
+    const b = docFromOutline(parseOutline('# Root\n- A\n  - A1\n  - A2 changed\n- B\n- C\n- New'))
+    const r = diffDocs(a, b)
+    expect(r.added.map((i) => b.nodes[i].text).sort()).toEqual(['A2 changed', 'New'])
+    expect(r.removed.map((i) => a.nodes[i].text).sort()).toEqual(['A2', 'B1'])
+    expect(r.changed).toEqual([])
+    expect(r.moved).toEqual([])
+  })
+
+  it('same-text siblings are matched in order', () => {
+    const a = docFromOutline(parseOutline('# R\n- x\n- x\n- x'))
+    const b = docFromOutline(parseOutline('# R\n- x\n- x'))
+    const r = diffDocs(a, b)
+    expect(r.removed).toHaveLength(1)
+    expect(r.added).toHaveLength(0)
+  })
+
+  it('notes, colour, tags, due date and done state count as changes', () => {
+    const a = sample()
+    const b = copy(a)
+    Object.assign(b.nodes[id(b, 'A')], { notes: 'n', color: '2', tags: ['x'], due: '2026-12-01', done: true })
+    expect(diffDocs(a, b).changed).toEqual([id(a, 'A')])
+  })
+
+  it('a 1,000-node comparison takes well under 100 ms', () => {
+    const lines = ['# Big']
+    for (let i = 0; i < 25; i++) {
+      lines.push(`- B${i}`)
+      for (let j = 0; j < 39; j++) lines.push(`  - L${i}-${j}`)
+    }
+    const a = docFromOutline(parseOutline(lines.join('\n')))
+    const b = copy(a)
+    b.nodes[id(b, 'L3-3')].text = 'changed'
+    const t = performance.now()
+    const r = diffDocs(a, b)
+    expect(performance.now() - t).toBeLessThan(100)
+    expect(r.changed).toHaveLength(1)
+  })
+
+  it('restoreSubtree brings a deleted idea back under its old parent, with new ids', () => {
+    const old = sample()
+    const now = copy(old)
+    T.removeNodes(now, [id(now, 'A')])
+    const back = restoreSubtree(now, old, id(old, 'A'))!
+    expect(now.nodes[back].text).toBe('A')
+    expect(now.nodes[back].parentId).toBe(now.root)
+    expect(now.nodes[back].children.map((c) => now.nodes[c].text)).toEqual(['A1', 'A2'])
+    expect(back).not.toBe(id(old, 'A'))
+    expect(Object.keys(now.nodes)).toHaveLength(Object.keys(old.nodes).length)
+  })
+
+  it('restoreSubtree puts the idea under the root when its old parent is gone, and refuses unknown ids and the root', () => {
+    const old = sample()
+    const now = copy(old)
+    T.removeNodes(now, [id(now, 'A')]) // removes A1 and A2 too
+    const back = restoreSubtree(now, old, id(old, 'A1'))!
+    expect(now.nodes[back].parentId).toBe(now.root)
+    expect(restoreSubtree(now, old, 'nope')).toBeNull()
+    expect(restoreSubtree(now, old, old.root)).toBeNull()
+  })
+})
