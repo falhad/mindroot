@@ -1,6 +1,7 @@
 //! Branchmint backend: file storage for maps, the Git runner used by sync, and plugin files.
 
 mod attachments;
+mod gallery;
 mod git;
 mod net;
 mod plugins;
@@ -45,6 +46,8 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             templates::template_list,
             templates::template_save,
             templates::template_delete,
+            gallery::plugin_install,
+            gallery::plugin_uninstall,
             plugins::plugins_list,
             plugins::plugin_read,
             plugins::plugins_path,

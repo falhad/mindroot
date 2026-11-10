@@ -44,6 +44,21 @@ fn serve(status: &str, body: Vec<u8>) -> (u16, std::thread::JoinHandle<String>) 
     (port, h)
 }
 
+fn zip_bytes() -> Vec<u8> {
+    use zip::write::SimpleFileOptions;
+    let mut w = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    w.start_file("manifest.json", SimpleFileOptions::default()).unwrap();
+    w.write_all(br#"{"id":"acme.gallery-test","name":"Gallery test","version":"1.0.0"}"#).unwrap();
+    w.start_file("index.js", SimpleFileOptions::default()).unwrap();
+    w.write_all(b"export default { activate() {} }").unwrap();
+    w.finish().unwrap().into_inner()
+}
+
+fn sha_hex(b: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(b).iter().map(|x| format!("{x:02x}")).collect()
+}
+
 #[test]
 fn net_and_secrets_work_the_way_the_frontend_calls_them() {
     branchmint_lib::use_memory_secrets();
@@ -99,6 +114,29 @@ fn net_and_secrets_work_the_way_the_frontend_calls_them() {
     let e = call(&w, "net_request", json!({ "req": { "url": format!("http://127.0.0.1:{port}/"), "timeoutMs": 300 } })).unwrap_err();
     assert!(e.as_str().unwrap().to_lowercase().contains("time"), "{e}");
     let _ = hold.join();
+
+    // gallery: download, check the hash, install; refuse everything else
+    let z = zip_bytes();
+    let (port, h) = serve("200 OK", z.clone());
+    let id = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z) })).unwrap();
+    assert_eq!(id, "acme.gallery-test");
+    h.join().unwrap();
+    let listed = call(&w, "plugins_list", json!({})).unwrap();
+    assert!(listed.as_array().unwrap().iter().any(|p| p["manifest"]["id"] == "acme.gallery-test"), "{listed}");
+    // wrong hash: nothing changes, and the message says why
+    let (port, h) = serve("200 OK", z.clone());
+    let e = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": "0".repeat(64) })).unwrap_err();
+    assert!(e.as_str().unwrap().contains("SHA-256"), "{e}");
+    h.join().unwrap();
+    // not found, and plain http to another host
+    let (port, h) = serve("404 Not Found", b"nope".to_vec());
+    assert!(call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z) })).is_err());
+    h.join().unwrap();
+    assert!(call(&w, "plugin_install", json!({ "url": "http://example.com/p.zip", "sha256": sha_hex(&z) })).is_err());
+    // uninstall
+    call(&w, "plugin_uninstall", json!({ "id": "acme.gallery-test" })).unwrap();
+    assert!(!call(&w, "plugins_list", json!({})).unwrap().as_array().unwrap().iter().any(|p| p["manifest"]["id"] == "acme.gallery-test"));
+    assert!(call(&w, "plugin_uninstall", json!({ "id": "../x" })).is_err());
 
     // secrets: per plugin, set / get / remove
     assert!(call(&w, "secret_get", json!({ "pluginId": "branchmint.ai", "key": "k" })).unwrap().is_null());

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { askConfirm, toast } from '../state/ui'
+import { PluginGallery } from './PluginGallery'
 import { registerCaptureShortcut } from '../io/captureShortcut'
 import { DEFAULT_SHORTCUT, getInboxName, getShortcut, setInboxName, setShortcut } from '../state/capture'
 import { Blocks, FolderOpen, Moon, Puzzle, Settings2, Sun, Monitor, X } from 'lucide-react'
@@ -123,6 +125,7 @@ function Plugins() {
       <ul className="space-y-2">
         {plugins.map((p) => <PluginRow key={p.manifest.id} p={p} />)}
       </ul>
+      <PluginGallery />
       {isTauri && (
         <div className="rounded-xl border border-dashed border-[var(--line-strong)] p-3.5 text-[12.5px] text-muted">
           <div className="mb-1 flex items-center gap-1.5 font-medium text-ink"><FolderOpen size={14} /> Install a plugin</div>
@@ -149,6 +152,18 @@ function PluginRow({ p }: { p: PluginRecord }) {
         </div>
         {p.manifest.description && <p className="mt-0.5 text-[12.5px] leading-snug text-muted">{p.manifest.description}</p>}
         {p.state === 'error' && <p className="mt-1 text-[12.5px] text-danger" role="alert">Could not start: {p.error}</p>}
+        {!p.builtin && isTauri && (
+          <button className="mt-1.5 text-[12px] text-muted hover:text-ink" onClick={async () => {
+            if (!(await askConfirm({ title: `Remove ${p.manifest.name}?`, body: 'Its folder is deleted. Restart Branchmint to finish.', confirmLabel: 'Remove', danger: true }))) return
+            try {
+              const { invoke } = await import('@tauri-apps/api/core')
+              await invoke('plugin_uninstall', { id: p.manifest.id })
+              toast(`${p.manifest.name} removed. Restart Branchmint to finish.`, 'success')
+            } catch (e) {
+              toast(`Could not remove it: ${e instanceof Error ? e.message : e}`, 'error')
+            }
+          }}>Remove</button>
+        )}
       </div>
       <label className="relative mt-0.5 inline-flex shrink-0 cursor-pointer items-center" title={on ? 'Turn off' : 'Turn on'}>
         <input type="checkbox" role="switch" className="peer sr-only" checked={on} disabled={p.state === 'error' && !p.builtin} onChange={(e) => void setPluginEnabled(p.manifest.id, e.target.checked)} aria-label={`${p.manifest.name} enabled`} />

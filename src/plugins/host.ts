@@ -79,7 +79,7 @@ function checkUrl(raw: string): URL {
   return u
 }
 
-async function netRequest(req: NetRequest): Promise<NetResponse> {
+export async function netRequest(req: NetRequest): Promise<NetResponse> {
   checkUrl(req.url)
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core')
