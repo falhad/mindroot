@@ -22,7 +22,7 @@ Edit a map with other people at the same time. It uses a small **relay server** 
 | Item | What it is |
 |---|---|
 | **Secret** | One per relay. Whoever knows it can make rooms for any map. Keep it to yourself and your own computers. |
-| **Room** | One per map: `HMAC(secret, "room:" + mapId)`. Not guessable. |
+| **Room** | One per share: `HMAC(secret, "room:" + mapId + ":" + random)`. Not guessable. |
 | **Token** | `HMAC(secret, "token:" + room)`. The relay accepts a connection to a room only with its token. A wrong token is closed with code 4401. |
 | **Invite** | The relay address, **one room and that room's token**, the map id and title. It does **not** contain the secret, so the person you invite cannot open your other maps or create rooms. Anyone who has the invite can read and edit that one map, so send it privately. |
 
@@ -32,7 +32,7 @@ More safety rules in the app:
 - If an invite would replace how a map you already share is connected, or merge into a map you already have, you are asked first.
 - A map from an invite is remembered only after the first connection worked.
 - Plain `ws://` is accepted only for a server on your own computer.
-- **Stop sharing** removes the map's connection and token from this computer. To cut everyone off, change the relay's secret: every old invite stops working.
+- **Stop sharing** removes the map's connection and token from this computer. Sharing the map again makes a **new room** (the room name includes a random part), so old invites stop leading to the live map. Someone who already has the old room's token can still reach that old room until you change the relay's secret. To cut everyone off, change the relay's secret: every old invite stops working.
 - The relay is limited to 50 rooms, 20 people per room and 10 MB per message. Content is saved in its `DATA_DIR` (not encrypted at rest). The traffic is encrypted by `wss://`, but the relay can read it: run it yourself, on a machine you trust.
 
 ## When something goes wrong

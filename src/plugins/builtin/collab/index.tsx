@@ -67,7 +67,9 @@ async function share(ctx: PluginContext) {
     ctx.ui.toast('The server address must start with wss:// (ws:// only for this computer)', 'error')
     return ctx.ui.openSettings()
   }
-  const room = await roomName(secret, mapId)
+  // a fresh random part in every share: stopping and sharing again makes a NEW room, so old invites lead nowhere
+  const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
+  const room = await roomName(secret, `${mapId}:${nonce}`)
   await ctx.secrets!.set(tokenKey(mapId), await roomToken(secret, room))
   await ctx.settings.set({ ...cfg, connections: { ...cfg.connections, [mapId]: { serverUrl: cfg.serverUrl, room } } })
   await connect(ctx, mapId)
