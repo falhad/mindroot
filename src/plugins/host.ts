@@ -3,12 +3,12 @@ import { create } from 'zustand'
 import { mergeDocs } from '../sync/merge'
 import { isTauri } from '../io/env'
 import { store } from '../io/storage'
-import { markSaved, replaceDoc, useDoc } from '../state/doc'
+import { commit, markSaved, replaceDoc, useDoc } from '../state/doc'
 import { refreshLibrary } from '../state/library'
 import { flushSave, pauseSaves, saveListeners } from '../state/persist'
 import { askConfirm, toast, ui } from '../state/ui'
 import type { Command } from '../ui/commands'
-import type { AppEvent, Disposable, Plugin, PluginContext, PluginManifest, SettingsPanel, StatusItem } from './types'
+import type { AppEvent, Disposable, ExporterSpec, ImporterSpec, NetRequest, NetResponse, Plugin, PluginContext, PluginManifest, SettingsPanel, StatusItem } from './types'
 
 export interface PluginRecord {
   manifest: PluginManifest
@@ -24,10 +24,12 @@ interface RegistryState {
   commands: Contributed<Command>[]
   status: Contributed<StatusItem>[]
   panels: Contributed<SettingsPanel>[]
+  importers: Contributed<ImporterSpec>[]
+  exporters: Contributed<ExporterSpec>[]
   ready: boolean
 }
 
-export const useRegistry = create<RegistryState>(() => ({ plugins: [], commands: [], status: [], panels: [], ready: false }))
+export const useRegistry = create<RegistryState>(() => ({ plugins: [], commands: [], status: [], panels: [], importers: [], exporters: [], ready: false }))
 const set = useRegistry.setState
 
 interface Loaded {
@@ -59,6 +61,57 @@ async function writeSettings(id: string, value: object) {
     const { invoke } = await import('@tauri-apps/api/core')
     await invoke('plugin_settings_set', { id, json: JSON.stringify(value) })
   } else localStorage.setItem(`bm.plugin.${id}`, JSON.stringify(value))
+}
+
+// ---------- network and secrets ----------
+
+const isLocalHost = (u: URL) => u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]'
+
+/** https only; plain http is allowed only to this computer (development and tests). */
+function checkUrl(raw: string): URL {
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    throw new Error('Invalid URL')
+  }
+  if (u.protocol !== 'https:' && !(u.protocol === 'http:' && isLocalHost(u))) throw new Error('Only https:// addresses are allowed (http only for localhost)')
+  return u
+}
+
+async function netRequest(req: NetRequest): Promise<NetResponse> {
+  checkUrl(req.url)
+  if (isTauri) {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return invoke<NetResponse>('net_request', { req: { method: 'GET', ...req } })
+  }
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), req.timeoutMs ?? 60_000)
+  try {
+    const res = await fetch(req.url, { method: req.method ?? 'GET', headers: req.headers, body: req.body, signal: ctl.signal })
+    return { status: res.status, body: await res.text() }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const secretKey = (pid: string, key: string) => `bm.secret.${pid}.${key}`
+
+function makeSecrets(pid: string): NonNullable<PluginContext['secrets']> {
+  if (isTauri) {
+    const call = async <T,>(cmd: string, args: Record<string, unknown>) => (await import('@tauri-apps/api/core')).invoke<T>(cmd, { pluginId: pid, ...args })
+    return {
+      get: (key) => call<string | null>('secret_get', { key }),
+      set: (key, value) => call<void>('secret_set', { key, value }),
+      remove: (key) => call<void>('secret_remove', { key }),
+    }
+  }
+  // Browser build: kept for this tab only (sessionStorage); the desktop app uses the OS keychain.
+  return {
+    get: async (key) => sessionStorage.getItem(secretKey(pid, key)),
+    set: async (key, value) => void sessionStorage.setItem(secretKey(pid, key), value),
+    remove: async (key) => void sessionStorage.removeItem(secretKey(pid, key)),
+  }
 }
 
 // ---------- context ----------
@@ -126,8 +179,25 @@ function createContext(plugin: Plugin, l: Loaded, isBuiltin: boolean): PluginCon
       flush: () => flushSave(),
       pauseSaves: () => pauseSaves(),
       reloadOpen: reloadOpenDoc,
+      // the label is for future history UI; every call is one undo step
+      edit: (_label, recipe) => commit(recipe),
+      selection: () => [...useDoc.getState().selection],
+    },
+    formats: {
+      registerImporter(spec) {
+        const entry = { ...spec, id: `${pid}:${spec.id}`, pluginId: pid }
+        set((s) => ({ importers: [...s.importers.filter((x) => x.id !== entry.id), entry] }))
+        return track(l, { dispose: () => set((s) => ({ importers: s.importers.filter((x) => x.id !== entry.id) })) })
+      },
+      registerExporter(spec) {
+        const entry = { ...spec, id: `${pid}:${spec.id}`, pluginId: pid }
+        set((s) => ({ exporters: [...s.exporters.filter((x) => x.id !== entry.id), entry] }))
+        return track(l, { dispose: () => set((s) => ({ exporters: s.exporters.filter((x) => x.id !== entry.id) })) })
+      },
     },
   }
+  if (isBuiltin || m.permissions?.includes('net')) ctx.net = { request: netRequest }
+  if (isBuiltin || m.permissions?.includes('secrets')) ctx.secrets = makeSecrets(pid)
   if (isTauri && (isBuiltin || m.permissions?.includes('native'))) {
     ctx.native = {
       invoke: async (command, args) => {

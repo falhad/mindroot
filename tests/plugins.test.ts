@@ -12,7 +12,7 @@ function plugin(id: string, activate: (ctx: PluginContext) => void | Promise<voi
 
 beforeEach(() => {
   localStorage.clear()
-  useRegistry.setState({ plugins: [], commands: [], status: [], panels: [], ready: false })
+  useRegistry.setState({ plugins: [], commands: [], status: [], panels: [], importers: [], exporters: [], ready: false })
 })
 
 describe('plugin host', () => {
@@ -243,5 +243,113 @@ describe('read access to the open map', () => {
     const chip = useRegistry.getState().status.find((s) => s.id === 'example.word-count:chip')
     expect(chip).toBeTruthy()
     expect(useRegistry.getState().commands.some((c) => c.id === 'example.word-count:copy')).toBe(true)
+  })
+})
+
+describe('plugin API v2', () => {
+  const start = async (id: string, builtin = true, permissions: string[] = []) => {
+    let ctx!: PluginContext
+    const p: Plugin = { manifest: manifest(id, { permissions }), activate: (c) => void (ctx = c) }
+    await startPlugins([{ builtin, plugin: p }])
+    if (!builtin) await setPluginEnabled(id, true)
+    return ctx
+  }
+
+  it('docs.edit makes one undo step', async () => {
+    const { openDoc, undo, useDoc } = await import('../src/state/doc')
+    const { createDoc } = await import('../src/core/tree')
+    openDoc(createDoc('Root'))
+    const ctx = await start('t.edit')
+    const before = useDoc.getState().past.length
+    const ok = ctx.docs.edit('Add two', (d) => {
+      d.nodes[d.root].text = 'Changed'
+      d.nodes[d.root].notes = 'n'
+    })
+    expect(ok).toBe(true)
+    expect(useDoc.getState().past.length).toBe(before + 1)
+    undo()
+    expect(useDoc.getState().doc!.nodes[useDoc.getState().doc!.root].text).toBe('Root')
+  })
+
+  it('docs.edit returns false when no map is open and when nothing changed', async () => {
+    const { closeDoc, openDoc } = await import('../src/state/doc')
+    const { createDoc } = await import('../src/core/tree')
+    closeDoc()
+    const ctx = await start('t.edit2')
+    expect(ctx.docs.edit('x', (d) => void (d.layout = 'right'))).toBe(false)
+    openDoc(createDoc('Root'))
+    expect(ctx.docs.edit('noop', () => {})).toBe(false)
+  })
+
+  it('docs.selection returns the selected ids', async () => {
+    const { openDoc, select } = await import('../src/state/doc')
+    const { createDoc } = await import('../src/core/tree')
+    const d = createDoc('Root')
+    openDoc(d)
+    select([d.root])
+    const ctx = await start('t.sel')
+    expect(ctx.docs.selection()).toEqual([d.root])
+  })
+
+  it('manifest accepts api 1 and 2, refuses others, and keeps net and secrets permissions', () => {
+    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 1 })).toMatchObject({ id: 'a.b' })
+    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 2 })).toMatchObject({ id: 'a.b' })
+    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 3 })).toMatch(/API/)
+    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', permissions: ['native', 'net', 'secrets', 'root'] })).toMatchObject({
+      permissions: ['native', 'net', 'secrets'],
+    })
+  })
+
+  it('an installed plugin without the net or secrets permission gets neither', async () => {
+    const ctx = await start('t.noperm', false, [])
+    expect(ctx.net).toBeUndefined()
+    expect(ctx.secrets).toBeUndefined()
+    const ctx2 = await start('t.perm', false, ['net', 'secrets'])
+    expect(ctx2.net).toBeDefined()
+    expect(ctx2.secrets).toBeDefined()
+  })
+
+  it('net.request uses fetch in the browser and returns status and body', async () => {
+    const f = vi.fn(async () => new Response('{"ok":true}', { status: 201 }))
+    vi.stubGlobal('fetch', f)
+    const ctx = await start('t.net')
+    const res = await ctx.net!.request({ url: 'https://example.test/x', method: 'POST', headers: { a: 'b' }, body: '{}' })
+    expect(res).toEqual({ status: 201, body: '{"ok":true}' })
+    expect(f).toHaveBeenCalledWith('https://example.test/x', expect.objectContaining({ method: 'POST', body: '{}' }))
+    vi.unstubAllGlobals()
+  })
+
+  it('net.request refuses plain http to a non-local host', async () => {
+    const ctx = await start('t.net2')
+    await expect(ctx.net!.request({ url: 'http://example.test/x', method: 'GET' })).rejects.toThrow(/https/)
+  })
+
+  it('secrets keep values per plugin and can be removed', async () => {
+    const a = await start('t.sec1')
+    await a.secrets!.set('key', 'S1')
+    expect(await a.secrets!.get('key')).toBe('S1')
+    const b = await start('t.sec2')
+    expect(await b.secrets!.get('key')).toBeNull()
+    await a.secrets!.remove('key')
+    expect(await a.secrets!.get('key')).toBeNull()
+  })
+
+  it('registered importers and exporters are listed and removed when the plugin is turned off', async () => {
+    await start('t.fmt')
+    const ctxFmt = await (async () => {
+      let c!: PluginContext
+      await startPlugins([{ builtin: true, plugin: { manifest: manifest('t.fmt2'), activate: (x) => {
+        c = x
+        x.formats.registerImporter({ id: 'imp', title: 'Imp', extensions: ['.foo'], parse: async () => { throw new Error('n/a') } })
+        x.formats.registerExporter({ id: 'exp', title: 'Exp', extension: '.bar', mime: 'text/plain', build: async () => 'x' })
+      } } }])
+      return c
+    })()
+    expect(ctxFmt).toBeDefined()
+    expect(useRegistry.getState().importers.map((i) => i.id)).toEqual(['t.fmt2:imp'])
+    expect(useRegistry.getState().exporters.map((i) => i.id)).toEqual(['t.fmt2:exp'])
+    await setPluginEnabled('t.fmt2', false)
+    expect(useRegistry.getState().importers).toHaveLength(0)
+    expect(useRegistry.getState().exporters).toHaveLength(0)
   })
 })

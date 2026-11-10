@@ -1,4 +1,4 @@
-import { PLUGIN_API_VERSION, type Plugin, type PluginManifest } from './types'
+import { PLUGIN_API_VERSION, SUPPORTED_API_VERSIONS, type Plugin, type PluginManifest, type PluginPermission } from './types'
 
 /**
  * Plugins installed by the user live in `<app-data>/plugins/<name>/`:
@@ -25,10 +25,10 @@ export function validateManifest(raw: unknown): PluginManifest | string {
   if (typeof m.name !== 'string' || !m.name.trim()) return 'manifest "name" is missing'
   if (typeof m.version !== 'string') return 'manifest "version" is missing'
   const api = (m as { api?: unknown }).api
-  if (api !== undefined && api !== PLUGIN_API_VERSION) return `needs plugin API ${String(api)}, this app has ${PLUGIN_API_VERSION}`
+  if (api !== undefined && !SUPPORTED_API_VERSIONS.includes(api as number)) return `needs plugin API ${String(api)}, this app has ${PLUGIN_API_VERSION}`
   const main = m.main ?? 'index.js'
   if (typeof main !== 'string' || !/^[A-Za-z0-9._-]+$/.test(main) || main.startsWith('.')) return 'manifest "main" must be a file name in the plugin folder'
-  const permissions = Array.isArray(m.permissions) ? m.permissions.filter((p): p is 'native' => p === 'native') : []
+  const permissions = Array.isArray(m.permissions) ? m.permissions.filter((p): p is PluginPermission => p === 'native' || p === 'net' || p === 'secrets') : []
   return { id: m.id, name: m.name.trim(), version: m.version, description: typeof m.description === 'string' ? m.description : undefined, main, permissions }
 }
 
