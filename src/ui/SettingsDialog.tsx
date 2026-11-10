@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { autoCheckEnabled, setAutoCheck, updater, useUpdater } from '../io/updater'
 import { askConfirm, toast } from '../state/ui'
 import { PluginGallery } from './PluginGallery'
 import { registerCaptureShortcut } from '../io/captureShortcut'
@@ -72,8 +73,50 @@ function General() {
         <div className="label mb-2">Keyboard</div>
         <button className="btn outline" onClick={() => { ui.setSettings(false); ui.setHelp(true) }}>Show all shortcuts</button>
       </section>
+      {isTauri && <UpdateSettings />}
       {isTauri && <CaptureSettings />}
     </div>
+  )
+}
+
+/** Check for a new version, install it, and restart. Updates are signed; anything else is refused. */
+function UpdateSettings() {
+  const { state, current } = useUpdater()
+  const [auto, setAuto] = useState(autoCheckEnabled())
+  useEffect(() => {
+    void updater.load()
+  }, [])
+  const busy = state.kind === 'checking' || state.kind === 'downloading'
+  return (
+    <section>
+      <div className="label mb-2">Updates</div>
+      <p className="mb-2.5 text-[12.5px] text-muted">You have Branchmint {current || '…'}.</p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        {state.kind === 'available' ? (
+          <button className="btn primary" onClick={() => void updater.install()}>Install version {state.version}</button>
+        ) : state.kind === 'ready' ? (
+          <button className="btn primary" onClick={() => void updater.restart()}>Restart to finish the update</button>
+        ) : (
+          <button className="btn outline" disabled={busy} onClick={() => void updater.check()}>{state.kind === 'checking' ? 'Checking…' : 'Check for updates'}</button>
+        )}
+        <label className="flex cursor-pointer items-center gap-2 text-[12.5px]">
+          <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={auto} onChange={(e) => { setAuto(e.target.checked); setAutoCheck(e.target.checked) }} />
+          Check when Branchmint starts
+        </label>
+      </div>
+      <div className="mt-2.5 text-[12.5px]" role="status" aria-live="polite" data-testid="update-status">
+        {state.kind === 'uptodate' && 'You have the latest version.'}
+        {state.kind === 'available' && (
+          <div>
+            <b>Version {state.version} is available.</b>
+            {state.notes && <p className="mt-1 whitespace-pre-wrap text-muted" dir="auto">{state.notes}</p>}
+          </div>
+        )}
+        {state.kind === 'downloading' && `Downloading… ${state.percent}%`}
+        {state.kind === 'ready' && `Version ${state.version} is installed. Restart to use it.`}
+        {state.kind === 'error' && <span style={{ color: 'var(--danger)' }}>{state.message}</span>}
+      </div>
+    </section>
   )
 }
 

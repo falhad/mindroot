@@ -56,7 +56,12 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    configure(tauri::Builder::default())
+    let builder = configure(tauri::Builder::default());
+    // Updates and restart live here, not in `configure`: the tests build the app without the real config,
+    // and the updater needs its public key from tauri.conf.json.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build()).plugin(tauri_plugin_process::init());
+    builder
         .run(tauri::generate_context!())
         .expect("error while running Branchmint");
 }

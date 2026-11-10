@@ -12,6 +12,7 @@ import { Editor } from './Editor'
 import { ConfirmDialog, HelpDialog, Toasts } from './Overlays'
 import { SettingsDialog } from './SettingsDialog'
 import { Capture } from './Capture'
+import { autoCheckEnabled, updater, useUpdater } from '../io/updater'
 import { registerCaptureShortcut } from '../io/captureShortcut'
 import { appendToInbox, getShortcut } from '../state/capture'
 
@@ -44,6 +45,18 @@ async function installCapture() {
       .catch((err) => toast(`Could not add to the Inbox: ${err instanceof Error ? err.message : err}`, 'error'))
   })
   await registerCaptureShortcut(getShortcut())
+  installUpdateCheck()
+}
+
+/** A quiet check a few seconds after start. If there is an update, a message offers the details. Errors stay silent. */
+function installUpdateCheck() {
+  if (!autoCheckEnabled()) return
+  setTimeout(() => {
+    void updater.check().then(() => {
+      const s = useUpdater.getState().state
+      if (s.kind === 'available') toast(`Branchmint ${s.version} is available`, 'info', { label: 'See details', run: () => ui.setSettings(true, 'general') }, 12_000)
+    })
+  }, 8000)
 }
 
 /** On close: save, let plugins finish (the Git sync pushes), then really quit. */

@@ -52,6 +52,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkzNEVDQkE4NDBBMzFFNDUKUldSRkhxTkFxTXRPa3dWWTY5Zk9Zb0M5UUhTQ2ZpN0NhRlFvMzdwMU9zTjJpU3lIZHlwa3B6NkIK",
+      "endpoints": [
+        "https://github.com/falhad/branchmint/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

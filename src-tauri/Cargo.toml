@@ -25,6 +25,8 @@ reqwest = { version = "0.13.3", default-features = false, features = ["rustls"] 
 tauri-plugin-global-shortcut = "2.3.2"
 zip = { version = "4.2.0", default-features = false, features = ["deflate"] }
 sha2 = "0.10.9"
+tauri-plugin-updater = "2.12.0"
+tauri-plugin-process = "2.3.1"
 
 [dev-dependencies]
 tauri = { version = "2.12", features = ["test"] }

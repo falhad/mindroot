@@ -63,3 +63,33 @@ This needs a paid Apple Developer account. Windows signing needs a code-signing 
 
 - **"Git call contract is up to date" fails:** the sync engine now makes a git call it did not make before. Run `pnpm test`, check that `src-tauri/tests/fixtures/git-calls.json` changed as you expect, make sure the Rust allow-list in `src-tauri/src/git.rs` accepts the new call, and commit the file.
 - **Lockfile errors:** run `pnpm install` locally and commit `pnpm-lock.yaml`.
+
+## Automatic updates (signed)
+
+Installed apps check for new versions and install them after a signature check. The release workflow builds the update files; the app trusts only files signed with your private key.
+
+How it works:
+
+1. `src-tauri/tauri.conf.json` holds the **public** key (`plugins.updater.pubkey`) and the address of `latest.json` (`plugins.updater.endpoints`): `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`.
+2. The release workflow signs each installer with the **private** key (`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) and attaches `latest.json` to the release.
+3. When you **publish** the draft release, `releases/latest/download/latest.json` starts to point at it. Old apps see the new version.
+
+One-time setup (the key pair is already made for you; see below if you want your own):
+
+| Step | What to do |
+|---|---|
+| Private key | Add the content of the private key file as the repository secret `TAURI_SIGNING_PRIVATE_KEY` |
+| Password | Add its password as the repository secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
+| Backup | Keep the key file and password in a safe place. If you lose them, installed apps cannot be updated and you must ship a new build with a new public key by hand |
+
+To make your own key pair: `pnpm tauri signer generate -w ~/.tauri/branchmint-updater.key`, then put the new **public** key (the `.key.pub` file) into `plugins.updater.pubkey` in `tauri.conf.json`. Do this before the first public release: a changed key cannot update apps that already have the old one.
+
+### The repository must be public (or the files hosted elsewhere)
+
+The updater downloads `latest.json` and the installers **without a login**. GitHub does not allow that for a **private** repository: the address answers "not found", and the app shows "Could not find update information". Choose one:
+
+- Make the repository public.
+- Publish releases from a separate **public** repository (for example `branchmint-releases`) and point `endpoints` there.
+- Host `latest.json` and the installers on your own server and put its address in `endpoints`.
+
+Until one of these is done, update checks fail with a plain message and nothing else is affected. People can still install new versions by hand from the release page.
