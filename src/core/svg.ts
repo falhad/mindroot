@@ -18,6 +18,8 @@ export interface SvgOptions {
   iconMarkup?: (name: string) => string | null
   /** CSS @font-face rules (data URLs) so exported images keep the app fonts. */
   fontCss?: string
+  /** Mark nodes and edges with `data-node` / `data-edge` ids so a page can show and hide them (HTML export). */
+  interactive?: boolean
 }
 
 export interface SvgResult {
@@ -69,7 +71,7 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
     const n = doc.nodes[id]
     if (!n.parentId || n.sticky) continue
     const v = nodeVisual(doc, layout, ctx, id)
-    out.push(`<path d="${edgePath(doc.edge, layout.boxes[n.parentId], layout.boxes[id], layout.attach[id])}" stroke="${v.accent}" stroke-width="${v.edgeWidth}" opacity="0.85"/>`)
+    out.push(`<path${opts.interactive ? ` data-edge="${id}"` : ''} d="${edgePath(doc.edge, layout.boxes[n.parentId], layout.boxes[id], layout.attach[id])}" stroke="${v.accent}" stroke-width="${v.edgeWidth}" opacity="0.85"/>`)
   }
   for (const r of doc.relations) {
     const a = layout.boxes[r.from]
@@ -101,7 +103,7 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
     const bx = layout.boxes[id]
     const m = layout.metrics[id]
     const v = nodeVisual(doc, layout, ctx, id)
-    out.push(`<g transform="translate(${bx.x} ${bx.y})">`)
+    out.push(`<g${opts.interactive ? ` data-node="${id}"${n.children.length ? ' class="has-kids"' : ''}` : ''} transform="translate(${bx.x} ${bx.y})">`)
     if (v.fill || v.stroke) {
       const fill = v.gradient ? `url(#g-${id})` : (v.fill ?? 'none')
       out.push(

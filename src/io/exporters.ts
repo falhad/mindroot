@@ -1,10 +1,12 @@
+import { toHtml } from '../core/export/html'
+import { toOpml } from '../core/export/opml'
 import { computeLayout } from '../core/layout'
 import { exportJson, toMarkdown } from '../core/outline'
 import { renderSvg } from '../core/svg'
 import type { MapDoc } from '../core/types'
 import { safeFileName, saveFile } from './files'
 
-export type ExportFormat = 'json' | 'md' | 'png' | 'svg' | 'pdf'
+export type ExportFormat = 'json' | 'md' | 'png' | 'svg' | 'pdf' | 'opml' | 'html' | `plugin:${string}`
 
 export interface ExportOptions {
   dark: boolean
@@ -100,10 +102,32 @@ export async function buildPdf(doc: MapDoc, o: ExportOptions): Promise<Uint8Arra
   return new Uint8Array(pdf.output('arraybuffer'))
 }
 
+/** The single-file interactive page: pan, zoom, collapse, notes. Light and dark drawings, fonts embedded. */
+export async function buildHtmlPage(doc: MapDoc): Promise<string> {
+  const layout = computeLayout(doc)
+  const icons = await iconResolver()
+  const draw = (dark: boolean) => renderSvg(doc, layout, { dark, background: false, iconMarkup: icons, interactive: true })
+  const light = draw(false)
+  const dark = draw(true)
+  return toHtml(doc, { light: light.svg, dark: dark.svg, width: light.width, height: light.height, fontCss: await fontCss(doc) })
+}
+
 /** Build and save one export. Resolves false when the user cancels the save dialog. */
 export async function exportMap(doc: MapDoc, format: ExportFormat, o: ExportOptions): Promise<boolean> {
   const name = safeFileName(doc.meta.title)
+  if (format.startsWith('plugin:')) {
+    const { useRegistry } = await import('../plugins/host') // loaded on use: the host imports the library
+    const spec = useRegistry.getState().exporters.find((e) => `plugin:${e.id}` === format)
+    if (!spec) throw new Error('That export format is no longer available')
+    const data = await spec.build(doc)
+    const ext = spec.extension.replace(/^\./, '')
+    return saveFile(typeof data === 'string' ? data : new Blob([data as BlobPart], { type: spec.mime }), { defaultName: `${name}.${ext}`, extensions: [ext], label: spec.title })
+  }
   switch (format) {
+    case 'opml':
+      return saveFile(toOpml(doc), { defaultName: `${name}.opml`, extensions: ['opml'], label: 'OPML outline' })
+    case 'html':
+      return saveFile(await buildHtmlPage(doc), { defaultName: `${name}.html`, extensions: ['html'], label: 'Web page' })
     case 'json':
       return saveFile(exportJson(doc), { defaultName: `${name}.branchmint.json`, extensions: ['json'], label: 'Branchmint map' })
     case 'md':
@@ -114,5 +138,7 @@ export async function exportMap(doc: MapDoc, format: ExportFormat, o: ExportOpti
       return saveFile((await buildPng(doc, o)).blob, { defaultName: `${name}.png`, extensions: ['png'], label: 'PNG image' })
     case 'pdf':
       return saveFile(await buildPdf(doc, o), { defaultName: `${name}.pdf`, extensions: ['pdf'], label: 'PDF document' })
+    default:
+      throw new Error(`Unknown export format: ${format}`)
   }
 }
