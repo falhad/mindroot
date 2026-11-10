@@ -70,25 +70,46 @@ class TauriStore implements MapStore {
   }
 }
 
+let idb: Promise<IDBDatabase> | null = null
+
+function openIdb(): Promise<IDBDatabase> {
+  idb ??= new Promise((resolve, reject) => {
+    const req = indexedDB.open('branchmint', 2)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains('maps')) db.createObjectStore('maps')
+      if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets')
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+  return idb
+}
+
+async function idbTx<T>(storeName: 'maps' | 'assets', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openIdb()
+  return new Promise((resolve, reject) => {
+    const req = fn(db.transaction(storeName, mode).objectStore(storeName))
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+/** Browser fallback for attachment files: IndexedDB. */
+export const idbAssets: AssetIO = {
+  exists: async (name) => (await idbTx<number>('assets', 'readonly', (s) => s.count(name))) !== 0,
+  save: async (name, bytes) => void (await idbTx('assets', 'readwrite', (s) => s.put(bytes, name))),
+  load: async (name) => {
+    const v = await idbTx<Uint8Array | undefined>('assets', 'readonly', (s) => s.get(name))
+    if (!v) throw new Error('missing asset')
+    return v
+  },
+}
+
 /** Browser fallback (dev, tests, web preview): IndexedDB. */
 class IdbStore implements MapStore {
-  private db: Promise<IDBDatabase> | null = null
-  private open(): Promise<IDBDatabase> {
-    this.db ??= new Promise((resolve, reject) => {
-      const req = indexedDB.open('branchmint', 1)
-      req.onupgradeneeded = () => req.result.createObjectStore('maps')
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => reject(req.error)
-    })
-    return this.db
-  }
-  private async tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-    const db = await this.open()
-    return new Promise((resolve, reject) => {
-      const req = fn(db.transaction('maps', mode).objectStore('maps'))
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => reject(req.error)
-    })
+  private tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+    return idbTx('maps', mode, fn)
   }
   async list() {
     const all = await this.tx<MapDoc[]>('readonly', (s) => s.getAll())
@@ -110,3 +131,6 @@ class IdbStore implements MapStore {
 }
 
 export const store: MapStore = isTauri ? new TauriStore() : new IdbStore()
+
+/** Where attachment files live: the vault `assets/` folder (desktop) or IndexedDB (browser). */
+export const assetIO: AssetIO = isTauri ? tauriAssets : idbAssets
