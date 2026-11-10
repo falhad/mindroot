@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
-export type Route = { name: 'dashboard' } | { name: 'editor'; id: string } | { name: 'tasks' }
+export type Route = { name: 'dashboard' } | { name: 'editor'; id: string } | { name: 'tasks' } | { name: 'capture' }
 
 export interface Toast {
   id: number
@@ -56,6 +56,7 @@ function systemDark() {
 export function parseRoute(hash: string): Route {
   const m = /^#\/m\/([A-Za-z0-9_-]+)/.exec(hash)
   if (hash.startsWith('#/tasks')) return { name: 'tasks' }
+  if (hash.startsWith('#/capture')) return { name: 'capture' }
   return m ? { name: 'editor', id: m[1] } : { name: 'dashboard' }
 }
 
@@ -98,7 +99,7 @@ export function cycleTheme() {
 }
 
 export function goTo(route: Route) {
-  const hash = route.name === 'editor' ? `#/m/${route.id}` : route.name === 'tasks' ? '#/tasks' : '#/'
+  const hash = route.name === 'editor' ? `#/m/${route.id}` : route.name === 'tasks' ? '#/tasks' : route.name === 'capture' ? '#/capture' : '#/'
   if (location.hash !== hash) history.pushState(null, '', hash)
   set({ route })
 }

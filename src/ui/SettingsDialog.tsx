@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { registerCaptureShortcut } from '../io/captureShortcut'
+import { DEFAULT_SHORTCUT, getInboxName, getShortcut, setInboxName, setShortcut } from '../state/capture'
 import { Blocks, FolderOpen, Moon, Puzzle, Settings2, Sun, Monitor, X } from 'lucide-react'
 import { isTauri } from '../io/env'
 import { setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
@@ -68,7 +70,43 @@ function General() {
         <div className="label mb-2">Keyboard</div>
         <button className="btn outline" onClick={() => { ui.setSettings(false); ui.setHelp(true) }}>Show all shortcuts</button>
       </section>
+      {isTauri && <CaptureSettings />}
     </div>
+  )
+}
+
+/** Quick capture: the system-wide shortcut and the name of the map that collects the notes. */
+function CaptureSettings() {
+  const [shortcut, setShortcutText] = useState(getShortcut())
+  const [inbox, setInbox] = useState(getInboxName())
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const apply = async () => {
+    const ok = await registerCaptureShortcut(shortcut.trim() || DEFAULT_SHORTCUT)
+    if (ok) {
+      setShortcut(shortcut)
+      setMsg({ ok: true, text: `Press ${shortcut.trim() || DEFAULT_SHORTCUT} anywhere to capture a thought.` })
+    } else {
+      await registerCaptureShortcut(getShortcut()) // put the old one back
+      setMsg({ ok: false, text: 'That shortcut is not valid or another app uses it. The old one still works.' })
+    }
+  }
+  return (
+    <section>
+      <div className="label mb-2">Quick capture</div>
+      <p className="mb-2.5 text-[12.5px] text-muted">A small window opens from anywhere on your computer. Type a thought, press Enter, and it is added to one map.</p>
+      <div className="grid gap-2.5 sm:grid-cols-[1fr_auto]">
+        <label className="text-[12.5px]">
+          <span className="mb-1 block text-muted">Shortcut, for example Alt+Shift+Space or CommandOrControl+Shift+N</span>
+          <input className="field" aria-label="Capture shortcut" value={shortcut} spellCheck={false} onChange={(e) => setShortcutText(e.target.value)} />
+        </label>
+        <button className="btn outline self-end" onClick={() => void apply()}>Apply</button>
+      </div>
+      <label className="mt-2.5 block text-[12.5px]">
+        <span className="mb-1 block text-muted">Map that collects the notes</span>
+        <input className="field" aria-label="Inbox map name" dir="auto" value={inbox} onChange={(e) => { setInbox(e.target.value); setInboxName(e.target.value) }} />
+      </label>
+      {msg && <p className="mt-2 text-[12.5px]" role="status" style={{ color: msg.ok ? undefined : 'var(--danger)' }}>{msg.text}</p>}
+    </section>
   )
 }
 

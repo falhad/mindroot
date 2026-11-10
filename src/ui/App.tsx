@@ -5,16 +5,23 @@ import { discoverPlugins, importFromBlob, tauriPluginFiles } from '../plugins/ex
 import { emitAndWait, startPlugins } from '../plugins/host'
 import type { Plugin } from '../plugins/types'
 import { flushSave, startAutosave } from '../state/persist'
-import { applyTheme, parseRoute, ui, useUi } from '../state/ui'
+import { applyTheme, parseRoute, toast, ui, useUi } from '../state/ui'
 import { Dashboard } from './Dashboard'
 import { TasksView } from './TasksView'
 import { Editor } from './Editor'
 import { ConfirmDialog, HelpDialog, Toasts } from './Overlays'
 import { SettingsDialog } from './SettingsDialog'
+import { Capture } from './Capture'
+import { registerCaptureShortcut } from '../io/captureShortcut'
+import { appendToInbox, getShortcut } from '../state/capture'
 
 let started = false
 
+/** The capture window only shows its own small page: no plugins, no autosave, no second Git sync. */
+const isCaptureWindow = () => typeof location !== 'undefined' && location.hash.startsWith('#/capture')
+
 async function boot() {
+  if (isCaptureWindow()) return
   startAutosave()
   const list: { plugin: Plugin; builtin: boolean; error?: string }[] = builtinPlugins.map((plugin) => ({ plugin, builtin: true }))
   if (isTauri) {
@@ -22,7 +29,21 @@ async function boot() {
     list.push(...external)
   }
   await startPlugins(list)
-  if (isTauri) await installCloseHandler()
+  if (isTauri) {
+    await installCloseHandler()
+    await installCapture()
+  }
+}
+
+/** The main window does the writing for the capture window, and owns the global shortcut. */
+async function installCapture() {
+  const { listen } = await import('@tauri-apps/api/event')
+  await listen<{ text: string }>('capture:add', (e) => {
+    appendToInbox(e.payload.text)
+      .then(() => toast('Added to your Inbox', 'success'))
+      .catch((err) => toast(`Could not add to the Inbox: ${err instanceof Error ? err.message : err}`, 'error'))
+  })
+  await registerCaptureShortcut(getShortcut())
 }
 
 /** On close: save, let plugins finish (the Git sync pushes), then really quit. */
@@ -38,6 +59,13 @@ async function installCloseHandler() {
       await flushSave()
       await emitAndWait('app:before-quit', undefined, 10_000)
     } finally {
+      // the hidden capture window would keep the app alive
+      try {
+        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+        await (await WebviewWindow.getByLabel('capture'))?.destroy()
+      } catch {
+        /* already gone */
+      }
       await win.destroy()
     }
   })
@@ -81,6 +109,7 @@ export function App() {
     }
   }, [])
 
+  if (route.name === 'capture') return <Capture />
   return (
     <>
       {route.name === 'editor' ? <Editor key={route.id} id={route.id} /> : route.name === 'tasks' ? <TasksView /> : <Dashboard />}
