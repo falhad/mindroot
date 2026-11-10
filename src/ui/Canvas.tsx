@@ -78,7 +78,8 @@ function dropToDest(layout: LayoutResult, doc: MapDoc, drop: Drop, px: number): 
 /** The side of a node its children grow towards (where the collapse button goes). */
 function childSide(doc: MapDoc, layout: LayoutResult, id: string): 'left' | 'right' | 'up' | 'down' {
   if (!doc.nodes[id].parentId) {
-    return doc.layout === 'right' ? 'right' : doc.layout === 'left' ? 'left' : doc.layout === 'up' ? 'up' : 'down'
+    const side = doc.layout === 'right' ? 'right' : doc.layout === 'left' ? 'left' : doc.layout === 'up' ? 'up' : 'down'
+    return doc.dir === 'rtl' ? (side === 'right' ? 'left' : side === 'left' ? 'right' : side) : side
   }
   const a = layout.attach[id]
   if (a === 'radial') {
@@ -299,7 +300,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
             for (const id of floating) {
               const pos = dd.nodes[id]?.pos
               if (onto && attachFloat(dd, id, onto)) continue
-              if (pos) moveFloat(dd, id, pos.x + d.dx, pos.y + d.dy)
+              if (pos) moveFloat(dd, id, pos.x + (dd.dir === 'rtl' ? -d.dx : d.dx), pos.y + d.dy)
             }
           })
         }

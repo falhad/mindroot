@@ -37,7 +37,7 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, s
     border: vis.stroke ? `${vis.strokeWidth}px solid ${vis.stroke}` : undefined,
     background: vis.gradient ? `linear-gradient(135deg, ${vis.gradient[0]}, ${vis.gradient[1]})` : (vis.fill ?? undefined),
     ['--sel' as string]: vis.accent,
-    font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px var(--font-sans)`,
+    font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px ${m.family}`,
   }
   const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', soft && 'soft', stepHidden && 'step-hidden', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
     .filter(Boolean)
@@ -155,7 +155,8 @@ function Editor({ node, m, width }: { node: MindNode; m: NodeMetrics; width: num
       value={value}
       dir={rtl ? 'rtl' : 'ltr'}
       rows={m.lines.length}
-      spellCheck={false}
+      spellCheck
+      lang={rtl ? 'fa' : undefined}
       placeholder={PLACEHOLDER}
       style={{ font: 'inherit', lineHeight: `${m.lineH}px`, height: m.lines.length * m.lineH, width: Math.max(width, 20) }}
       onChange={(e) => {

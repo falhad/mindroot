@@ -1,5 +1,5 @@
 import { THEMES } from '../core/themes'
-import type { BgKind, EdgeKind, LayoutKind } from '../core/types'
+import type { BgKind, EdgeKind, FontId, LayoutKind } from '../core/types'
 import { modKey } from '../io/env'
 import {
   addChild, addFloatAt, addSibling, commit, deleteSelection, duplicateSelection, expandToLevel, floatSelection, groupSelection, indent, outdent, redo, reorder, select,
@@ -44,7 +44,12 @@ export const setLayout = (layout: LayoutKind) => {
   setTimeout(fitCurrent, 30)
 }
 export const setEdge = (edge: EdgeKind) => commit((d) => void (d.edge = edge))
-export const setMapTheme = (id: string) => commit((d) => void (d.themeId = id))
+export const setMapTheme = (id: string) => commit((d) => { d.themeId = id; delete d.customTheme })
+export const setFont = (font: FontId | undefined) => commit((d) => { if (font && font !== 'inter') d.font = font; else delete d.font })
+export const setDirection = (dir: 'ltr' | 'rtl') => {
+  commit((d) => { if (dir === 'rtl') d.dir = 'rtl'; else delete d.dir })
+  setTimeout(fitCurrent, 30)
+}
 export const setBg = (bg: BgKind) => commit((d) => void (d.bg = bg))
 
 export function fitCurrent(animate = true) {
@@ -142,6 +147,8 @@ export function buildCommands(): Command[] {
     c('View', 'inspector', 'Toggle side panel', ui.toggleInspector, `${modKey} I`),
     c('View', 'theme-mode', 'Switch light / dark / system', cycleTheme),
     c('View', 'clear-tags', 'Clear tag filter', () => ui.setTagFilter([])),
+    c('Map', 'dir-rtl', 'Direction: right to left (mirror the map)', () => setDirection('rtl')),
+    c('Map', 'dir-ltr', 'Direction: left to right', () => setDirection('ltr')),
     c('Map', 'search', 'Find in map', () => ui.setSearch(true), `${modKey} F`),
     c('Map', 'export', 'Export…', () => ui.setExport(true), `${modKey} E`),
     c('Map', 'new', 'New map', () => void newMapAndOpen()),

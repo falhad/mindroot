@@ -427,3 +427,91 @@ describe('presentation mode', async () => {
     expect(present.usePresent.getState().active).toBe(false)
   })
 })
+
+describe('themes, fonts and right-to-left', async () => {
+  const { resolveTheme, getTheme, resolveColor } = await import('../src/core/themes')
+  const { computeLayout, mirrorLayout } = await import('../src/core/layout')
+  const { fontStack } = await import('../src/core/measure')
+  const { renderSvg } = await import('../src/core/svg')
+  const T = await import('../src/core/tree')
+  const custom = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666', '#777777', '#888888']
+
+  it('resolveTheme uses the built-in theme unless the map has a custom palette', () => {
+    const d = sample()
+    expect(resolveTheme(d).id).toBe(getTheme(d.themeId).id)
+    d.customTheme = custom
+    const t = resolveTheme(d)
+    expect(t.id).toBe('custom')
+    expect(t.light).toEqual(custom)
+    expect(t.dark).toEqual(custom)
+    expect(t.root.light).toEqual([custom[0], custom[1]])
+    expect(resolveColor('2', t, false)).toBe('#333333')
+  })
+
+  it('a malformed custom palette is ignored', () => {
+    const d = sample()
+    d.customTheme = ['#111111']
+    expect(resolveTheme(d).id).not.toBe('custom')
+  })
+
+  it('fontStack returns a different stack per font and falls back to Inter', () => {
+    expect(fontStack('mono')).toMatch(/monospace/)
+    expect(fontStack('serif')).toMatch(/serif/)
+    expect(fontStack('vazirmatn').startsWith('"Vazirmatn')).toBe(true)
+    expect(fontStack(undefined)).toBe(fontStack('inter'))
+  })
+
+  it('layout metrics and svg export use the map font', () => {
+    const d = sample()
+    d.font = 'mono'
+    const l = computeLayout(d)
+    expect(l.metrics[d.root].family).toBe(fontStack('mono'))
+    const { svg } = renderSvg(d, l, { dark: false, background: false })
+    expect(svg).toMatch(/font-family="[^"]*monospace/)
+  })
+
+  it('rtl puts the first child on the left of the root in the right layout, and swaps the attach side', () => {
+    const d = sample()
+    d.layout = 'right'
+    const ltr = computeLayout(d)
+    d.dir = 'rtl'
+    const rtl = computeLayout(d)
+    const a = id(d, 'A')
+    expect(ltr.boxes[a].x).toBeGreaterThan(ltr.boxes[d.root].x)
+    expect(rtl.boxes[a].x + rtl.boxes[a].w).toBeLessThan(rtl.boxes[d.root].x + 0.5)
+    expect(ltr.attach[a]).toBe('right')
+    expect(rtl.attach[a]).toBe('left')
+    // same vertical positions and sizes
+    expect(rtl.boxes[a].y).toBe(ltr.boxes[a].y)
+    expect(rtl.boxes[a].w).toBe(ltr.boxes[a].w)
+  })
+
+  it('mirroring twice gives back the original layout', () => {
+    const d = sample()
+    T.summarize(d, [id(d, 'A'), id(d, 'B')], 'AB')
+    T.groupSiblings(d, [id(d, 'B'), id(d, 'C')])
+    T.addFloat(d, 300, 200, 'Loose')
+    const l = computeLayout(d)
+    const back = mirrorLayout(mirrorLayout(l))
+    // coordinates may differ by floating-point noise: compare to 3 decimals
+    const r = (o: unknown) => JSON.parse(JSON.stringify(o, (_k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)))
+    expect(r(back.boxes)).toEqual(r(l.boxes))
+    expect(back.attach).toEqual(l.attach)
+    expect(r(back.groupBoxes)).toEqual(r(l.groupBoxes))
+    expect(r(back.summaryBoxes)).toEqual(r(l.summaryBoxes))
+    expect(r(back.bounds)).toEqual(r(l.bounds))
+  })
+
+  it('rtl keeps summaries, groups and floats inside the bounds', () => {
+    const d = sample()
+    d.dir = 'rtl'
+    T.summarize(d, [id(d, 'A'), id(d, 'B')], 'AB')
+    const f = T.addFloat(d, 300, 200, 'Loose')
+    const l = computeLayout(d)
+    expect(l.boxes[f].x + l.boxes[f].w / 2).toBeCloseTo(-300, 0)
+    for (const s of Object.values(l.summaryBoxes)) {
+      expect(s.label.x).toBeGreaterThanOrEqual(l.bounds.x - 0.5)
+      expect(s.label.x + s.label.w).toBeLessThanOrEqual(l.bounds.x + l.bounds.w + 0.5)
+    }
+  })
+})

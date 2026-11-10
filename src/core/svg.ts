@@ -2,7 +2,7 @@ import { arrowHead, bracketPath, DASH, relationPath, edgePath } from './edges'
 import { resolveColor, withAlpha } from './themes'
 import type { LayoutResult } from './layout'
 import { boundsOf } from './layout'
-import { PLACEHOLDER } from './measure'
+import { fontStack, PLACEHOLDER } from './measure'
 import { DARK, LIGHT, isRtl, makeVisualContext, nodeVisual } from './visual'
 import type { MapDoc } from './types'
 
@@ -37,7 +37,7 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
   const out: string[] = []
 
   out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${Math.ceil(b.w)}" height="${Math.ceil(b.h)}" viewBox="${b.x} ${b.y} ${b.w} ${b.h}" font-family="'Inter Variable', 'Vazirmatn Variable', Inter, -apple-system, 'Segoe UI', Roboto, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${Math.ceil(b.w)}" height="${Math.ceil(b.h)}" viewBox="${b.x} ${b.y} ${b.w} ${b.h}" font-family="${fontStack(doc.font).replace(/"/g, "'")}">`,
   )
   if (opts.fontCss) out.push(`<style>${opts.fontCss}</style>`)
   out.push(`<title>${esc(doc.meta.title)}</title>`)

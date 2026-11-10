@@ -1,7 +1,26 @@
-import type { MindNode } from './types'
+import type { FontId, MindNode } from './types'
 
 export const FONT_FAMILY =
   '"Inter Variable", "Vazirmatn Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif'
+
+/** Font stacks for the per-map font setting. All of them end in a Persian-capable face, so mixed text still renders. */
+const STACKS: Record<FontId, string> = {
+  inter: FONT_FAMILY,
+  vazirmatn: '"Vazirmatn Variable", "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif',
+  serif: 'Georgia, "Times New Roman", "Vazirmatn Variable", "Noto Naskh Arabic", serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, Consolas, "Vazirmatn Variable", "Noto Sans Arabic", monospace',
+}
+
+export const FONT_CHOICES: { id: FontId; name: string }[] = [
+  { id: 'inter', name: 'Inter (default)' },
+  { id: 'vazirmatn', name: 'Vazirmatn (Persian first)' },
+  { id: 'serif', name: 'Serif' },
+  { id: 'mono', name: 'Monospace' },
+]
+
+export function fontStack(id?: FontId): string {
+  return (id && STACKS[id]) || FONT_FAMILY
+}
 
 let ctx: CanvasRenderingContext2D | null | undefined
 function getCtx(): CanvasRenderingContext2D | null {
@@ -101,6 +120,8 @@ export interface NodeMetrics {
   badgeW: number
   imgW: number
   imgH: number
+  /** Font family stack used to measure and draw this node. */
+  family: string
 }
 
 const STYLE_BY_DEPTH = [
@@ -118,9 +139,9 @@ export function badgeCount(n: MindNode): number {
 }
 
 /** `textOverride` lets the editor measure the live draft while typing. */
-export function measureNode(n: MindNode, depth: number, textOverride?: string): NodeMetrics {
+export function measureNode(n: MindNode, depth: number, textOverride?: string, family: string = FONT_FAMILY): NodeMetrics {
   const st = depthStyle(depth)
-  const font = `${st.weight} ${st.size}px ${FONT_FAMILY}`
+  const font = `${st.weight} ${st.size}px ${family}`
   const lineH = Math.round(st.size * 1.4)
   const padX = n.shape === 'plain' ? Math.min(st.padX, 6) : st.padX
   const iconW = n.icon ? st.size + 8 : 0
@@ -142,5 +163,5 @@ export function measureNode(n: MindNode, depth: number, textOverride?: string): 
     w = Math.max(w, imgW + padX * 2)
   }
   const h = wrapped.lines.length * lineH + st.padY * 2 + (imgH ? imgH + 8 : 0)
-  return { w, h, lines: wrapped.lines, font, fontSize: st.size, fontWeight: st.weight, lineH, padX, padY: st.padY, iconW, badgeW, imgW, imgH }
+  return { w, h, lines: wrapped.lines, font, fontSize: st.size, fontWeight: st.weight, lineH, padX, padY: st.padY, iconW, badgeW, imgW, imgH, family }
 }

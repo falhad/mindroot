@@ -1,4 +1,4 @@
-import { measureNode, type NodeMetrics } from './measure'
+import { fontStack, measureNode, type NodeMetrics } from './measure'
 import { floatIds, visibleChildren } from './tree'
 import type { Box, Direction, MapDoc } from './types'
 
@@ -51,12 +51,13 @@ export function computeLayout(doc: MapDoc, opts: LayoutOptions = {}): LayoutResu
   const attach: Record<string, Attach> = {}
   const order: string[] = []
 
+  const family = fontStack(doc.font)
   // 1. visible nodes, depth, metrics
   const visit = (id: string, d: number) => {
     const n = doc.nodes[id]
     depth[id] = d
     order.push(id)
-    metrics[id] = measureNode(n, d, opts.draft?.id === id ? opts.draft.text : undefined)
+    metrics[id] = measureNode(n, d, opts.draft?.id === id ? opts.draft.text : undefined, family)
     for (const c of visibleChildren(doc, id)) visit(c, d + 1)
   }
   visit(doc.root, opts.rootDepth ?? 0)
@@ -107,7 +108,25 @@ export function computeLayout(doc: MapDoc, opts: LayoutOptions = {}): LayoutResu
     ...Object.values(groupBoxes),
     ...Object.values(summaryBoxes).flatMap((s) => [s.bracket, s.label]),
   ])
-  return result
+  // right-to-left maps are the mirror image of the same layout (floating subtrees are mirrored once, here)
+  return doc.dir === 'rtl' && !opts.skipFloats ? mirrorLayout(result) : result
+}
+
+const FLIP: Record<Direction, Direction> = { left: 'right', right: 'left', up: 'up', down: 'down' }
+
+/** The mirror image of a layout about the vertical axis through the centre idea. Mirroring twice gives the original. */
+export function mirrorLayout(l: LayoutResult): LayoutResult {
+  const flip = (b: Box): Box => ({ x: -(b.x + b.w), y: b.y, w: b.w, h: b.h })
+  const boxes: Record<string, Box> = {}
+  for (const [id, b] of Object.entries(l.boxes)) boxes[id] = flip(b)
+  const attach: LayoutResult['attach'] = {}
+  for (const [id, a] of Object.entries(l.attach)) attach[id] = a === 'radial' ? a : FLIP[a]
+  const groupBoxes: Record<string, Box> = {}
+  for (const [id, b] of Object.entries(l.groupBoxes)) groupBoxes[id] = flip(b)
+  const summaryBoxes: Record<string, SummaryBox> = {}
+  for (const [id, s] of Object.entries(l.summaryBoxes)) summaryBoxes[id] = { bracket: flip(s.bracket), label: flip(s.label), side: FLIP[s.side] }
+  const bounds = boundsOf([...Object.values(boxes), ...Object.values(groupBoxes), ...Object.values(summaryBoxes).flatMap((s) => [s.bracket, s.label])])
+  return { ...l, boxes, attach, groupBoxes, summaryBoxes, bounds }
 }
 
 /** Rectangles for groups and brackets for summaries, from the boxes already placed. */
@@ -129,7 +148,7 @@ function addGroupsAndSummaries(doc: MapDoc, r: LayoutResult, kids: (id: string) 
     const b = boundsOf(covered.flatMap(subtree))
     const a = r.attach[covered[0]]
     const side: Direction = a === 'radial' || !a ? 'right' : a
-    const m = measureNode({ id: 's', parentId: null, children: [], text: s.label || ' ' }, 2)
+    const m = measureNode({ id: 's', parentId: null, children: [], text: s.label || ' ' }, 2, undefined, fontStack(doc.font))
     const lw = m.w
     const lh = m.h
     let bracket: Box

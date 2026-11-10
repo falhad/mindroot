@@ -288,8 +288,9 @@ export function addFloatAt(x: number, y: number, sticky = false) {
   const s = get()
   if (!s.doc) return
   let id = ''
+  const sx = s.doc.dir === 'rtl' ? -x : x // positions are stored un-mirrored
   commit((d) => {
-    id = T.addFloat(d, x, y, '', sticky)
+    id = T.addFloat(d, sx, y, '', sticky)
   })
   select([id])
   startEdit(id, true)
@@ -329,7 +330,7 @@ export function floatSelection(): boolean {
   return commit((d) => {
     for (const id of T.movable(d, s.selection)) {
       const b = layout.boxes[id]
-      if (b) T.floatNode(d, id, b.x + b.w / 2, b.y + b.h / 2)
+      if (b) T.floatNode(d, id, d.dir === 'rtl' ? -(b.x + b.w / 2) : b.x + b.w / 2, b.y + b.h / 2)
     }
   })
 }

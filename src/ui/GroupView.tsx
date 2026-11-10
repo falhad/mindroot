@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { bracketPath } from '../core/edges'
 import type { LayoutResult } from '../core/layout'
-import { getTheme, resolveColor } from '../core/themes'
+import { resolveTheme, resolveColor } from '../core/themes'
 import { isRtl } from '../core/visual'
 import type { MapDoc } from '../core/types'
 
@@ -9,7 +9,7 @@ import type { MapDoc } from '../core/types'
 export const GroupBoxes = memo(function GroupBoxes({ doc, layout, dark, shown }: { doc: MapDoc; layout: LayoutResult; dark: boolean; shown?: Set<string> | null }) {
   const groups = doc.groups ?? []
   if (!groups.length) return null
-  const theme = getTheme(doc.themeId)
+  const theme = resolveTheme(doc)
   return (
     <>
       {groups.map((g) => {

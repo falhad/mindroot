@@ -1,13 +1,15 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { ExternalLink, ImagePlus, Link2, Plus, Trash2, X, Check, Smile } from 'lucide-react'
-import { THEMES, getTheme } from '../core/themes'
+import { THEMES, resolveTheme } from '../core/themes'
 import * as T from '../core/tree'
 import { normalizeTag, setNodeTags } from '../core/tags'
 import type { MindNode, Relation, ShapeKind } from '../core/types'
 import { openExternal, pickFile, readImage } from '../io/files'
 import { commit, floatSelection, groupSelection, primary, setConnectFrom, summarizeSelection, useDoc } from '../state/doc'
 import { toast, useUi } from '../state/ui'
-import { BGS, EDGES, LAYOUTS, setBg, setEdge, setLayout, setMapTheme } from './commands'
+import { BGS, EDGES, LAYOUTS, setBg, setDirection, setEdge, setFont, setLayout, setMapTheme } from './commands'
+import { FONT_CHOICES } from '../core/measure'
+import type { FontId } from '../core/types'
 import { AttachmentList } from './AttachmentList'
 import { EMOJIS, NodeIcon, lucideIcons } from './icons'
 import { NotesView } from './NotesView'
@@ -128,7 +130,7 @@ function NodePanel({ node }: { node: MindNode }) {
   const doc = useDoc((s) => s.doc)!
   const selection = useDoc((s) => s.selection)
   const dark = useUi((s) => s.dark)
-  const theme = getTheme(doc.themeId)
+  const theme = resolveTheme(doc)
   const palette = dark ? theme.dark : theme.light
   const depth = T.depthOf(doc, node.id)
   const SHAPES: { id: ShapeKind | undefined; label: string }[] = [
@@ -410,6 +412,34 @@ function MapPanel() {
             </button>
           ))}
         </div>
+      </Section>
+      <Section
+        title="Custom colours"
+        right={doc.customTheme ? <button className="text-[12px] text-muted hover:text-ink" onClick={() => commit((d) => void delete d.customTheme)}>Reset</button> : null}
+      >
+        {doc.customTheme ? (
+          <div className="grid grid-cols-8 gap-1.5" role="group" aria-label="Custom palette">
+            {doc.customTheme.map((c, i) => (
+              <input key={i} type="color" aria-label={`Colour ${i + 1}`} value={c} className="h-7 w-full cursor-pointer rounded-md border border-line bg-transparent p-0"
+                onChange={(e) => commit((d) => void (d.customTheme && (d.customTheme[i] = e.target.value)), { coalesce: `palette:${i}` })} />
+            ))}
+          </div>
+        ) : (
+          <button className="btn outline w-full" onClick={() => commit((d) => void (d.customTheme = [...resolveTheme(d).light]))}>Edit the eight colours</button>
+        )}
+        <p className="mt-1.5 text-[11.5px] text-muted">The first two colours colour the central idea.</p>
+      </Section>
+      <Section title="Font">
+        <select className="field" aria-label="Map font" value={doc.font ?? 'inter'} onChange={(e) => setFont(e.target.value as FontId)}>
+          {FONT_CHOICES.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+      </Section>
+      <Section title="Direction">
+        <div className="seg w-full" role="group" aria-label="Map direction">
+          <button style={{ flex: 1 }} className={doc.dir !== 'rtl' ? 'on' : ''} onClick={() => setDirection('ltr')}>Left to right</button>
+          <button style={{ flex: 1 }} className={doc.dir === 'rtl' ? 'on' : ''} onClick={() => setDirection('rtl')}>Right to left</button>
+        </div>
+        <p className="mt-1.5 text-[11.5px] text-muted">Right to left mirrors the whole map, for Persian, Arabic and Hebrew.</p>
       </Section>
       <Section title="Background">
         <div className="seg w-full">

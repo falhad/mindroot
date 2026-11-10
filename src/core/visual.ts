@@ -1,5 +1,5 @@
 import type { LayoutResult } from './layout'
-import { getTheme, onColor, resolveColor, withAlpha, type MapTheme } from './themes'
+import { resolveTheme, onColor, resolveColor, withAlpha, type MapTheme } from './themes'
 import type { MapDoc } from './types'
 
 export interface Palette {
@@ -37,7 +37,7 @@ export interface VisualContext {
 }
 
 export function makeVisualContext(doc: MapDoc, layout: LayoutResult, dark: boolean): VisualContext {
-  const theme = getTheme(doc.themeId)
+  const theme = resolveTheme(doc)
   const accent: Record<string, string> = {}
   const rootAccent = (dark ? theme.root.dark : theme.root.light)[0]
   const palette = dark ? DARK : LIGHT
