@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { mergeDocs } from '../sync/merge'
 import { isTauri } from '../io/env'
 import { store } from '../io/storage'
-import { commit, markSaved, replaceDoc, useDoc } from '../state/doc'
+import { applyRemoteDoc, commit, markSaved, replaceDoc, undoHandlers, useDoc } from '../state/doc'
 import { refreshLibrary } from '../state/library'
 import { flushSave, pauseSaves, saveListeners } from '../state/persist'
 import { askConfirm, toast, ui } from '../state/ui'
@@ -182,6 +182,12 @@ function createContext(plugin: Plugin, l: Loaded, isBuiltin: boolean): PluginCon
       // the label is for future history UI; every call is one undo step
       edit: (_label, recipe) => commit(recipe),
       selection: () => [...useDoc.getState().selection],
+      applyRemote: (doc) => applyRemoteDoc(doc),
+      setUndoHandlers: (h) => {
+        undoHandlers.undo = h ? () => h.undo() : null
+        undoHandlers.redo = h ? () => h.redo() : null
+        if (h) track(l, { dispose: () => { undoHandlers.undo = null; undoHandlers.redo = null } })
+      },
     },
     formats: {
       registerImporter(spec) {

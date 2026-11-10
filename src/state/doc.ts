@@ -180,8 +180,39 @@ function jump(from: 'past' | 'future') {
   } as Partial<DocState>)
 }
 
-export const undo = () => jump('past')
-export const redo = () => jump('future')
+/**
+ * While a map is shared live, undo and redo belong to the collaboration layer: it undoes only YOUR edits,
+ * not what other people did in between. It registers handlers here; a handler returns true when it handled the key.
+ */
+export const undoHandlers: { undo: (() => boolean) | null; redo: (() => boolean) | null } = { undo: null, redo: null }
+
+export const undo = () => {
+  if (undoHandlers.undo?.()) return
+  jump('past')
+}
+export const redo = () => {
+  if (undoHandlers.redo?.()) return
+  jump('future')
+}
+
+/**
+ * Put a version that came from other people into the open map. It is not an undo step, and what you are
+ * typing right now is left alone. The map is marked as changed so autosave writes it.
+ */
+export function applyRemoteDoc(next: MapDoc) {
+  const s = get()
+  if (!s.doc || next.meta.id !== s.doc.meta.id) return
+  const stamped = { ...next, meta: { ...next.meta, updatedAt: Math.max(Date.now(), s.doc.meta.updatedAt) } }
+  const layout = relayout(stamped, s.draft)
+  set({
+    doc: stamped,
+    layout,
+    selection: sanitizeSelection(stamped, layout, s.selection),
+    saveState: 'dirty',
+    connectFrom: s.connectFrom && stamped.nodes[s.connectFrom] ? s.connectFrom : null,
+    editingId: s.editingId && stamped.nodes[s.editingId] ? s.editingId : null,
+  })
+}
 
 // ---------- selection ----------
 

@@ -20,13 +20,15 @@ export interface NodeViewProps {
   soft?: boolean
   /** Not revealed yet in a presentation. */
   stepHidden?: boolean
+  /** Another person who has this idea selected (live collaboration). */
+  peer?: { name: string; color: string }
   match: boolean
   dropInto: boolean
   dragging: boolean
   connecting: boolean
 }
 
-function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, stepHidden, match, dropInto, dragging, connecting }: NodeViewProps) {
+function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, stepHidden, peer, match, dropInto, dragging, connecting }: NodeViewProps) {
   const plain = !vis.fill && !vis.stroke
   const style: CSSProperties = {
     transform: `translate(${box.x}px, ${box.y}px)`,
@@ -37,6 +39,7 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, s
     border: vis.stroke ? `${vis.strokeWidth}px solid ${vis.stroke}` : undefined,
     background: vis.gradient ? `linear-gradient(135deg, ${vis.gradient[0]}, ${vis.gradient[1]})` : (vis.fill ?? undefined),
     ['--sel' as string]: vis.accent,
+    ...(peer ? { outline: `2.5px solid ${peer.color}`, outlineOffset: 3 } : {}),
     font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px ${m.family}`,
   }
   const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', soft && 'soft', stepHidden && 'step-hidden', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
@@ -95,6 +98,11 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, s
       )}
       {vis.underline && (
         <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: 2, background: vis.underline }} />
+      )}
+      {peer && (
+        <span data-peer={peer.name} aria-hidden style={{ position: 'absolute', left: 0, bottom: '100%', marginBottom: 5, padding: '1px 6px', borderRadius: 6, fontSize: 11, fontWeight: 600, lineHeight: '16px', color: '#fff', background: peer.color, whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {peer.name}
+        </span>
       )}
       {node.children.length > 0 && (
         <button

@@ -140,6 +140,10 @@ export interface PluginContext {
     edit(label: string, recipe: (draft: MapDoc) => void): boolean
     /** (API 2) Ids of the selected nodes in the open map. */
     selection(): string[]
+    /** (API 2) Put a version that came from other people into the open map. Not an undo step. */
+    applyRemote(doc: MapDoc): void
+    /** (API 2) Take over undo and redo (return true when handled). Pass null to give them back. */
+    setUndoHandlers(handlers: { undo(): boolean; redo(): boolean } | null): void
   }
   /** (API 2) Add import and export formats. Removed when the plugin is turned off. */
   formats: {

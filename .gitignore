@@ -9,3 +9,4 @@ src-tauri/gen
 test-results/
 playwright-report/
 tests/e2e/__shots__/
+.relay-e2e-data/

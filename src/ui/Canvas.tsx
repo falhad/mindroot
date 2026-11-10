@@ -12,6 +12,7 @@ import { useSearch } from '../state/search'
 import { ui, useUi } from '../state/ui'
 import { MAX_ZOOM, MIN_ZOOM, screenToWorld, setView, setViewport, useView, zoomAt } from '../state/view'
 import { followMapLink } from '../state/links'
+import { usePresence } from '../state/presence'
 import { usePresent } from '../state/present'
 import { GroupBoxes, SummaryBraces } from './GroupView'
 import { NodeView } from './NodeView'
@@ -384,6 +385,13 @@ export function Canvas({ doc, layout, onContext }: Props) {
   const presentSteps = usePresent((s) => s.steps)
   // ids shown so far in a presentation; null when not presenting
   const shown = useMemo(() => (presentActive ? new Set(presentSteps.slice(0, presentStep + 1).flat()) : null), [presentActive, presentStep, presentSteps])
+  const peers = usePresence((s) => s.peers)
+  // the people editing this map with you: who has which idea selected
+  const peerBy = useMemo(() => {
+    const m = new Map<string, { name: string; color: string }>()
+    for (const p of peers) for (const id of p.selection) if (!m.has(id)) m.set(id, { name: p.name, color: p.color })
+    return m
+  }, [peers])
   const tagFilter = useUi((s) => s.tagFilter)
   const tagState = useMemo(() => tagFilterState(doc, tagFilter), [doc, tagFilter])
 
@@ -478,6 +486,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
             dim={searching ? !matches.has(id) : tagState?.get(id) === 'dim'}
             soft={!searching && tagState?.get(id) === 'path'}
             stepHidden={!!shown && !shown.has(id)}
+            peer={peerBy.get(id)}
             match={searching && matches.has(id)}
             dropInto={drag?.drop?.kind === 'into' && drag.drop.id === id}
             dragging={!!drag && drag.skip.has(id)}
