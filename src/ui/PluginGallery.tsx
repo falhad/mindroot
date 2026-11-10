@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Download, Loader2, RefreshCw } from 'lucide-react'
 import { isTauri } from '../io/env'
 import { DEFAULT_INDEX_URL, entryState, parseIndex, type GalleryEntry } from '../plugins/gallery'
-import { netRequest, useRegistry } from '../plugins/host'
+import { forgetPluginEnabled, netRequest, useRegistry } from '../plugins/host'
 import { toast } from '../state/ui'
 
 const URL_KEY = 'bm.gallery.url'
@@ -58,7 +58,11 @@ export function PluginGallery() {
     setBusy(e.id)
     try {
       const { invoke } = await import('@tauri-apps/api/core')
-      await invoke<string>('plugin_install', { url: e.url, sha256: e.sha256 })
+      // the zip must be this plugin and ask for nothing beyond the permissions shown in this list
+      await invoke<string>('plugin_install', { url: e.url, sha256: e.sha256, id: e.id, permissions: e.permissions })
+      // a new plugin, or one that now asks for more, must be switched on again on purpose
+      const have = installed.find((p) => p.manifest.id === e.id)
+      if (!have || e.permissions.some((p) => !(have.manifest.permissions ?? []).includes(p))) await forgetPluginEnabled(e.id)
       setRestart(true)
       toast(`${e.name} installed. Restart Branchmint, then switch it on.`, 'success')
     } catch (err) {

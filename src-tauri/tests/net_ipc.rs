@@ -118,21 +118,26 @@ fn net_and_secrets_work_the_way_the_frontend_calls_them() {
     // gallery: download, check the hash, install; refuse everything else
     let z = zip_bytes();
     let (port, h) = serve("200 OK", z.clone());
-    let id = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z) })).unwrap();
+    let id = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z), "id": "acme.gallery-test", "permissions": [] })).unwrap();
     assert_eq!(id, "acme.gallery-test");
     h.join().unwrap();
     let listed = call(&w, "plugins_list", json!({})).unwrap();
     assert!(listed.as_array().unwrap().iter().any(|p| p["manifest"]["id"] == "acme.gallery-test"), "{listed}");
     // wrong hash: nothing changes, and the message says why
     let (port, h) = serve("200 OK", z.clone());
-    let e = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": "0".repeat(64) })).unwrap_err();
+    let e = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": "0".repeat(64), "id": "acme.gallery-test", "permissions": [] })).unwrap_err();
     assert!(e.as_str().unwrap().contains("SHA-256"), "{e}");
     h.join().unwrap();
     // not found, and plain http to another host
     let (port, h) = serve("404 Not Found", b"nope".to_vec());
-    assert!(call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z) })).is_err());
+    assert!(call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z), "id": "acme.gallery-test", "permissions": [] })).is_err());
     h.join().unwrap();
-    assert!(call(&w, "plugin_install", json!({ "url": "http://example.com/p.zip", "sha256": sha_hex(&z) })).is_err());
+    assert!(call(&w, "plugin_install", json!({ "url": "http://example.com/p.zip", "sha256": sha_hex(&z), "id": "acme.gallery-test", "permissions": [] })).is_err());
+    // the entry names a different plugin than the zip contains
+    let (port, h) = serve("200 OK", z.clone());
+    let e = call(&w, "plugin_install", json!({ "url": format!("http://127.0.0.1:{port}/p.zip"), "sha256": sha_hex(&z), "id": "acme.someone-else", "permissions": [] })).unwrap_err();
+    assert!(e.as_str().unwrap().contains("gallery entry"), "{e}");
+    h.join().unwrap();
     // uninstall
     call(&w, "plugin_uninstall", json!({ "id": "acme.gallery-test" })).unwrap();
     assert!(!call(&w, "plugins_list", json!({})).unwrap().as_array().unwrap().iter().any(|p| p["manifest"]["id"] == "acme.gallery-test"));

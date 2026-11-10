@@ -6,7 +6,7 @@ import { registerCaptureShortcut } from '../io/captureShortcut'
 import { DEFAULT_SHORTCUT, getInboxName, getShortcut, setInboxName, setShortcut } from '../state/capture'
 import { Blocks, FolderOpen, Moon, Puzzle, Settings2, Sun, Monitor, X } from 'lucide-react'
 import { isTauri } from '../io/env'
-import { setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
+import { forgetPluginEnabled, setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
 import { applyTheme, ui, useUi } from '../state/ui'
 import { Modal } from './Overlays'
 
@@ -201,6 +201,7 @@ function PluginRow({ p }: { p: PluginRecord }) {
             try {
               const { invoke } = await import('@tauri-apps/api/core')
               await invoke('plugin_uninstall', { id: p.manifest.id })
+              await forgetPluginEnabled(p.manifest.id) // a plugin installed again later starts switched off
               toast(`${p.manifest.name} removed. Restart Branchmint to finish.`, 'success')
             } catch (e) {
               toast(`Could not remove it: ${e instanceof Error ? e.message : e}`, 'error')

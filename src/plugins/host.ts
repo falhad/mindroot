@@ -305,6 +305,17 @@ export async function startPlugins(list: { plugin: Plugin; builtin: boolean; err
   emit('app:ready')
 }
 
+/**
+ * Forget that the user switched an installed plugin on. Used when a plugin is removed, freshly installed,
+ * or updated to ask for more permissions: the user must then switch it on again on purpose.
+ */
+export async function forgetPluginEnabled(id: string) {
+  const core = await coreSettings()
+  if (!core.enabledExternal.includes(id)) return
+  core.enabledExternal = core.enabledExternal.filter((x) => x !== id)
+  await writeSettings(CORE, core)
+}
+
 export async function setPluginEnabled(id: string, enabled: boolean) {
   const rec = useRegistry.getState().plugins.find((p) => p.manifest.id === id)
   if (!rec) return

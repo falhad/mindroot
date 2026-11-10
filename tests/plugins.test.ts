@@ -353,3 +353,23 @@ describe('plugin API v2', () => {
     expect(useRegistry.getState().exporters).toHaveLength(0)
   })
 })
+
+describe('forgetting a plugin’s enabled state', () => {
+  it('after forgetPluginEnabled an installed plugin starts switched off again, other plugins are not touched', async () => {
+    const { forgetPluginEnabled } = await import('../src/plugins/host')
+    const mk = () => [
+      { builtin: false, plugin: { manifest: manifest('t.keep'), activate() {} } as Plugin },
+      { builtin: false, plugin: { manifest: manifest('t.forget'), activate() {} } as Plugin },
+    ]
+    await startPlugins(mk())
+    await setPluginEnabled('t.keep', true)
+    await setPluginEnabled('t.forget', true)
+    await forgetPluginEnabled('t.forget')
+    useRegistry.setState({ plugins: [], commands: [], status: [], panels: [], importers: [], exporters: [], ready: false })
+    await startPlugins(mk())
+    const state = (id: string) => useRegistry.getState().plugins.find((p) => p.manifest.id === id)!.state
+    expect(state('t.forget')).toBe('disabled')
+    expect(state('t.keep')).toBe('active')
+    await expect(forgetPluginEnabled('t.never-seen')).resolves.toBeUndefined() // unknown ids are fine
+  })
+})
