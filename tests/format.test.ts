@@ -23,12 +23,12 @@ function memoryAssets(): AssetIO & { files: Map<string, Uint8Array> } {
   }
 }
 
-describe('format v2 (JSON Lines)', () => {
+describe('format (JSON Lines)', () => {
   it('writes one record per line, sorted by id, with a header first', () => {
     const d = sample()
     const lines = serializeDoc(d, noImages).trim().split('\n')
     expect(lines).toHaveLength(1 + Object.keys(d.nodes).length)
-    expect(JSON.parse(lines[0])).toMatchObject({ t: 'map', v: 2, root: d.root })
+    expect(JSON.parse(lines[0])).toMatchObject({ t: 'map', v: 3, root: d.root })
     const ids = lines.slice(1).map((l) => JSON.parse(l).id as string)
     expect(ids).toEqual([...ids].sort())
     expect(lines.every((l) => !l.includes('\n'))).toBe(true)
@@ -136,5 +136,101 @@ describe('image assets', () => {
     expect(dataUrlToBytes('data:text/html;base64,AAAA')).toBeNull()
     expect(dataUrlToBytes('not a url')).toBeNull()
     expect(dataUrlToBytes(png)?.ext).toBe('png')
+  })
+})
+
+describe('format v3 (additive fields)', () => {
+  const rich = () =>
+    produce(sample(), (x) => {
+      const a = byText(x, 'A')
+      const b = byText(x, 'B')
+      const c = byText(x, 'C')
+      Object.assign(x.nodes[a], {
+        tags: ['urgent', 'کار'],
+        due: '2026-12-01',
+        done: false,
+        mapLink: { mapId: 'map12345', nodeId: 'n1' },
+        attachments: [{ id: 'f1', name: 'a.pdf', asset: 'abc.pdf', mime: 'application/pdf', size: 10 }],
+        notesFmt: 'md',
+      })
+      x.nodes[b].sticky = true
+      x.relations.push({ id: 'r1', from: b, to: c, label: 'blocks', arrow: 'both', dash: 'dotted' })
+      x.groups = [{ id: 'g1', ids: [b, c], label: 'Pair', color: '2' }]
+      x.summaries = [{ id: 's1', parentId: x.root, from: a, to: b, label: 'Both' }]
+      x.font = 'serif'
+      x.dir = 'rtl'
+      x.customTheme = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666', '#777777', '#888888']
+      x.nodes['fl1'] = { id: 'fl1', parentId: null, children: [], text: 'Loose', pos: { x: 10, y: -20 } }
+    })
+
+  it('round-trips every new field', () => {
+    const d = rich()
+    const back = sanitizeDoc(parseDocText(serializeDoc(d, noImages)))
+    expect(back.nodes).toEqual(d.nodes)
+    expect(back.relations).toEqual(d.relations)
+    expect(back.groups).toEqual(d.groups)
+    expect(back.summaries).toEqual(d.summaries)
+    expect([back.font, back.dir, back.customTheme]).toEqual([d.font, d.dir, d.customTheme])
+  })
+
+  it('keeps floating nodes and still finds the single root', () => {
+    const back = sanitizeDoc(parseDocText(serializeDoc(rich(), noImages)))
+    expect(back.nodes['fl1'].pos).toEqual({ x: 10, y: -20 })
+    expect(back.nodes[back.root].parentId).toBeNull()
+  })
+
+  it('a document without new fields writes no new keys and header v3', () => {
+    const lines = serializeDoc(sample(), noImages).trim().split('\n')
+    expect(JSON.parse(lines[0]).v).toBe(3)
+    const keys = new Set(lines.slice(1).flatMap((l) => Object.keys(JSON.parse(l))))
+    for (const k of ['tags', 'due', 'done', 'mapLink', 'attachments', 'pos', 'sticky', 'notesFmt']) expect(keys.has(k)).toBe(false)
+    expect(lines.some((l) => l.startsWith('{"t":"group"') || l.startsWith('{"t":"sum"'))).toBe(false)
+  })
+
+  it('keeps unknown record types and unknown fields byte for byte', () => {
+    const text = serializeDoc(sample(), noImages)
+    const lines = text.trim().split('\n')
+    const withExtra = [
+      lines[0].replace('"bg":"dots"}', '"bg":"dots","future":{"a":1}}'),
+      ...lines.slice(1).map((l, i) => (i === 0 ? l.replace('}', ',"zzz":[1,2]}') : l)),
+      '{"t":"widget","id":"w1","x":5}',
+    ].join('\n') + '\n'
+    const back = sanitizeDoc(parseDocText(withExtra))
+    const out = serializeDoc(back, noImages)
+    expect(out).toContain('"zzz":[1,2]')
+    expect(out).toContain('{"t":"widget","id":"w1","x":5}')
+    expect(out).toContain('"future":{"a":1}')
+    expect(serializeDoc(sanitizeDoc(parseDocText(out)), noImages)).toBe(out)
+  })
+
+  it('drops groups whose ids are not siblings and summaries with dangling ids', () => {
+    const d = rich()
+    const a1 = byText(d, 'A1')
+    const bad = produce(d, (x) => {
+      x.groups!.push({ id: 'g2', ids: [byText(x, 'A'), a1] })
+      x.groups!.push({ id: 'g3', ids: ['nope'] })
+      x.summaries!.push({ id: 's2', parentId: x.root, from: 'nope', to: byText(x, 'A'), label: 'x' })
+    })
+    const back = sanitizeDoc(parseDocText(serializeDoc(bad, noImages)))
+    expect(back.groups!.map((g) => g.id)).toEqual(['g1'])
+    expect(back.summaries!.map((s) => s.id)).toEqual(['s1'])
+  })
+
+  it('drops invalid due dates and bad tags', () => {
+    const d = produce(sample(), (x) => {
+      const a = x.nodes[byText(x, 'A')] as any
+      a.due = 'tomorrow'
+      a.tags = ['ok', 5, null]
+    })
+    const back = sanitizeDoc(parseDocText(serializeDoc(d, noImages)))
+    const a = back.nodes[byText(back, 'A')]
+    expect(a.due).toBeUndefined()
+    expect(a.tags).toEqual(['ok'])
+  })
+
+  it('loads a v2 file', () => {
+    const v2 = serializeDoc(sample(), noImages).replace('"v":3', '"v":2')
+    const back = sanitizeDoc(parseDocText(v2))
+    expect(Object.keys(back.nodes)).toHaveLength(5)
   })
 })
