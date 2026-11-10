@@ -7,7 +7,7 @@ import {
 } from '../state/doc'
 import { flushSave } from '../state/persist'
 import { startPresentation } from '../state/present'
-import { createMap } from '../state/library'
+import { createMap, refreshLibrary, useLibrary } from '../state/library'
 import { saveAsTemplate } from '../state/templates'
 import { useRegistry } from '../plugins/host'
 import { cycleTheme, goTo, toast, ui } from '../state/ui'
@@ -152,6 +152,8 @@ export function buildCommands(): Command[] {
     c('Map', 'dir-ltr', 'Direction: left to right', () => setDirection('ltr')),
     c('Map', 'search', 'Find in map', () => ui.setSearch(true), `${modKey} F`),
     c('Map', 'export', 'Export…', () => ui.setExport(true), `${modKey} E`),
+    c('Map', 'history', 'History of this map…', () => ui.setHistory(true)),
+    c('Map', 'compare', 'Compare with another map…', () => { if (!useLibrary.getState().loaded) void refreshLibrary(); ui.setComparePicker(true) }),
     c('Map', 'save-template', 'Save this map as a template', () => {
       void saveAsTemplate().then(() => toast('Saved as a template. Find it on the maps page.', 'success')).catch((e) => toast(String(e instanceof Error ? e.message : e), 'error'))
     }),

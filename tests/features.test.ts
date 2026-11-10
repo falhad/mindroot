@@ -832,3 +832,35 @@ describe('diffDocs and restoring ideas', async () => {
     expect(restoreSubtree(now, old, old.root)).toBeNull()
   })
 })
+
+describe('restoring a whole version into the open map', async () => {
+  const store = await import('../src/state/doc')
+  const { restoreWholeMap } = await import('../src/state/history')
+  const T = await import('../src/core/tree')
+
+  it('replaces the content as one undo step and keeps the map id; undo brings the current version back', () => {
+    const current = sample()
+    const old = structuredClone(current)
+    old.nodes[id(old, 'A')].text = 'A (old text)'
+    T.removeNodes(old, [id(old, 'C')])
+    store.openDoc(current)
+    const before = store.useDoc.getState().past.length
+    restoreWholeMap(old)
+    const s = store.useDoc.getState()
+    expect(s.past.length).toBe(before + 1)
+    expect(s.doc!.meta.id).toBe(current.meta.id)
+    expect(Object.values(s.doc!.nodes).map((n) => n.text)).toContain('A (old text)')
+    expect(Object.values(s.doc!.nodes).map((n) => n.text)).not.toContain('C')
+    expect(s.saveState).toBe('dirty')
+    store.undo()
+    expect(Object.values(store.useDoc.getState().doc!.nodes).map((n) => n.text)).toContain('C')
+  })
+
+  it('does not change the map when the version is damaged (no root)', () => {
+    const current = sample()
+    store.openDoc(current)
+    const broken = { ...structuredClone(current), root: 'nope' }
+    expect(restoreWholeMap(broken)).toBe(false)
+    expect(store.useDoc.getState().doc).toBe(current)
+  })
+})

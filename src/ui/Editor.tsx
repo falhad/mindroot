@@ -24,6 +24,8 @@ import { ExportDialog } from './ExportDialog'
 import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
 import { usePresent } from '../state/present'
+import { ComparePicker, CompareView } from './Compare'
+import { HistoryPanel } from './History'
 import { FocusBar } from './FocusBar'
 import { Outline } from './Outline'
 import { Presentation } from './Presentation'
@@ -199,6 +201,9 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
       <ContextMenu state={menu} onClose={closeMenu} />
       <Palette />
       <ExportDialog />
+      <HistoryPanel />
+      <ComparePicker />
+      <CompareView />
     </div>
   )
 }

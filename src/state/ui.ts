@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { MapDoc } from '../core/types'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type Route = { name: 'dashboard' } | { name: 'editor'; id: string } | { name: 'tasks' } | { name: 'capture' }
@@ -34,6 +35,10 @@ interface UiState {
   settingsTab: string
   /** A node to select when a map finishes loading (set when following a link between maps). */
   pendingSelect: { mapId: string; nodeId: string } | null
+  /** The compare view: two versions side by side. */
+  compare: { a: MapDoc; b: MapDoc; labelA: string; labelB: string } | null
+  comparePicker: boolean
+  historyOpen: boolean
   /** Tags selected in the tag filter (empty = no filter). Not saved with the map. */
   tagFilter: string[]
   toasts: Toast[]
@@ -75,6 +80,9 @@ export const useUi = create<UiState>(() => ({
   settingsOpen: false,
   settingsTab: 'general',
   pendingSelect: null,
+  compare: null,
+  comparePicker: false,
+  historyOpen: false,
   tagFilter: [],
   toasts: [],
   confirm: null,
@@ -115,6 +123,9 @@ export const dismissToast = (id: number) => set((s) => ({ toasts: s.toasts.filte
 export const ui = {
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
   setInspector: (inspectorOpen: boolean) => set({ inspectorOpen }),
+  setCompare: (compare: UiState['compare']) => set({ compare }),
+  setComparePicker: (comparePicker: boolean) => set({ comparePicker }),
+  setHistory: (historyOpen: boolean) => set({ historyOpen }),
   toggleOutline: () => set((s) => ({ outlineOpen: !s.outlineOpen })),
   setOutline: (outlineOpen: boolean) => set({ outlineOpen }),
   setPalette: (paletteOpen: boolean) => set({ paletteOpen }),

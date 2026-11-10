@@ -344,16 +344,18 @@ export function Canvas({ doc, layout, onContext }: Props) {
   }
 
   const onDoubleClick = (e: React.MouseEvent) => {
-    const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null
-    if (nodeEl && !(e.target as HTMLElement).closest('.node-edit,[data-collapse],[data-badge]')) return startEdit(nodeEl.dataset.nodeId!)
-    if ((e.target as HTMLElement).closest('.node-edit,input')) return
-    // the canvas captures the pointer, so find a link line by distance instead of by event target
+    const target = e.target as HTMLElement
+    if (target.closest('.node-edit,input,textarea,[data-collapse],[data-badge]')) return
+    // The canvas captures the pointer, so the browser may report the canvas itself as the target of
+    // a double-click. Find what was hit by position, not by event target.
     const p = local(e)
     const w = screenToWorld(p.x, p.y)
+    const hit = hitTest(layout, w.x, w.y, undefined, 2)
+    if (hit) return startEdit(hit)
     const rel = hitRelation(doc.relations, layout.boxes, w.x, w.y, 10 / useView.getState().k)
     if (rel) return setEditingRel(rel)
     // empty canvas: a new floating node (Shift = sticky note)
-    if (!(e.target as HTMLElement).closest('.node-edit,input,button,[data-node-id]')) addFloatAt(w.x, w.y, e.shiftKey)
+    addFloatAt(w.x, w.y, e.shiftKey)
   }
 
   const onContextMenu = (e: React.MouseEvent) => {

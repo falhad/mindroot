@@ -22,6 +22,8 @@ export interface SvgOptions {
   interactive?: boolean
   /** Use only characters a PDF base font can draw (badge symbols), for the vector PDF. */
   pdfSafe?: boolean
+  /** Outline these nodes (the compare view): added, removed, changed or moved. */
+  marks?: Record<string, 'added' | 'removed' | 'changed' | 'moved'>
 }
 
 export interface SvgResult {
@@ -159,6 +161,14 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
       out.push(
         `<g><circle cx="${right}" cy="${bx.y + bx.h / 2}" r="11" fill="${pal.surface}" stroke="${v.accent}" stroke-width="1.5"/><text x="${right}" y="${bx.y + bx.h / 2 + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="${pal.ink}">${n.children.length}</text></g>`,
       )
+    }
+  }
+  if (opts.marks) {
+    const colour = { added: '#16a34a', removed: '#dc2626', changed: '#d97706', moved: '#2563eb' }
+    for (const [mid, kind] of Object.entries(opts.marks)) {
+      const mb = layout.boxes[mid]
+      if (!mb) continue
+      out.push(`<rect data-mark="${kind}" x="${mb.x - 5}" y="${mb.y - 5}" width="${mb.w + 10}" height="${mb.h + 10}" rx="${14}" fill="${colour[kind]}" fill-opacity="0.12" stroke="${colour[kind]}" stroke-width="3"${kind === 'removed' ? ' stroke-dasharray="7 5"' : ''}/>`)
     }
   }
   out.push('</svg>')

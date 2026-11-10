@@ -58,6 +58,11 @@ export async function buildSvg(doc: MapDoc, o: ExportOptions) {
   })
 }
 
+/** The map as a picture for the compare view, with the given nodes outlined. Fonts are embedded so it looks like the app. */
+export async function buildMarkedSvg(doc: MapDoc, marks: NonNullable<Parameters<typeof renderSvg>[2]['marks']>, dark: boolean) {
+  return renderSvg(doc, computeLayout(doc), { dark, background: false, iconMarkup: await iconResolver(), fontCss: await fontCss(doc), marks })
+}
+
 export async function buildPng(doc: MapDoc, o: ExportOptions): Promise<{ blob: Blob; width: number; height: number }> {
   const { svg, width, height } = await buildSvg(doc, o)
   let scale: number = o.scale
