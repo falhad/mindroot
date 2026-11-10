@@ -233,6 +233,57 @@ export function addSibling(before = false) {
   startEdit(id, true)
 }
 
+/** Add a floating node (or sticky note) at a world position and start typing in it. */
+export function addFloatAt(x: number, y: number, sticky = false) {
+  const s = get()
+  if (!s.doc) return
+  let id = ''
+  commit((d) => {
+    id = T.addFloat(d, x, y, '', sticky)
+  })
+  select([id])
+  startEdit(id, true)
+}
+
+/** Draw a boundary around the selected sibling nodes. Returns false (and does nothing) if they are not siblings. */
+export function groupSelection(label?: string): boolean {
+  let ok = false
+  commit((d) => {
+    ok = !!T.groupSiblings(d, get().selection, label)
+  })
+  return ok
+}
+
+/** Remove the groups that contain any selected node. */
+export function ungroupSelection(): boolean {
+  const sel = new Set(get().selection)
+  return commit((d) => {
+    for (const g of [...(d.groups ?? [])]) if (g.ids.some((id) => sel.has(id))) T.ungroup(d, g.id)
+  })
+}
+
+/** Put a labelled bracket over the selected consecutive siblings. False when they are not consecutive siblings. */
+export function summarizeSelection(label = 'Summary'): boolean {
+  let ok = false
+  commit((d) => {
+    ok = !!T.summarize(d, get().selection, label)
+  })
+  return ok
+}
+
+/** Detach the selected nodes (with their subtrees) from the tree so they float where they are. */
+export function floatSelection(): boolean {
+  const s = get()
+  if (!s.doc || !s.layout) return false
+  const layout = s.layout
+  return commit((d) => {
+    for (const id of T.movable(d, s.selection)) {
+      const b = layout.boxes[id]
+      if (b) T.floatNode(d, id, b.x + b.w / 2, b.y + b.h / 2)
+    }
+  })
+}
+
 export function deleteSelection() {
   const s = get()
   if (!s.doc) return

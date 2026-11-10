@@ -5,7 +5,7 @@ import * as T from '../core/tree'
 import { normalizeTag, setNodeTags } from '../core/tags'
 import type { MindNode, Relation, ShapeKind } from '../core/types'
 import { openExternal, pickFile, readImage } from '../io/files'
-import { commit, primary, setConnectFrom, useDoc } from '../state/doc'
+import { commit, floatSelection, groupSelection, primary, setConnectFrom, summarizeSelection, useDoc } from '../state/doc'
 import { toast, useUi } from '../state/ui'
 import { BGS, EDGES, LAYOUTS, setBg, setEdge, setLayout, setMapTheme } from './commands'
 import { EMOJIS, NodeIcon, lucideIcons } from './icons'
@@ -42,6 +42,39 @@ export function Inspector({ onClose }: { onClose: () => void }) {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">{active === 'node' && node ? <NodePanel node={node} /> : <MapPanel />}</div>
     </aside>
+  )
+}
+
+// ---------------- groups and brackets of the selected node ----------------
+
+function ArrangeLists({ nodeId }: { nodeId: string }) {
+  const doc = useDoc((s) => s.doc)!
+  const groups = (doc.groups ?? []).filter((g) => g.ids.includes(nodeId))
+  const sums = (doc.summaries ?? []).filter((s) => {
+    const kids = doc.nodes[s.parentId]?.children ?? []
+    const i = kids.indexOf(nodeId)
+    return i >= kids.indexOf(s.from) && i <= kids.indexOf(s.to) && i >= 0
+  })
+  if (!groups.length && !sums.length) return null
+  return (
+    <ul className="mt-3 space-y-1.5">
+      {groups.map((g) => (
+        <li key={g.id} className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">Group</span>
+          <input className="field" style={{ height: 28, flex: 1, minWidth: 0 }} dir="auto" placeholder="Label" aria-label="Group label" value={g.label ?? ''}
+            onChange={(e) => commit((d) => T.setGroupLabel(d, g.id, e.target.value), { coalesce: `grp:${g.id}` })} />
+          <button className="btn icon" style={{ width: 24, height: 24 }} aria-label="Remove group" onClick={() => commit((d) => T.ungroup(d, g.id))}><X size={13} /></button>
+        </li>
+      ))}
+      {sums.map((s) => (
+        <li key={s.id} className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">Bracket</span>
+          <input className="field" style={{ height: 28, flex: 1, minWidth: 0 }} dir="auto" placeholder="Label" aria-label="Bracket label" value={s.label}
+            onChange={(e) => commit((d) => T.setSummaryLabel(d, s.id, e.target.value), { coalesce: `sum:${s.id}` })} />
+          <button className="btn icon" style={{ width: 24, height: 24 }} aria-label="Remove bracket" onClick={() => commit((d) => T.removeSummary(d, s.id))}><X size={13} /></button>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -187,6 +220,20 @@ function NodePanel({ node }: { node: MindNode }) {
             </div>
           </div>
         )}
+      </Section>
+
+      <Section title="Arrange">
+        <div className="flex flex-wrap gap-1.5">
+          <button className="btn outline" onClick={() => groupSelection() || toast('Select nodes that share the same parent to group them')}>Group</button>
+          <button className="btn outline" onClick={() => summarizeSelection() || toast('Select two or more neighbouring siblings for a bracket')}>Bracket</button>
+          <button className="btn outline" disabled={node.id === doc.root || !node.parentId} onClick={() => floatSelection()}>Float</button>
+        </div>
+        <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px]">
+          <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={!!node.sticky}
+            onChange={(e) => commit((d) => { for (const id of selection) { if (e.target.checked) d.nodes[id].sticky = true; else delete d.nodes[id].sticky } })} />
+          Sticky note (no connector line)
+        </label>
+        <ArrangeLists nodeId={node.id} />
       </Section>
 
       <Section title="Tags">

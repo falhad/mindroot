@@ -2,15 +2,16 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DASH, edgePath, hitRelation, relationPath } from '../core/edges'
 import { hitTest, type LayoutResult } from '../core/layout'
 import { tagFilterState } from '../core/tags'
-import { subtreeIds, movable, updateRelation } from '../core/tree'
+import { attachFloat, moveFloat, subtreeIds, movable, updateRelation } from '../core/tree'
 import type { Box, MapDoc } from '../core/types'
 import { isRtl, makeVisualContext, nodeVisual } from '../core/visual'
 import { openExternal } from '../io/files'
 import { inTextField } from '../state/clipboard'
-import { commit, connectNodes, dropNodes, select, setConnectFrom, startEdit, toggleCollapse, useDoc, type DropDest } from '../state/doc'
+import { addFloatAt, commit, connectNodes, dropNodes, select, setConnectFrom, startEdit, toggleCollapse, useDoc, type DropDest } from '../state/doc'
 import { useSearch } from '../state/search'
 import { ui, useUi } from '../state/ui'
 import { MAX_ZOOM, MIN_ZOOM, screenToWorld, setView, setViewport, useView, zoomAt } from '../state/view'
+import { GroupBoxes, SummaryBraces } from './GroupView'
 import { NodeView } from './NodeView'
 import { useTweenedBoxes } from './useTween'
 
@@ -286,9 +287,22 @@ export function Canvas({ doc, layout, onContext }: Props) {
     if (g.kind === 'drag') {
       const d = drag
       setDrag(null)
-      if (d?.drop && !cancelled) {
+      if (d && !cancelled) {
         const w = screenToWorld(p.x, p.y)
-        dropNodes(d.ids, dropToDest(layout, doc, d.drop, w.x))
+        const floating = d.ids.filter((id) => !doc.nodes[id]?.parentId)
+        const attached = d.ids.filter((id) => doc.nodes[id]?.parentId)
+        // floating branches move with the pointer; only dropping straight onto a node attaches them
+        if (floating.length) {
+          const onto = d.drop?.kind === 'into' ? d.drop.id : null
+          commit((dd) => {
+            for (const id of floating) {
+              const pos = dd.nodes[id]?.pos
+              if (onto && attachFloat(dd, id, onto)) continue
+              if (pos) moveFloat(dd, id, pos.x + d.dx, pos.y + d.dy)
+            }
+          })
+        }
+        if (attached.length && d.drop) dropNodes(attached, dropToDest(layout, doc, d.drop, w.x))
       }
     }
     if (g.kind === 'marquee') {
@@ -333,7 +347,9 @@ export function Canvas({ doc, layout, onContext }: Props) {
     const p = local(e)
     const w = screenToWorld(p.x, p.y)
     const rel = hitRelation(doc.relations, layout.boxes, w.x, w.y, 10 / useView.getState().k)
-    if (rel) setEditingRel(rel)
+    if (rel) return setEditingRel(rel)
+    // empty canvas: a new floating node (Shift = sticky note)
+    if (!(e.target as HTMLElement).closest('.node-edit,input,button,[data-node-id]')) addFloatAt(w.x, w.y, e.shiftKey)
   }
 
   const onContextMenu = (e: React.MouseEvent) => {
@@ -400,6 +416,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
       onContextMenu={onContextMenu}
     >
       <div className="world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
+        <GroupBoxes doc={doc} layout={layout} dark={dark} />
         <svg className="edges" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -408,7 +425,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
           </defs>
           {layout.order.map((id) => {
             const n = doc.nodes[id]
-            if (!n.parentId) return null
+            if (!n.parentId || n.sticky) return null
             const hot = selSet.has(id) || selSet.has(n.parentId)
             return (
               <EdgeView
@@ -420,6 +437,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
               />
             )
           })}
+          <SummaryBraces doc={doc} layout={layout} />
           {doc.relations.map((r) => {
             if (!layout.boxes[r.from] || !layout.boxes[r.to]) return null
             const p = relationPath(renderBox(r.from), renderBox(r.to))

@@ -108,3 +108,183 @@ describe('relations: labels, arrows, styles', async () => {
     expect(renderSvg(none, computeLayout(none), { dark: false, background: false }).svg).not.toContain('data-arrow')
   })
 })
+
+describe('groups and summary brackets', async () => {
+  const T = await import('../src/core/tree')
+  const { computeLayout } = await import('../src/core/layout')
+  const { renderSvg } = await import('../src/core/svg')
+  const inside = (outer: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+    b.x >= outer.x - 0.5 && b.y >= outer.y - 0.5 && b.x + b.w <= outer.x + outer.w + 0.5 && b.y + b.h <= outer.y + outer.h + 0.5
+
+  it('groupSiblings refuses non-siblings, the root and unknown ids; accepts siblings', () => {
+    const d = sample()
+    expect(T.groupSiblings(d, [id(d, 'A'), id(d, 'A1')])).toBeNull()
+    expect(T.groupSiblings(d, [d.root])).toBeNull()
+    expect(T.groupSiblings(d, ['nope'])).toBeNull()
+    expect(T.groupSiblings(d, [])).toBeNull()
+    const g = T.groupSiblings(d, [id(d, 'B'), id(d, 'C')], 'Pair')!
+    expect(d.groups).toEqual([{ id: g, ids: [id(d, 'B'), id(d, 'C')], label: 'Pair' }])
+  })
+
+  it('the group box contains every member and its subtree', () => {
+    const d = sample()
+    const g = T.groupSiblings(d, [id(d, 'A'), id(d, 'B')])!
+    const l = computeLayout(d)
+    for (const t of ['A', 'A1', 'A2', 'B', 'B1']) expect(inside(l.groupBoxes[g], l.boxes[id(d, t)])).toBe(true)
+  })
+
+  it('removing nodes shrinks the group and removes it when empty', () => {
+    const d = sample()
+    const g = T.groupSiblings(d, [id(d, 'B'), id(d, 'C')])!
+    T.removeNodes(d, [id(d, 'B')])
+    expect(d.groups![0].ids).toEqual([id(d, 'C')])
+    T.removeNodes(d, [id(d, 'C')])
+    expect(d.groups ?? []).toEqual([])
+    expect(g).toBeTruthy()
+  })
+
+  it('moving a node to another parent takes it out of the group; reordering keeps it', () => {
+    const d = sample()
+    T.groupSiblings(d, [id(d, 'B'), id(d, 'C')])
+    T.reorderNode(d, id(d, 'C'), -1)
+    expect(d.groups![0].ids).toHaveLength(2)
+    T.moveNode(d, id(d, 'B'), id(d, 'A'))
+    expect(d.groups![0].ids).toEqual([id(d, 'C')])
+  })
+
+  it('ungroup removes only the group, not the nodes', () => {
+    const d = sample()
+    const g = T.groupSiblings(d, [id(d, 'B')])!
+    T.ungroup(d, g)
+    expect(d.groups ?? []).toEqual([])
+    expect(d.nodes[id(d, 'B')]).toBeDefined()
+  })
+
+  it('summarize needs consecutive siblings', () => {
+    const d = sample()
+    expect(T.summarize(d, [id(d, 'A'), id(d, 'C')], 'x')).toBeNull() // B is between them
+    const s = T.summarize(d, [id(d, 'B'), id(d, 'A')], 'AB')! // order of ids does not matter
+    expect(d.summaries![0]).toMatchObject({ id: s, parentId: d.root, from: id(d, 'A'), to: id(d, 'B'), label: 'AB' })
+  })
+
+  it('a summary is removed when one of its ends is deleted or moved away', () => {
+    const d = sample()
+    T.summarize(d, [id(d, 'A'), id(d, 'B')], 'AB')
+    T.moveNode(d, id(d, 'B'), id(d, 'A'))
+    expect(d.summaries ?? []).toEqual([])
+    const e = sample()
+    T.summarize(e, [id(e, 'A'), id(e, 'B')], 'AB')
+    T.removeNodes(e, [id(e, 'A')])
+    expect(e.summaries ?? []).toEqual([])
+  })
+
+  it('the bracket sits outside the subtrees it covers, on the side the children grow', () => {
+    for (const layout of ['right', 'left', 'down', 'up'] as const) {
+      const d = sample()
+      d.layout = layout
+      const s = T.summarize(d, [id(d, 'A'), id(d, 'B')], 'AB')!
+      const l = computeLayout(d)
+      const sb = l.summaryBoxes[s]
+      const covered = ['A', 'A1', 'A2', 'B', 'B1'].map((t) => l.boxes[id(d, t)])
+      const x0 = Math.min(...covered.map((b) => b.x)), x1 = Math.max(...covered.map((b) => b.x + b.w))
+      const y0 = Math.min(...covered.map((b) => b.y)), y1 = Math.max(...covered.map((b) => b.y + b.h))
+      expect(sb.side).toBe({ right: 'right', left: 'left', down: 'down', up: 'up' }[layout])
+      if (layout === 'right') expect(sb.bracket.x).toBeGreaterThanOrEqual(x1)
+      if (layout === 'left') expect(sb.bracket.x + sb.bracket.w).toBeLessThanOrEqual(x0)
+      if (layout === 'down') expect(sb.bracket.y).toBeGreaterThanOrEqual(y1)
+      if (layout === 'up') expect(sb.bracket.y + sb.bracket.h).toBeLessThanOrEqual(y0)
+      expect(l.bounds.x + l.bounds.w).toBeGreaterThanOrEqual(sb.label.x + sb.label.w - 0.5) // bounds include the label
+    }
+  })
+
+  it('svg export draws groups and brackets', () => {
+    const d = sample()
+    T.groupSiblings(d, [id(d, 'A'), id(d, 'B')], 'Both')
+    T.summarize(d, [id(d, 'A'), id(d, 'B')], 'Sum <x>')
+    const { svg } = renderSvg(d, computeLayout(d), { dark: false, background: false })
+    expect(svg).toContain('data-group=')
+    expect(svg).toContain('>Both<')
+    expect(svg).toContain('data-summary=')
+    expect(svg).toContain('Sum &lt;x&gt;')
+  })
+})
+
+describe('floating nodes and sticky notes', async () => {
+  const T = await import('../src/core/tree')
+  const { computeLayout } = await import('../src/core/layout')
+  const { renderSvg } = await import('../src/core/svg')
+
+  it('addFloat creates a parentless node with a position outside the root tree', () => {
+    const d = sample()
+    const f = T.addFloat(d, 400, -300, 'Loose')
+    expect(d.nodes[f]).toMatchObject({ parentId: null, text: 'Loose', pos: { x: 400, y: -300 } })
+    expect(d.nodes[d.root].children).not.toContain(f)
+    expect(T.orderedIds(d)).toContain(f)
+  })
+
+  it('a float subtree is laid out at its position and the main tree does not move', () => {
+    const d = sample()
+    const before = computeLayout(d)
+    const f = T.addFloat(d, 600, 500, 'Loose')
+    const c = T.addChild(d, f, 'Kid')
+    const after = computeLayout(d)
+    const fb = after.boxes[f]
+    expect(fb.x + fb.w / 2).toBeCloseTo(600, 0)
+    expect(fb.y + fb.h / 2).toBeCloseTo(500, 0)
+    expect(after.boxes[c]).toBeDefined()
+    for (const k of Object.keys(before.boxes)) expect(after.boxes[k]).toEqual(before.boxes[k])
+    expect(after.order).toContain(c)
+    // bounds include the float so "fit to screen" shows it
+    expect(after.bounds.x + after.bounds.w).toBeGreaterThan(before.bounds.x + before.bounds.w)
+  })
+
+  it('two floats do not break each other (no recursion) and each keeps its own position', () => {
+    const d = sample()
+    const a = T.addFloat(d, 0, 700, 'A float')
+    const b = T.addFloat(d, 900, 700, 'B float')
+    const l = computeLayout(d)
+    expect(l.boxes[a].x).toBeLessThan(l.boxes[b].x)
+  })
+
+  it('moveFloat changes only the position; deleting a float removes its subtree', () => {
+    const d = sample()
+    const f = T.addFloat(d, 0, 0, 'Loose')
+    const c = T.addChild(d, f, 'Kid')
+    T.moveFloat(d, f, 10, 20)
+    expect(d.nodes[f].pos).toEqual({ x: 10, y: 20 })
+    T.removeNodes(d, [f])
+    expect(d.nodes[f]).toBeUndefined()
+    expect(d.nodes[c]).toBeUndefined()
+  })
+
+  it('attachFloat turns a float into a child; it refuses a parent inside its own subtree', () => {
+    const d = sample()
+    const f = T.addFloat(d, 0, 0, 'Loose')
+    const kid = T.addChild(d, f, 'Kid')
+    expect(T.attachFloat(d, f, kid)).toBe(false)
+    expect(T.attachFloat(d, f, id(d, 'B'))).toBe(true)
+    expect(d.nodes[f].parentId).toBe(id(d, 'B'))
+    expect('pos' in d.nodes[f]).toBe(false)
+  })
+
+  it('floatNode detaches a node with its subtree from the tree', () => {
+    const d = sample()
+    expect(T.floatNode(d, d.root, 0, 0)).toBe(false)
+    expect(T.floatNode(d, id(d, 'A'), 300, 300)).toBe(true)
+    expect(d.nodes[d.root].children).not.toContain(id(d, 'A'))
+    expect(d.nodes[id(d, 'A')]).toMatchObject({ parentId: null, pos: { x: 300, y: 300 } })
+    expect(d.nodes[id(d, 'A1')].parentId).toBe(id(d, 'A'))
+  })
+
+  it('a sticky child has no connector line; floats have none either', () => {
+    const d = sample()
+    d.nodes[id(d, 'B')].sticky = true
+    const f = T.addFloat(d, 500, 500, 'Note', true)
+    const l = computeLayout(d)
+    const { svg } = renderSvg(d, l, { dark: false, background: false })
+    // one connector per non-root, non-sticky tree node: 6 nodes minus root minus sticky B
+    const connectors = svg.split('opacity="0.85"').length - 1
+    expect(connectors).toBe(Object.values(d.nodes).filter((n) => n.parentId && !n.sticky).length)
+    expect(f).toBeTruthy()
+  })
+})

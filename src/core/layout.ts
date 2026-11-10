@@ -1,5 +1,5 @@
 import { measureNode, type NodeMetrics } from './measure'
-import { visibleChildren } from './tree'
+import { floatIds, visibleChildren } from './tree'
 import type { Box, Direction, MapDoc } from './types'
 
 export type Attach = Direction | 'radial'
@@ -13,12 +13,31 @@ export interface LayoutResult {
   /** Visible node ids in depth-first order. */
   order: string[]
   bounds: Box
+  /** Boundary rectangle of each group (by group id). */
+  groupBoxes: Record<string, Box>
+  /** Bracket and label of each summary (by summary id). */
+  summaryBoxes: Record<string, SummaryBox>
+}
+
+export interface SummaryBox {
+  bracket: Box
+  label: Box
+  /** The side of the covered nodes the bracket is on. */
+  side: Direction
 }
 
 export interface LayoutOptions {
   /** Live text of the node being edited, so the box grows while typing. */
   draft?: { id: string; text: string }
+  /** Depth given to the root (floating subtrees start at 1 so they look like branches, not a map root). */
+  rootDepth?: number
+  /** Internal: do not lay out floating subtrees (used while laying out one of them). */
+  skipFloats?: boolean
 }
+
+const GROUP_PAD = 12
+const BRACKET_GAP = 8
+const BRACKET_W = 10
 
 const GAP_MAIN_ROOT = 84
 const GAP_MAIN = 52
@@ -40,7 +59,7 @@ export function computeLayout(doc: MapDoc, opts: LayoutOptions = {}): LayoutResu
     metrics[id] = measureNode(n, d, opts.draft?.id === id ? opts.draft.text : undefined)
     for (const c of visibleChildren(doc, id)) visit(c, d + 1)
   }
-  visit(doc.root, 0)
+  visit(doc.root, opts.rootDepth ?? 0)
 
   const rootM = metrics[doc.root]
   boxes[doc.root] = { x: -rootM.w / 2, y: -rootM.h / 2, w: rootM.w, h: rootM.h }
@@ -60,7 +79,76 @@ export function computeLayout(doc: MapDoc, opts: LayoutOptions = {}): LayoutResu
     placeBlock(doc.root, kids(doc.root), horizontal ? 'h' : 'v', sign, boxes, metrics, depth, attach, kids)
   }
 
-  return { boxes, metrics, depth, attach, order, bounds: boundsOf(Object.values(boxes)) }
+  const groupBoxes: Record<string, Box> = {}
+  const summaryBoxes: Record<string, SummaryBox> = {}
+  const result: LayoutResult = { boxes, metrics, depth, attach, order, bounds: boundsOf(Object.values(boxes)), groupBoxes, summaryBoxes }
+  addGroupsAndSummaries(doc, result, kids)
+
+  if (!opts.skipFloats) {
+    for (const f of floatIds(doc)) {
+      const pos = doc.nodes[f].pos
+      if (!pos) continue
+      // Lay the floating subtree out as if it were its own map (same layout kind), then move it into place.
+      const sub = computeLayout({ ...doc, root: f }, { draft: opts.draft, rootDepth: 1, skipFloats: true })
+      const move = (b: Box): Box => ({ ...b, x: b.x + pos.x, y: b.y + pos.y })
+      for (const id of sub.order) {
+        boxes[id] = move(sub.boxes[id])
+        metrics[id] = sub.metrics[id]
+        depth[id] = sub.depth[id]
+        if (sub.attach[id]) attach[id] = sub.attach[id]
+        order.push(id)
+      }
+      for (const [gid, b] of Object.entries(sub.groupBoxes)) groupBoxes[gid] = move(b)
+      for (const [sid, s] of Object.entries(sub.summaryBoxes)) summaryBoxes[sid] = { ...s, bracket: move(s.bracket), label: move(s.label) }
+    }
+  }
+  result.bounds = boundsOf([
+    ...Object.values(boxes),
+    ...Object.values(groupBoxes),
+    ...Object.values(summaryBoxes).flatMap((s) => [s.bracket, s.label]),
+  ])
+  return result
+}
+
+/** Rectangles for groups and brackets for summaries, from the boxes already placed. */
+function addGroupsAndSummaries(doc: MapDoc, r: LayoutResult, kids: (id: string) => string[]) {
+  const subtree = (id: string): Box[] => [r.boxes[id], ...kids(id).flatMap(subtree)]
+  for (const g of doc.groups ?? []) {
+    const members = g.ids.filter((id) => r.boxes[id])
+    if (!members.length) continue
+    const b = boundsOf(members.flatMap(subtree))
+    r.groupBoxes[g.id] = { x: b.x - GROUP_PAD, y: b.y - GROUP_PAD, w: b.w + GROUP_PAD * 2, h: b.h + GROUP_PAD * 2 }
+  }
+  for (const s of doc.summaries ?? []) {
+    const parent = doc.nodes[s.parentId]
+    if (!parent) continue
+    const from = parent.children.indexOf(s.from)
+    const to = parent.children.indexOf(s.to)
+    const covered = parent.children.slice(from, to + 1).filter((id) => r.boxes[id])
+    if (from < 0 || to < from || !covered.length) continue
+    const b = boundsOf(covered.flatMap(subtree))
+    const a = r.attach[covered[0]]
+    const side: Direction = a === 'radial' || !a ? 'right' : a
+    const m = measureNode({ id: 's', parentId: null, children: [], text: s.label || ' ' }, 2)
+    const lw = m.w
+    const lh = m.h
+    let bracket: Box
+    let label: Box
+    if (side === 'right') {
+      bracket = { x: b.x + b.w + BRACKET_GAP, y: b.y, w: BRACKET_W, h: b.h }
+      label = { x: bracket.x + BRACKET_W + 6, y: b.y + b.h / 2 - lh / 2, w: lw, h: lh }
+    } else if (side === 'left') {
+      bracket = { x: b.x - BRACKET_GAP - BRACKET_W, y: b.y, w: BRACKET_W, h: b.h }
+      label = { x: bracket.x - 6 - lw, y: b.y + b.h / 2 - lh / 2, w: lw, h: lh }
+    } else if (side === 'down') {
+      bracket = { x: b.x, y: b.y + b.h + BRACKET_GAP, w: b.w, h: BRACKET_W }
+      label = { x: b.x + b.w / 2 - lw / 2, y: bracket.y + BRACKET_W + 6, w: lw, h: lh }
+    } else {
+      bracket = { x: b.x, y: b.y - BRACKET_GAP - BRACKET_W, w: b.w, h: BRACKET_W }
+      label = { x: b.x + b.w / 2 - lw / 2, y: bracket.y - 6 - lh, w: lw, h: lh }
+    }
+    r.summaryBoxes[s.id] = { bracket, label, side }
+  }
 }
 
 export function boundsOf(list: Box[]): Box {

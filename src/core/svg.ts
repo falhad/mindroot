@@ -1,4 +1,5 @@
-import { arrowHead, DASH, relationPath, edgePath } from './edges'
+import { arrowHead, bracketPath, DASH, relationPath, edgePath } from './edges'
+import { resolveColor, withAlpha } from './themes'
 import type { LayoutResult } from './layout'
 import { boundsOf } from './layout'
 import { PLACEHOLDER } from './measure'
@@ -48,11 +49,25 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
   out.push('</defs>')
   if (opts.background) out.push(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${pal.bg}"/>`)
 
+  // group boundaries sit behind everything
+  for (const g of doc.groups ?? []) {
+    const gb = layout.groupBoxes[g.id]
+    if (!gb) continue
+    const c = resolveColor(g.color, ctx.theme, opts.dark) ?? pal.muted
+    out.push(`<rect data-group="${g.id}" x="${gb.x}" y="${gb.y}" width="${gb.w}" height="${gb.h}" rx="16" fill="${withAlpha(c, 0.08)}" stroke="${c}" stroke-width="1.5" stroke-dasharray="6 5"/>`)
+    if (g.label) out.push(`<text x="${gb.x + 12}" y="${gb.y + 14}" font-size="12" font-weight="600" fill="${c}" dominant-baseline="central">${esc(g.label)}</text>`)
+  }
+
   // edges
   out.push('<g fill="none" stroke-linecap="round" stroke-linejoin="round">')
+  for (const s of doc.summaries ?? []) {
+    const sb = layout.summaryBoxes[s.id]
+    if (!sb) continue
+    out.push(`<path data-summary="${s.id}" d="${bracketPath(sb.bracket, sb.side)}" stroke="${pal.muted}" stroke-width="2"/>`)
+  }
   for (const id of layout.order) {
     const n = doc.nodes[id]
-    if (!n.parentId) continue
+    if (!n.parentId || n.sticky) continue
     const v = nodeVisual(doc, layout, ctx, id)
     out.push(`<path d="${edgePath(doc.edge, layout.boxes[n.parentId], layout.boxes[id], layout.attach[id])}" stroke="${v.accent}" stroke-width="${v.edgeWidth}" opacity="0.85"/>`)
   }
@@ -74,6 +89,11 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
     }
   }
   out.push('</g>')
+  for (const s of doc.summaries ?? []) {
+    const sb = layout.summaryBoxes[s.id]
+    if (!sb || !s.label) continue
+    out.push(`<text x="${sb.label.x + sb.label.w / 2}" y="${sb.label.y + sb.label.h / 2}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="${pal.ink}"${isRtl(s.label) ? ' direction="rtl"' : ''}>${esc(s.label)}</text>`)
+  }
 
   // nodes
   for (const id of layout.order) {

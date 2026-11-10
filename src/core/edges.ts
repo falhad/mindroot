@@ -156,3 +156,25 @@ export function hitRelation(relations: { id: string; from: string; to: string }[
   }
   return best
 }
+
+/**
+ * A brace (curly bracket) in the thin box `b`: its ends curl toward the covered nodes and its
+ * tip points away from them, toward the label. `side` is the side of the nodes it sits on.
+ */
+export function bracketPath(b: Box, side: 'left' | 'right' | 'up' | 'down'): string {
+  const vertical = side === 'right' || side === 'left'
+  const len = vertical ? b.h : b.w
+  const th = vertical ? b.w : b.h
+  const k = Math.min(th / 2, len / 4)
+  const mid = len / 2
+  // u runs along the bar, v goes outward (0 next to the nodes, th at the tip)
+  const P = (u: number, v: number): string => {
+    const [x, y] = side === 'right' ? [b.x + v, b.y + u] : side === 'left' ? [b.x + b.w - v, b.y + u] : side === 'down' ? [b.x + u, b.y + v] : [b.x + u, b.y + b.h - v]
+    return `${f(x)} ${f(y)}`
+  }
+  const h = th / 2
+  return (
+    `M${P(0, 0)}Q${P(0, h)} ${P(k, h)}L${P(mid - k, h)}Q${P(mid, h)} ${P(mid, th)}` +
+    `Q${P(mid, h)} ${P(mid + k, h)}L${P(len - k, h)}Q${P(len, h)} ${P(len, 0)}`
+  )
+}
