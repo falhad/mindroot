@@ -34,6 +34,9 @@ impl Paths {
     pub fn maps(&self) -> PathBuf {
         self.vault().join("maps")
     }
+    pub fn templates(&self) -> PathBuf {
+        self.vault().join("templates")
+    }
     pub fn assets(&self) -> PathBuf {
         self.vault().join("assets")
     }
@@ -54,7 +57,7 @@ impl Paths {
             fs::create_dir_all(self.vault()).map_err(|e| e.to_string())?;
             fs::rename(&old, self.maps()).map_err(|e| e.to_string())?;
         }
-        for d in [self.maps(), self.assets(), self.cache(), self.settings(), self.plugins()] {
+        for d in [self.maps(), self.templates(), self.assets(), self.cache(), self.settings(), self.plugins()] {
             fs::create_dir_all(d).map_err(|e| e.to_string())?;
         }
         Ok(())
@@ -109,7 +112,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> CmdResult<()> {
 }
 
 /// A map file is valid when every non-empty line is a JSON value (JSONL, or a one-line JSON doc).
-fn validate_map_text(text: &str) -> CmdResult<()> {
+pub fn validate_map_text(text: &str) -> CmdResult<()> {
     let mut lines = 0;
     for (i, line) in text.lines().enumerate() {
         if line.trim().is_empty() {

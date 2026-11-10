@@ -74,11 +74,12 @@ let idb: Promise<IDBDatabase> | null = null
 
 function openIdb(): Promise<IDBDatabase> {
   idb ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open('branchmint', 2)
+    const req = indexedDB.open('branchmint', 3)
     req.onupgradeneeded = () => {
       const db = req.result
       if (!db.objectStoreNames.contains('maps')) db.createObjectStore('maps')
       if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets')
+      if (!db.objectStoreNames.contains('templates')) db.createObjectStore('templates')
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -86,7 +87,7 @@ function openIdb(): Promise<IDBDatabase> {
   return idb
 }
 
-async function idbTx<T>(storeName: 'maps' | 'assets', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+async function idbTx<T>(storeName: 'maps' | 'assets' | 'templates', mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const db = await openIdb()
   return new Promise((resolve, reject) => {
     const req = fn(db.transaction(storeName, mode).objectStore(storeName))
@@ -129,6 +130,59 @@ class IdbStore implements MapStore {
     await this.tx('readwrite', (s) => s.delete(id))
   }
 }
+
+/** User templates: maps saved as starting points (vault `templates/` folder on desktop, IndexedDB in the browser). */
+export interface TemplateStore {
+  list(): Promise<{ id: string; doc: MapDoc }[]>
+  save(id: string, doc: MapDoc): Promise<void>
+  remove(id: string): Promise<void>
+}
+
+class TauriTemplates implements TemplateStore {
+  async list() {
+    const files = await invoke<{ id: string; text: string }[]>('template_list')
+    const out: { id: string; doc: MapDoc }[] = []
+    for (const f of files) {
+      try {
+        out.push({ id: f.id, doc: await docFromText(f.text, tauriAssets) })
+      } catch {
+        /* a damaged template is skipped */
+      }
+    }
+    return out
+  }
+  async save(id: string, doc: MapDoc) {
+    const refs = await collectAssets(doc, tauriAssets)
+    await invoke('template_save', { id, text: serializeDoc(doc, (src) => refs.get(src)) })
+  }
+  async remove(id: string) {
+    await invoke('template_delete', { id })
+  }
+}
+
+class IdbTemplates implements TemplateStore {
+  async list() {
+    const keys = await idbTx<IDBValidKey[]>('templates', 'readonly', (s) => s.getAllKeys())
+    const out: { id: string; doc: MapDoc }[] = []
+    for (const k of keys) {
+      const raw = await idbTx<unknown>('templates', 'readonly', (s) => s.get(k))
+      try {
+        out.push({ id: String(k), doc: sanitizeDoc(raw) })
+      } catch {
+        /* skip */
+      }
+    }
+    return out
+  }
+  async save(id: string, doc: MapDoc) {
+    await idbTx('templates', 'readwrite', (s) => s.put(JSON.parse(JSON.stringify(doc)), id))
+  }
+  async remove(id: string) {
+    await idbTx('templates', 'readwrite', (s) => s.delete(id))
+  }
+}
+
+export const templateStore: TemplateStore = isTauri ? new TauriTemplates() : new IdbTemplates()
 
 export const store: MapStore = isTauri ? new TauriStore() : new IdbStore()
 

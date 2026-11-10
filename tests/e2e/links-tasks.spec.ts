@@ -1,16 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
-import { newMap, node, openApp, shoot } from './helpers'
+import { newMap, node, shoot } from './helpers'
 
 async function openPanel(page: Page) {
   const b = page.getByRole('button', { name: 'Toggle side panel' })
   if ((await b.getAttribute('aria-pressed')) !== 'true') await b.click()
 }
-async function rename(page: Page, title: string) {
-  const input = page.getByLabel('Map title')
-  await input.fill(title)
-  await input.press('Enter')
-}
-
 test('link a node to another map, follow it, see the backlink, come back', async ({ page }) => {
   await newMap(page, '# Target map\n- T1\n- T2')
   await page.waitForTimeout(900)

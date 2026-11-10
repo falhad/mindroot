@@ -6,6 +6,7 @@ mod net;
 mod plugins;
 mod secrets;
 mod storage;
+mod templates;
 
 /// Exposed for the contract test in `tests/git_contract.rs`.
 pub use git::check_args as check_git_args;
@@ -40,6 +41,9 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_remove,
+            templates::template_list,
+            templates::template_save,
+            templates::template_delete,
             plugins::plugins_list,
             plugins::plugin_read,
             plugins::plugins_path,

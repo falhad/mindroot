@@ -8,6 +8,7 @@ import {
 import { flushSave } from '../state/persist'
 import { startPresentation } from '../state/present'
 import { createMap } from '../state/library'
+import { saveAsTemplate } from '../state/templates'
 import { useRegistry } from '../plugins/host'
 import { cycleTheme, goTo, toast, ui } from '../state/ui'
 import { fitView, screenToWorld, setView, useView, zoomBy } from '../state/view'
@@ -151,6 +152,9 @@ export function buildCommands(): Command[] {
     c('Map', 'dir-ltr', 'Direction: left to right', () => setDirection('ltr')),
     c('Map', 'search', 'Find in map', () => ui.setSearch(true), `${modKey} F`),
     c('Map', 'export', 'Export…', () => ui.setExport(true), `${modKey} E`),
+    c('Map', 'save-template', 'Save this map as a template', () => {
+      void saveAsTemplate().then(() => toast('Saved as a template. Find it on the maps page.', 'success')).catch((e) => toast(String(e instanceof Error ? e.message : e), 'error'))
+    }),
     c('Map', 'new', 'New map', () => void newMapAndOpen()),
     c('Map', 'home', 'All maps', () => void goHome()),
     c('Help', 'help', 'Keyboard shortcuts', () => ui.setHelp(true), '?'),

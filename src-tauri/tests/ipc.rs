@@ -86,6 +86,20 @@ fn every_command_works_the_way_the_frontend_calls_it() {
     call(&w, "save_bytes", InvokeBody::Raw(vec![7, 7]), &[("path", &out.to_string_lossy().replace(' ', "%20"))]).unwrap();
     assert_eq!(std::fs::read(&out).unwrap(), vec![7, 7]);
 
+    // user templates   (src/io/storage.ts)
+    assert_eq!(json_call(&w, "template_list", json!({})), json!([]));
+    json_call(&w, "template_save", json!({ "id": "t1", "text": MAP }));
+    let tl = json_call(&w, "template_list", json!({}));
+    assert_eq!(tl[0]["id"], "t1");
+    assert!(tl[0]["text"].as_str().unwrap().contains("Hello"));
+    assert!(call(&w, "template_save", InvokeBody::Json(json!({ "id": "../x", "text": MAP })), &[]).is_err());
+    assert!(call(&w, "template_save", InvokeBody::Json(json!({ "id": "t2", "text": "not a map" })), &[]).is_err());
+    let vault = json_call(&w, "vault_path", json!({})).as_str().unwrap().to_string();
+    std::fs::write(format!("{vault}/templates/broken.jsonl"), "garbage").unwrap();
+    assert_eq!(json_call(&w, "template_list", json!({})).as_array().unwrap().len(), 1); // a damaged file is skipped
+    json_call(&w, "template_delete", json!({ "id": "t1" }));
+    assert_eq!(json_call(&w, "template_list", json!({})), json!([]));
+
     // plugin settings   (src/plugins/host.ts)
     assert!(json_call(&w, "plugin_settings_get", json!({ "id": "branchmint.sync" })).is_null());
     json_call(&w, "plugin_settings_set", json!({ "id": "branchmint.sync", "json": r#"{"enabled":true}"# }));

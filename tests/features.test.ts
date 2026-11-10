@@ -644,3 +644,60 @@ describe('tasks', async () => {
     expect(b.week.map((t) => t.text)).toEqual(['a', 'b', 'z'])
   })
 })
+
+describe('user templates', async () => {
+  const { cloneDocWithNewIds, templateDoc } = await import('../src/core/templates')
+  const T = await import('../src/core/tree')
+
+  const rich = () => {
+    const d = sample()
+    d.nodes[id(d, 'A')].image = { src: 'data:image/png;base64,AAAA', w: 10, h: 10 }
+    d.nodes[id(d, 'A')].notes = 'note'
+    T.addRelation(d, id(d, 'A1'), id(d, 'B'))
+    T.groupSiblings(d, [id(d, 'B'), id(d, 'C')], 'Pair')
+    T.summarize(d, [id(d, 'A'), id(d, 'B')], 'AB')
+    T.addFloat(d, 5, 6, 'Loose')
+    d.meta.starred = true
+    d.meta.tags = ['x']
+    d.meta.trashedAt = 5
+    return d
+  }
+
+  it('cloneDocWithNewIds gives every node, link, group and bracket a new id but keeps the structure', () => {
+    const d = rich()
+    const c = cloneDocWithNewIds(d)
+    const oldIds = new Set(Object.keys(d.nodes))
+    expect(Object.keys(c.nodes)).toHaveLength(oldIds.size)
+    for (const k of Object.keys(c.nodes)) expect(oldIds.has(k)).toBe(false)
+    expect(T.orderedIds(c).map((i) => c.nodes[i].text)).toEqual(T.orderedIds(d).map((i) => d.nodes[i].text))
+    expect(c.relations).toHaveLength(1)
+    expect(c.nodes[c.relations[0].from].text).toBe('A1')
+    expect(c.groups![0].ids.map((i) => c.nodes[i].text)).toEqual(['B', 'C'])
+    expect(c.nodes[c.summaries![0].from].text).toBe('A')
+    expect(c.nodes[c.summaries![0].parentId].text).toBe('Root')
+    const loose = Object.values(c.nodes).find((n) => n.text === 'Loose')!
+    expect(loose.parentId).toBeNull()
+    expect(loose.pos).toEqual({ x: 5, y: 6 })
+    expect(c.groups![0].id).not.toBe(d.groups![0].id)
+    // the original is untouched
+    expect(Object.keys(d.nodes).every((k) => oldIds.has(k))).toBe(true)
+  })
+
+  it('keeps images and notes', () => {
+    const c = cloneDocWithNewIds(rich())
+    const a = Object.values(c.nodes).find((n) => n.text === 'A')!
+    expect(a.image?.src).toBe('data:image/png;base64,AAAA')
+    expect(a.notes).toBe('note')
+  })
+
+  it('templateDoc is a fresh map: new map id, name as title, no star, tags or trash', () => {
+    const d = rich()
+    const t = templateDoc(d, 'My template')
+    expect(t.meta.id).not.toBe(d.meta.id)
+    expect(t.nodes[t.root].text).toBe('My template')
+    expect(t.meta.starred).toBeFalsy()
+    expect(t.meta.tags).toEqual([])
+    expect(t.meta.trashedAt).toBeNull()
+    expect(d.nodes[d.root].text).toBe('Root') // not changed
+  })
+})
