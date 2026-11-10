@@ -1,11 +1,15 @@
 //! Branchmint backend: file storage for maps, the Git runner used by sync, and plugin files.
 
 mod git;
+mod net;
 mod plugins;
+mod secrets;
 mod storage;
 
 /// Exposed for the contract test in `tests/git_contract.rs`.
 pub use git::check_args as check_git_args;
+/// Tests keep secrets in memory instead of the OS keychain.
+pub use secrets::use_memory_secrets;
 
 /// Adds the plugins and every command the frontend can call. Shared by the app and the tests.
 pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
@@ -30,6 +34,10 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             git::git_run,
             git::git_available,
             git::git_ensure_repo,
+            net::net_request,
+            secrets::secret_get,
+            secrets::secret_set,
+            secrets::secret_remove,
             plugins::plugins_list,
             plugins::plugin_read,
             plugins::plugins_path,
