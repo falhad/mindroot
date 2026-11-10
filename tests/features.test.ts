@@ -701,3 +701,32 @@ describe('user templates', async () => {
     expect(d.nodes[d.root].text).toBe('Root') // not changed
   })
 })
+
+describe('vector PDF eligibility', async () => {
+  const { canExportVectorPdf } = await import('../src/core/export/pdfvector')
+  const T = await import('../src/core/tree')
+
+  it('Latin text, accents and typographic marks can be drawn with the PDF font', () => {
+    const d = sample()
+    d.nodes[id(d, 'A')].text = 'Café “quoted” – résumé • 50€'
+    expect(canExportVectorPdf(d)).toBe(true)
+  })
+
+  it('Persian, Arabic, CJK and emoji cannot, whether in a node, a link label, a group or a bracket', () => {
+    for (const bad of ['سیب', 'مرحبا', '日本語', 'ok 🙂']) {
+      const d = sample()
+      d.nodes[id(d, 'A')].text = bad
+      expect(canExportVectorPdf(d), bad).toBe(false)
+    }
+    const d = sample()
+    T.addRelation(d, id(d, 'A'), id(d, 'B'))
+    d.relations[0].label = 'پیوند'
+    expect(canExportVectorPdf(d)).toBe(false)
+    const g = sample()
+    T.groupSiblings(g, [id(g, 'A'), id(g, 'B')], 'گروه')
+    expect(canExportVectorPdf(g)).toBe(false)
+    const s = sample()
+    T.summarize(s, [id(s, 'A'), id(s, 'B')], '总结')
+    expect(canExportVectorPdf(s)).toBe(false)
+  })
+})

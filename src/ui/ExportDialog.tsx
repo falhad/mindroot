@@ -9,7 +9,8 @@ import { Modal } from './Overlays'
 const FORMATS: { id: ExportFormat; name: string; ext: string; blurb: string; icon: typeof FileImage; visual: boolean }[] = [
   { id: 'png', name: 'PNG image', ext: '.png', blurb: 'Sharp raster image, great for slides and chat.', icon: FileImage, visual: true },
   { id: 'svg', name: 'SVG vector', ext: '.svg', blurb: 'Scales forever. Opens in Figma, Illustrator, browsers.', icon: Shapes, visual: true },
-  { id: 'pdf', name: 'PDF document', ext: '.pdf', blurb: 'One page sized to your map, ready to print or send.', icon: FileType2, visual: true },
+  { id: 'pdf', name: 'PDF (vector)', ext: '.pdf', blurb: 'Sharp at any zoom, text can be selected and searched.', icon: FileType2, visual: true },
+  { id: 'pdfimage', name: 'PDF (image)', ext: '.pdf', blurb: 'The map as one picture on a page. Works for every script.', icon: FileType2, visual: true },
   { id: 'md', name: 'Markdown outline', ext: '.md', blurb: 'Nested list with notes and checklists.', icon: FileText, visual: false },
   { id: 'opml', name: 'OPML outline', ext: '.opml', blurb: 'Nested outline for outliners and feed readers.', icon: List, visual: false },
   { id: 'html', name: 'Web page', ext: '.html', blurb: 'One file you can open anywhere: pan, zoom, collapse, read notes.', icon: Globe, visual: false },

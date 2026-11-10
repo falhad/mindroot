@@ -20,6 +20,8 @@ export interface SvgOptions {
   fontCss?: string
   /** Mark nodes and edges with `data-node` / `data-edge` ids so a page can show and hide them (HTML export). */
   interactive?: boolean
+  /** Use only characters a PDF base font can draw (badge symbols), for the vector PDF. */
+  pdfSafe?: boolean
 }
 
 export interface SvgResult {
@@ -142,10 +144,10 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
       bxp += 18
     }
     if (n.notes?.trim()) badge('¶')
-    if (n.link) badge('↗')
-    if (n.checklist?.length) badge('☑')
+    if (n.link) badge(opts.pdfSafe ? '»' : '↗')
+    if (n.checklist?.length) badge(opts.pdfSafe ? '+' : '☑')
     if (n.tags?.length) badge('#')
-    if (n.mapLink) badge('⇢')
+    if (n.mapLink) badge(opts.pdfSafe ? '›' : '⇢')
 
     if (n.image) {
       out.push(`<image x="${(bx.w - m.imgW) / 2}" y="${top + textBlockH + 8}" width="${m.imgW}" height="${m.imgH}" href="${esc(n.image.src)}" preserveAspectRatio="xMidYMid slice"/>`)
