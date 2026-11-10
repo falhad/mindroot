@@ -88,11 +88,11 @@ Design notes:
 - **Undo = array of Immer snapshots.** Structural sharing keeps this cheap. Rapid edits with the same key (typing in notes) merge into one step.
 - **Same numbers everywhere.** Node sizes come from one measure function; the canvas, minimap, thumbnails and all exports read the same layout, so exports match the screen.
 - **Browser fallback.** Outside Tauri the storage layer uses IndexedDB, so `pnpm dev` is a complete app for fast UI work.
-- PDF export embeds a 2-3x raster of the map on a page sized to the map. Vector PDF is a possible upgrade.
+- PDF export has two forms: vector (shapes and selectable text, Helvetica) for maps whose text a PDF base font can draw, and a 2-3x raster on a page sized to the map for the rest (Persian, Arabic, CJK, emoji). See [docs/features.md](docs/features.md).
 
-## Roadmap hooks (not built yet)
+## Not built yet
 
-The model, storage and plugin API were shaped for these, but they are not built yet: AI-assisted brainstorming (a plugin with a `suggest children` command; needs a write API for plugins), real-time collaboration, share links, a template gallery beyond the six built-ins, and a version-history browser (Git sync already records every state; a UI to browse it is missing).
+A mobile app, public share links (the web-page export is the closest today), per-room revocable collaboration tokens (changing the relay secret revokes all), and vector PDF text in scripts a PDF font cannot shape (Persian and Arabic fall back to the image PDF).
 
 ## Releases
 
