@@ -6,10 +6,13 @@ import { TEMPLATES } from '../core/templates'
 import type { MapMeta } from '../core/types'
 import { isMac, isTauri } from '../io/env'
 import { pickFile } from '../io/files'
+import { importAccept } from '../io/importers'
+import { useRegistry } from '../plugins/host'
 import {
   createMap, deleteForever, duplicateMap, emptyTrash, importFile, libraryActions, refreshLibrary, renameMap, restoreMap, setTags, toggleStar,
   trashMap, useLibrary, visibleItems, type Sort,
 } from '../state/library'
+import { createMapFromUserTemplate, deleteTemplate, refreshTemplates, useTemplates } from '../state/templates'
 import { askConfirm, cycleTheme, goTo, toast, ui, useUi } from '../state/ui'
 import { Modal, Toasts } from './Overlays'
 import { StatusSlot } from './StatusSlot'
@@ -26,9 +29,11 @@ export function Dashboard() {
   const [busy, setBusy] = useState(false)
   const [dropping, setDropping] = useState(false)
   const [tagsFor, setTagsFor] = useState<MapMeta | null>(null)
+  const userTemplates = useTemplates((s) => s.items)
 
   useEffect(() => {
     void refreshLibrary()
+    void refreshTemplates()
   }, [])
 
   useEffect(() => {
@@ -45,6 +50,16 @@ export function Dashboard() {
     setBusy(true)
     try {
       goTo({ name: 'editor', id: await createMap(templateId) })
+    } catch (e) {
+      toast(`Could not create the map: ${e instanceof Error ? e.message : e}`, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  const openUserTemplate = async (id: string) => {
+    setBusy(true)
+    try {
+      goTo({ name: 'editor', id: await createMapFromUserTemplate(id) })
     } catch (e) {
       toast(`Could not create the map: ${e instanceof Error ? e.message : e}`, 'error')
     } finally {
@@ -110,7 +125,7 @@ export function Dashboard() {
           <StatusSlot />
           <button className="btn icon" aria-label="Settings" title="Settings and plugins (⌘,)" onClick={() => ui.setSettings(true, 'general')}><Settings size={16} /></button>
           <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
-          <button className="btn outline" aria-label="Import" onClick={async () => void importFiles(await pickFile('.json,.md,.markdown,.txt,application/json', true))}>
+          <button className="btn outline" aria-label="Import" onClick={async () => void importFiles(await pickFile(importAccept(useRegistry.getState().importers), true))}>
             <Upload size={15} /> <span className="hidden sm:inline">Import</span>
           </button>
           <button className="btn primary" aria-label="New map" disabled={busy} onClick={() => void open('blank')}>
@@ -126,6 +141,9 @@ export function Dashboard() {
               <Icon size={16} /> <span className="flex-1 text-left">{label}</span> <span className="text-[12px] tabular-nums text-muted">{n}</span>
             </button>
           ))}
+          <button className="btn justify-start" style={{ height: 36 }} onClick={() => goTo({ name: 'tasks' })}>
+            <ListChecks size={16} /> <span className="flex-1 text-left">Tasks</span>
+          </button>
           {tags.length > 0 && <div className="label mb-1 mt-4 px-2">Tags</div>}
           {tags.map(([t, n]) => (
             <button key={t} className={`btn justify-start ${lib.tag === t ? 'on' : ''}`} onClick={() => libraryActions.setTag(lib.tag === t ? null : t)}>
@@ -146,6 +164,22 @@ export function Dashboard() {
               <section className="mb-9" aria-label="Start a new map">
                 <h2 className="mb-3 text-[13px] font-semibold text-muted">Start with a template</h2>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                  {userTemplates.map((t) => (
+                    <div key={t.id} className="group relative" data-user-template={t.id}>
+                      <button onClick={() => void openUserTemplate(t.id)} disabled={busy} aria-label={`New map from template ${t.name}`}
+                        className="flex h-full w-full flex-col gap-1 rounded-2xl border border-line bg-solid p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--line-strong)] hover:shadow-[var(--shadow-md)]">
+                        <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-xl bg-active text-accent">
+                          {t.thumb ? <img src={thumbUrl(t.thumb) ?? ''} alt="" className="h-full w-full object-cover" /> : <Layers size={18} />}
+                        </span>
+                        <span className="mt-1 truncate text-[13.5px] font-semibold" dir="auto">{t.name}</span>
+                        <span className="text-[12px] leading-snug text-muted">Your template</span>
+                      </button>
+                      <button className="btn icon absolute right-1.5 top-1.5 opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100" style={{ width: 26, height: 26 }} aria-label={`Delete template ${t.name}`}
+                        onClick={async () => { if (await askConfirm({ title: `Delete the template “${t.name}”?`, body: 'Maps already made from it are not changed.', confirmLabel: 'Delete', danger: true })) void deleteTemplate(t.id) }}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                   {TEMPLATES.map((t) => (
                     <button key={t.id} onClick={() => void open(t.id)} disabled={busy}
                       className="group flex flex-col gap-1 rounded-2xl border border-line bg-solid p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-[var(--line-strong)] hover:shadow-[var(--shadow-md)]">

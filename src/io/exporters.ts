@@ -1,10 +1,13 @@
+import { toHtml } from '../core/export/html'
+import { canExportVectorPdf } from '../core/export/pdfvector'
+import { toOpml } from '../core/export/opml'
 import { computeLayout } from '../core/layout'
 import { exportJson, toMarkdown } from '../core/outline'
 import { renderSvg } from '../core/svg'
 import type { MapDoc } from '../core/types'
 import { safeFileName, saveFile } from './files'
 
-export type ExportFormat = 'json' | 'md' | 'png' | 'svg' | 'pdf'
+export type ExportFormat = 'json' | 'md' | 'png' | 'svg' | 'pdf' | 'pdfimage' | 'opml' | 'html' | `plugin:${string}`
 
 export interface ExportOptions {
   dark: boolean
@@ -55,6 +58,11 @@ export async function buildSvg(doc: MapDoc, o: ExportOptions) {
   })
 }
 
+/** The map as a picture for the compare view, with the given nodes outlined. Fonts are embedded so it looks like the app. */
+export async function buildMarkedSvg(doc: MapDoc, marks: NonNullable<Parameters<typeof renderSvg>[2]['marks']>, dark: boolean) {
+  return renderSvg(doc, computeLayout(doc), { dark, background: false, iconMarkup: await iconResolver(), fontCss: await fontCss(doc), marks })
+}
+
 export async function buildPng(doc: MapDoc, o: ExportOptions): Promise<{ blob: Blob; width: number; height: number }> {
   const { svg, width, height } = await buildSvg(doc, o)
   let scale: number = o.scale
@@ -81,6 +89,31 @@ export async function buildPng(doc: MapDoc, o: ExportOptions): Promise<{ blob: B
   }
 }
 
+/**
+ * A PDF with vector shapes and real, selectable text. Text uses the PDF base font (Helvetica), so
+ * call `canExportVectorPdf` first: other scripts (Persian, Arabic, CJK) cannot be drawn this way.
+ */
+export async function buildVectorPdf(doc: MapDoc, o: ExportOptions): Promise<Uint8Array> {
+  const layout = computeLayout(doc)
+  const { svg, width, height } = renderSvg(doc, layout, { dark: o.dark, background: !o.transparent, iconMarkup: await iconResolver(), pdfSafe: true })
+  const host = document.createElement('div')
+  host.style.cssText = 'position:fixed;left:-99999px;top:0;visibility:hidden'
+  host.innerHTML = svg.replace(/font-family="[^"]*"/, 'font-family="helvetica"').replace(/font-weight="(\d+)"/g, (_m, w: string) => `font-weight="${Number(w) >= 600 ? 'bold' : 'normal'}"`) // base fonts have only regular and bold
+  document.body.appendChild(host)
+  try {
+    const [{ jsPDF }, { svg2pdf }] = await Promise.all([import('jspdf'), import('svg2pdf.js')])
+    const k = Math.min(1, 14000 / Math.max(width, height)) // the PDF spec limits a page to 14400 units
+    const w = width * k
+    const h = height * k
+    const pdf = new jsPDF({ unit: 'pt', format: [w, h], orientation: w >= h ? 'landscape' : 'portrait', compress: false })
+    pdf.setProperties({ title: doc.meta.title, creator: 'Branchmint' })
+    await svg2pdf(host.firstElementChild as SVGElement, pdf, { x: 0, y: 0, width: w, height: h })
+    return new Uint8Array(pdf.output('arraybuffer'))
+  } finally {
+    host.remove()
+  }
+}
+
 export async function buildPdf(doc: MapDoc, o: ExportOptions): Promise<Uint8Array> {
   const { blob, width, height } = await buildPng(doc, { ...o, scale: Math.max(2, o.scale) as 2 | 3 })
   const dataUrl = await new Promise<string>((res, rej) => {
@@ -100,10 +133,32 @@ export async function buildPdf(doc: MapDoc, o: ExportOptions): Promise<Uint8Arra
   return new Uint8Array(pdf.output('arraybuffer'))
 }
 
+/** The single-file interactive page: pan, zoom, collapse, notes. Light and dark drawings, fonts embedded. */
+export async function buildHtmlPage(doc: MapDoc): Promise<string> {
+  const layout = computeLayout(doc)
+  const icons = await iconResolver()
+  const draw = (dark: boolean) => renderSvg(doc, layout, { dark, background: false, iconMarkup: icons, interactive: true })
+  const light = draw(false)
+  const dark = draw(true)
+  return toHtml(doc, { light: light.svg, dark: dark.svg, width: light.width, height: light.height, fontCss: await fontCss(doc) })
+}
+
 /** Build and save one export. Resolves false when the user cancels the save dialog. */
 export async function exportMap(doc: MapDoc, format: ExportFormat, o: ExportOptions): Promise<boolean> {
   const name = safeFileName(doc.meta.title)
+  if (format.startsWith('plugin:')) {
+    const { useRegistry } = await import('../plugins/host') // loaded on use: the host imports the library
+    const spec = useRegistry.getState().exporters.find((e) => `plugin:${e.id}` === format)
+    if (!spec) throw new Error('That export format is no longer available')
+    const data = await spec.build(doc)
+    const ext = spec.extension.replace(/^\./, '')
+    return saveFile(typeof data === 'string' ? data : new Blob([data as BlobPart], { type: spec.mime }), { defaultName: `${name}.${ext}`, extensions: [ext], label: spec.title })
+  }
   switch (format) {
+    case 'opml':
+      return saveFile(toOpml(doc), { defaultName: `${name}.opml`, extensions: ['opml'], label: 'OPML outline' })
+    case 'html':
+      return saveFile(await buildHtmlPage(doc), { defaultName: `${name}.html`, extensions: ['html'], label: 'Web page' })
     case 'json':
       return saveFile(exportJson(doc), { defaultName: `${name}.branchmint.json`, extensions: ['json'], label: 'Branchmint map' })
     case 'md':
@@ -113,6 +168,11 @@ export async function exportMap(doc: MapDoc, format: ExportFormat, o: ExportOpti
     case 'png':
       return saveFile((await buildPng(doc, o)).blob, { defaultName: `${name}.png`, extensions: ['png'], label: 'PNG image' })
     case 'pdf':
+      // vector when the text fits the PDF font; otherwise the image-based PDF (the dialog tells the user)
+      return saveFile(canExportVectorPdf(doc) ? await buildVectorPdf(doc, o) : await buildPdf(doc, o), { defaultName: `${name}.pdf`, extensions: ['pdf'], label: 'PDF document' })
+    case 'pdfimage':
       return saveFile(await buildPdf(doc, o), { defaultName: `${name}.pdf`, extensions: ['pdf'], label: 'PDF document' })
+    default:
+      throw new Error(`Unknown export format: ${format}`)
   }
 }

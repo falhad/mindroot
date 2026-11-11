@@ -1,5 +1,5 @@
 import { uid } from './ids'
-import { SCHEMA_VERSION, type MapDoc, type MindNode, type ChecklistItem, type NodeImage, type ShapeKind } from './types'
+import { SCHEMA_VERSION, type ChecklistItem, type Group, type MapDoc, type MindNode, type NodeImage, type Relation, type ShapeKind } from './types'
 
 export function createDoc(title = 'Central idea'): MapDoc {
   const rootId = uid()
@@ -44,10 +44,16 @@ export function walk(doc: MapDoc, id: string, fn: (n: MindNode, depth: number) =
   for (const c of n.children) walk(doc, c, fn, depth + 1, respectCollapse)
 }
 
-/** Ids in depth-first document order. */
+/** Roots of floating subtrees (nodes with no parent that are not the map's root). */
+export function floatIds(doc: MapDoc): string[] {
+  return Object.values(doc.nodes).filter((n) => n.id !== doc.root && !n.parentId).map((n) => n.id)
+}
+
+/** Ids in depth-first document order: the main tree first, then each floating subtree. */
 export function orderedIds(doc: MapDoc, respectCollapse = false): string[] {
   const out: string[] = []
   walk(doc, doc.root, (n) => out.push(n.id), 0, respectCollapse)
+  for (const f of floatIds(doc)) walk(doc, f, (n) => out.push(n.id), 0, respectCollapse)
   return out
 }
 
@@ -117,6 +123,7 @@ export function removeNodes(doc: MapDoc, ids: string[]): string | null {
     for (const sid of subtreeIds(doc, id)) delete doc.nodes[sid]
   }
   doc.relations = doc.relations.filter((r) => doc.nodes[r.from] && doc.nodes[r.to])
+  pruneGroups(doc)
   return next && doc.nodes[next] ? next : doc.root
 }
 
@@ -124,9 +131,10 @@ export function removeNodes(doc: MapDoc, ids: string[]): string | null {
 export function moveNode(doc: MapDoc, id: string, newParentId: string, index?: number): boolean {
   const n = doc.nodes[id]
   const target = doc.nodes[newParentId]
-  if (!n || !target || id === doc.root || id === newParentId) return false
+  if (!n || !target || id === doc.root || id === newParentId || !n.parentId) return false
   if (isAncestor(doc, id, newParentId)) return false
   const oldParent = doc.nodes[n.parentId!]
+  if (oldParent.id !== target.id) leaveGroups(doc, id)
   const oldIndex = oldParent.children.indexOf(id)
   oldParent.children.splice(oldIndex, 1)
   let at = index === undefined ? target.children.length : index
@@ -165,6 +173,7 @@ export function reorderNode(doc: MapDoc, id: string, delta: -1 | 1): boolean {
   if (j < 0 || j >= sibs.length) return false
   sibs.splice(i, 1)
   sibs.splice(j, 0, id)
+  normalizeSummaries(doc)
   return true
 }
 
@@ -296,6 +305,25 @@ export function addRelation(doc: MapDoc, from: string, to: string): boolean {
   return true
 }
 
+/** Change a cross link's label, arrow or line style. Default values and empty text are removed. */
+export function updateRelation(doc: MapDoc, id: string, patch: Partial<Pick<Relation, 'label' | 'arrow' | 'dash'>>) {
+  const r = doc.relations.find((x) => x.id === id)
+  if (!r) return
+  if ('label' in patch) {
+    const label = (patch.label ?? '').trim()
+    if (label) r.label = label
+    else delete r.label
+  }
+  if ('arrow' in patch) {
+    if (patch.arrow && patch.arrow !== 'end') r.arrow = patch.arrow
+    else delete r.arrow
+  }
+  if ('dash' in patch) {
+    if (patch.dash && patch.dash !== 'dashed') r.dash = patch.dash
+    else delete r.dash
+  }
+}
+
 export function removeRelation(doc: MapDoc, id: string) {
   doc.relations = doc.relations.filter((r) => r.id !== id)
 }
@@ -322,4 +350,131 @@ export function syncMeta(doc: MapDoc) {
     if (len > 3000) break
   }
   doc.meta.search = parts.join(' · ')
+}
+
+// ---------- groups and summary brackets ----------
+
+/** Take `id` out of every group and delete summaries that end at it (it is leaving its parent). */
+function leaveGroups(doc: MapDoc, id: string) {
+  if (doc.groups) {
+    for (const g of doc.groups) g.ids = g.ids.filter((x) => x !== id)
+    doc.groups = doc.groups.filter((g) => g.ids.length)
+    if (!doc.groups.length) delete doc.groups
+  }
+  if (doc.summaries) {
+    doc.summaries = doc.summaries.filter((s) => s.from !== id && s.to !== id)
+    if (!doc.summaries.length) delete doc.summaries
+  }
+}
+
+/** Drop group members and summaries that point at nodes that no longer exist. */
+function pruneGroups(doc: MapDoc) {
+  if (doc.groups) {
+    for (const g of doc.groups) g.ids = g.ids.filter((x) => doc.nodes[x])
+    doc.groups = doc.groups.filter((g) => g.ids.length)
+    if (!doc.groups.length) delete doc.groups
+  }
+  if (doc.summaries) {
+    doc.summaries = doc.summaries.filter((s) => doc.nodes[s.parentId] && doc.nodes[s.from] && doc.nodes[s.to])
+    if (!doc.summaries.length) delete doc.summaries
+  }
+}
+
+/** After siblings are reordered a summary's ends may be swapped: swap them back. */
+function normalizeSummaries(doc: MapDoc) {
+  for (const s of doc.summaries ?? []) {
+    const kids = doc.nodes[s.parentId]?.children ?? []
+    if (kids.indexOf(s.from) > kids.indexOf(s.to)) [s.from, s.to] = [s.to, s.from]
+  }
+}
+
+/** Draw a boundary around sibling nodes. Returns the group id, or null when the nodes are not siblings. */
+export function groupSiblings(doc: MapDoc, ids: string[], label?: string): string | null {
+  const unique = [...new Set(ids)]
+  if (!unique.length || unique.some((id) => !doc.nodes[id] || id === doc.root)) return null
+  const parent = doc.nodes[unique[0]].parentId
+  if (!parent || unique.some((id) => doc.nodes[id].parentId !== parent)) return null
+  const order = doc.nodes[parent].children
+  unique.sort((a, b) => order.indexOf(a) - order.indexOf(b))
+  const id = uid(8)
+  const g: Group = { id, ids: unique }
+  if (label?.trim()) g.label = label.trim()
+  doc.groups = [...(doc.groups ?? []), g]
+  return id
+}
+
+export function ungroup(doc: MapDoc, groupId: string) {
+  doc.groups = (doc.groups ?? []).filter((g) => g.id !== groupId)
+  if (!doc.groups.length) delete doc.groups
+}
+
+export function setGroupLabel(doc: MapDoc, groupId: string, label: string) {
+  const g = doc.groups?.find((x) => x.id === groupId)
+  if (!g) return
+  if (label.trim()) g.label = label.trim()
+  else delete g.label
+}
+
+/** Put a bracket with a label over consecutive siblings. Null when they are not consecutive siblings. */
+export function summarize(doc: MapDoc, ids: string[], label: string): string | null {
+  const unique = [...new Set(ids)]
+  if (!unique.length || unique.some((id) => !doc.nodes[id] || id === doc.root)) return null
+  const parent = doc.nodes[unique[0]].parentId
+  if (!parent || unique.some((id) => doc.nodes[id].parentId !== parent)) return null
+  const order = doc.nodes[parent].children
+  const idx = unique.map((id) => order.indexOf(id)).sort((a, b) => a - b)
+  if (idx[idx.length - 1] - idx[0] !== idx.length - 1) return null
+  const id = uid(8)
+  doc.summaries = [...(doc.summaries ?? []), { id, parentId: parent, from: order[idx[0]], to: order[idx[idx.length - 1]], label }]
+  return id
+}
+
+export function removeSummary(doc: MapDoc, summaryId: string) {
+  doc.summaries = (doc.summaries ?? []).filter((s) => s.id !== summaryId)
+  if (!doc.summaries.length) delete doc.summaries
+}
+
+export function setSummaryLabel(doc: MapDoc, summaryId: string, label: string) {
+  const s = doc.summaries?.find((x) => x.id === summaryId)
+  if (s) s.label = label
+}
+
+// ---------- floating nodes ----------
+
+/** A node (and later its subtree) that is not part of the tree, placed at (x, y). */
+export function addFloat(doc: MapDoc, x: number, y: number, text = '', sticky = false): string {
+  const id = uid()
+  doc.nodes[id] = { id, parentId: null, children: [], text, pos: { x, y }, ...(sticky ? { sticky: true } : {}) }
+  return id
+}
+
+export function moveFloat(doc: MapDoc, id: string, x: number, y: number) {
+  const n = doc.nodes[id]
+  if (n && id !== doc.root && !n.parentId) n.pos = { x, y }
+}
+
+/** Make a floating node a normal child. False when the parent is inside the floating subtree. */
+export function attachFloat(doc: MapDoc, id: string, parentId: string): boolean {
+  const n = doc.nodes[id]
+  const parent = doc.nodes[parentId]
+  if (!n || !parent || id === doc.root || n.parentId || !n.pos) return false
+  if (parentId === id || isAncestor(doc, id, parentId)) return false
+  parent.children.push(id)
+  n.parentId = parentId
+  parent.collapsed = false
+  delete n.pos
+  return true
+}
+
+/** Detach a node with its subtree from the tree and float it at (x, y). The root cannot float. */
+export function floatNode(doc: MapDoc, id: string, x: number, y: number): boolean {
+  const n = doc.nodes[id]
+  if (!n || id === doc.root || !n.parentId) return false
+  leaveGroups(doc, id)
+  const parent = doc.nodes[n.parentId]
+  parent.children = parent.children.filter((c) => c !== id)
+  n.parentId = null
+  n.pos = { x, y }
+  delete n.side
+  return true
 }

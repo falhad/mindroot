@@ -1,5 +1,6 @@
 import { produce } from 'immer'
 import { create } from 'zustand'
+import { projectDoc } from '../core/focus'
 import { computeLayout, type LayoutResult } from '../core/layout'
 import * as T from '../core/tree'
 import type { MapDoc } from '../core/types'
@@ -27,6 +28,8 @@ interface DocState {
   saveState: SaveState
   saveError: string | null
   lastCoalesce: { key: string; at: number } | null
+  /** Branch shown on its own (focus mode). Not saved. Use `activeFocus` to read it safely. */
+  focusId: string | null
 }
 
 export const useDoc = create<DocState>(() => ({
@@ -43,22 +46,67 @@ export const useDoc = create<DocState>(() => ({
   saveState: 'idle',
   saveError: null,
   lastCoalesce: null,
+  focusId: null,
 }))
 
 const get = useDoc.getState
 const set = useDoc.setState
 
+/** The focused branch, or null when there is none or the node no longer exists. */
+export const activeFocus = (s: Pick<DocState, 'doc' | 'focusId'>): string | null =>
+  s.doc && s.focusId && s.focusId !== s.doc.root && s.doc.nodes[s.focusId] ? s.focusId : null
+
 function relayout(doc: MapDoc, draft: DocState['draft']): LayoutResult {
-  return computeLayout(doc, { draft: draft ?? undefined })
+  const f = get().focusId
+  return computeLayout(projectDoc(doc, f && doc.nodes[f] ? f : null), { draft: draft ?? undefined })
+}
+
+/** Recompute the layout of the open map (after fonts load, or the focus changes). */
+export function layoutNow() {
+  const s = get()
+  if (s.doc) set({ layout: relayout(s.doc, s.draft) })
+}
+
+/** The map as drawn: the focused branch in focus mode, else the whole map. */
+export function useRenderDoc(): MapDoc | null {
+  return useDoc((s) => (s.doc ? projectDoc(s.doc, activeFocus(s)) : null))
+}
+
+/** Show one branch on its own. Edits still change the real map. */
+export function enterFocus(id: string) {
+  const s = get()
+  if (!s.doc || id === s.doc.root || !s.doc.nodes[id]) return
+  set({ focusId: id })
+  const layout = relayout(s.doc, s.draft)
+  set({ layout, selection: sanitizeSelection(s.doc, layout, [id]) })
+}
+
+export function exitFocus() {
+  const s = get()
+  if (!s.focusId) return
+  const was = s.focusId
+  set({ focusId: null })
+  if (s.doc) {
+    const layout = relayout(s.doc, s.draft)
+    set({ layout, selection: s.doc.nodes[was] ? [was] : sanitizeSelection(s.doc, layout, s.selection) })
+  }
+}
+
+export function toggleFocus(id?: string | null) {
+  const s = get()
+  if (activeFocus(s)) return exitFocus()
+  const target = id ?? primary(s)
+  if (target) enterFocus(target)
 }
 
 function sanitizeSelection(doc: MapDoc, layout: LayoutResult, sel: string[]): string[] {
   const ok = sel.filter((id) => layout.boxes[id])
-  return ok.length ? ok : [doc.root]
+  return ok.length ? ok : [layout.order[0] ?? doc.root]
 }
 
 export function openDoc(doc: MapDoc) {
   set({
+    focusId: null,
     doc,
     savedDoc: doc,
     layout: relayout(doc, null),
@@ -76,7 +124,7 @@ export function openDoc(doc: MapDoc) {
 }
 
 export function closeDoc() {
-  set({ doc: null, savedDoc: null, layout: null, past: [], future: [], selection: [], editingId: null, draft: null, freshId: null, connectFrom: null })
+  set({ focusId: null, doc: null, savedDoc: null, layout: null, past: [], future: [], selection: [], editingId: null, draft: null, freshId: null, connectFrom: null })
 }
 
 /**
@@ -132,8 +180,39 @@ function jump(from: 'past' | 'future') {
   } as Partial<DocState>)
 }
 
-export const undo = () => jump('past')
-export const redo = () => jump('future')
+/**
+ * While a map is shared live, undo and redo belong to the collaboration layer: it undoes only YOUR edits,
+ * not what other people did in between. It registers handlers here; a handler returns true when it handled the key.
+ */
+export const undoHandlers: { undo: (() => boolean) | null; redo: (() => boolean) | null } = { undo: null, redo: null }
+
+export const undo = () => {
+  if (undoHandlers.undo?.()) return
+  jump('past')
+}
+export const redo = () => {
+  if (undoHandlers.redo?.()) return
+  jump('future')
+}
+
+/**
+ * Put a version that came from other people into the open map. It is not an undo step, and what you are
+ * typing right now is left alone. The map is marked as changed so autosave writes it.
+ */
+export function applyRemoteDoc(next: MapDoc) {
+  const s = get()
+  if (!s.doc || next.meta.id !== s.doc.meta.id) return
+  const stamped = { ...next, meta: { ...next.meta, updatedAt: Math.max(Date.now(), s.doc.meta.updatedAt) } }
+  const layout = relayout(stamped, s.draft)
+  set({
+    doc: stamped,
+    layout,
+    selection: sanitizeSelection(stamped, layout, s.selection),
+    saveState: 'dirty',
+    connectFrom: s.connectFrom && stamped.nodes[s.connectFrom] ? s.connectFrom : null,
+    editingId: s.editingId && stamped.nodes[s.editingId] ? s.editingId : null,
+  })
+}
 
 // ---------- selection ----------
 
@@ -225,12 +304,66 @@ export function addSibling(before = false) {
   const s = get()
   if (!s.doc) return
   const p = primary(s) ?? s.doc.root
+  // the focused branch is the whole map on screen: a sibling of it would be invisible, so add a child
+  if (p === activeFocus(s)) return addChild(p)
   let id = ''
   commit((d) => {
     id = T.addSibling(d, p, before)
   })
   select([id])
   startEdit(id, true)
+}
+
+/** Add a floating node (or sticky note) at a world position and start typing in it. */
+export function addFloatAt(x: number, y: number, sticky = false) {
+  const s = get()
+  if (!s.doc) return
+  let id = ''
+  const sx = s.doc.dir === 'rtl' ? -x : x // positions are stored un-mirrored
+  commit((d) => {
+    id = T.addFloat(d, sx, y, '', sticky)
+  })
+  select([id])
+  startEdit(id, true)
+}
+
+/** Draw a boundary around the selected sibling nodes. Returns false (and does nothing) if they are not siblings. */
+export function groupSelection(label?: string): boolean {
+  let ok = false
+  commit((d) => {
+    ok = !!T.groupSiblings(d, get().selection, label)
+  })
+  return ok
+}
+
+/** Remove the groups that contain any selected node. */
+export function ungroupSelection(): boolean {
+  const sel = new Set(get().selection)
+  return commit((d) => {
+    for (const g of [...(d.groups ?? [])]) if (g.ids.some((id) => sel.has(id))) T.ungroup(d, g.id)
+  })
+}
+
+/** Put a labelled bracket over the selected consecutive siblings. False when they are not consecutive siblings. */
+export function summarizeSelection(label = 'Summary'): boolean {
+  let ok = false
+  commit((d) => {
+    ok = !!T.summarize(d, get().selection, label)
+  })
+  return ok
+}
+
+/** Detach the selected nodes (with their subtrees) from the tree so they float where they are. */
+export function floatSelection(): boolean {
+  const s = get()
+  if (!s.doc || !s.layout) return false
+  const layout = s.layout
+  return commit((d) => {
+    for (const id of T.movable(d, s.selection)) {
+      const b = layout.boxes[id]
+      if (b) T.floatNode(d, id, d.dir === 'rtl' ? -(b.x + b.w / 2) : b.x + b.w / 2, b.y + b.h / 2)
+    }
+  })
 }
 
 export function deleteSelection() {

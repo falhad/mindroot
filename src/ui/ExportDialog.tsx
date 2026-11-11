@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { FileImage, FileJson, FileText, FileType2, Loader2, Shapes, X } from 'lucide-react'
+import { FileCode2, FileImage, FileJson, FileText, FileType2, Globe, List, Loader2, Shapes, X } from 'lucide-react'
+import { useRegistry } from '../plugins/host'
 import { buildSvg, exportMap, type ExportFormat } from '../io/exporters'
 import { useDoc } from '../state/doc'
 import { toast, ui, useUi } from '../state/ui'
@@ -8,8 +9,11 @@ import { Modal } from './Overlays'
 const FORMATS: { id: ExportFormat; name: string; ext: string; blurb: string; icon: typeof FileImage; visual: boolean }[] = [
   { id: 'png', name: 'PNG image', ext: '.png', blurb: 'Sharp raster image, great for slides and chat.', icon: FileImage, visual: true },
   { id: 'svg', name: 'SVG vector', ext: '.svg', blurb: 'Scales forever. Opens in Figma, Illustrator, browsers.', icon: Shapes, visual: true },
-  { id: 'pdf', name: 'PDF document', ext: '.pdf', blurb: 'One page sized to your map, ready to print or send.', icon: FileType2, visual: true },
+  { id: 'pdf', name: 'PDF (vector)', ext: '.pdf', blurb: 'Sharp at any zoom, text can be selected and searched.', icon: FileType2, visual: true },
+  { id: 'pdfimage', name: 'PDF (image)', ext: '.pdf', blurb: 'The map as one picture on a page. Works for every script.', icon: FileType2, visual: true },
   { id: 'md', name: 'Markdown outline', ext: '.md', blurb: 'Nested list with notes and checklists.', icon: FileText, visual: false },
+  { id: 'opml', name: 'OPML outline', ext: '.opml', blurb: 'Nested outline for outliners and feed readers.', icon: List, visual: false },
+  { id: 'html', name: 'Web page', ext: '.html', blurb: 'One file you can open anywhere: pan, zoom, collapse, read notes.', icon: Globe, visual: false },
   { id: 'json', name: 'Branchmint file', ext: '.json', blurb: 'Full-fidelity backup you can re-import.', icon: FileJson, visual: false },
 ]
 
@@ -28,7 +32,12 @@ function Inner() {
   const [scale, setScale] = useState<1 | 2 | 3>(2)
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
-  const f = FORMATS.find((x) => x.id === format)!
+  const pluginFormats = useRegistry((s) => s.exporters)
+  const formats = [
+    ...FORMATS,
+    ...pluginFormats.map((p) => ({ id: `plugin:${p.id}` as ExportFormat, name: p.title, ext: p.extension, blurb: 'Added by a plugin.', icon: FileCode2, visual: false })),
+  ]
+  const f = formats.find((x) => x.id === format) ?? formats[0]
 
   useEffect(() => {
     if (!f.visual) return setPreview(null)
@@ -74,7 +83,7 @@ function Inner() {
       </div>
       <div className="grid gap-0 sm:grid-cols-[250px_1fr]">
         <div className="space-y-1 border-line p-3 sm:border-r">
-          {FORMATS.map((x) => (
+          {formats.map((x) => (
             <button key={x.id} onClick={() => setFormat(x.id)} aria-pressed={format === x.id}
               className={`flex w-full items-start gap-3 rounded-xl border p-2.5 text-left transition-colors ${format === x.id ? 'border-accent bg-active' : 'border-transparent hover:bg-hover'}`}>
               <x.icon size={18} className={format === x.id ? 'text-accent' : 'text-muted'} />

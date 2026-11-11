@@ -55,6 +55,19 @@ export const THEMES: MapTheme[] = [
 
 export const DEFAULT_THEME = THEMES[0]
 
+const HEX6 = /^#[0-9a-fA-F]{6}$/
+
+/** A theme made of eight chosen colours (used in light and dark). The root gradient uses the first two. */
+export function customTheme(colors: string[]): MapTheme {
+  return { id: 'custom', name: 'Custom', root: { light: [colors[0], colors[1]], dark: [colors[0], colors[1]] }, light: [...colors], dark: [...colors] }
+}
+
+/** The palette a map uses: its own eight colours if it has them, else the chosen built-in theme. */
+export function resolveTheme(doc: { themeId: string; customTheme?: string[] }): MapTheme {
+  const c = doc.customTheme
+  return c && c.length === 8 && c.every((x) => HEX6.test(x)) ? customTheme(c) : getTheme(doc.themeId)
+}
+
 export function getTheme(id: string): MapTheme {
   return THEMES.find((t) => t.id === id) ?? DEFAULT_THEME
 }

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  ArrowLeft, Check, CloudOff, Download, Loader2, Maximize, Minus, Moon, PanelRight, Plus, Redo2, Search, Sun, Monitor,
+  ArrowLeft, Check, CloudOff, Download, Loader2, Maximize, Minus, Moon, PanelLeft, PanelRight, Plus, Redo2, Search, Sun, Monitor,
   Command, Undo2, CornerDownRight, ListTree, Link2, X,
 } from 'lucide-react'
-import { computeLayout } from '../core/layout'
 import { resetMeasureCache } from '../core/measure'
 import { plainTitle } from '../core/tree'
 import * as T from '../core/tree'
@@ -11,19 +10,29 @@ import { isMac } from '../io/env'
 import { readImage } from '../io/files'
 import { store } from '../io/storage'
 import {
-  addChild, addSibling, closeDoc, commit, openDoc, redo, setConnectFrom, undo, useDoc,
+  addChild, addSibling, closeDoc, commit, layoutNow, openDoc, redo, setConnectFrom, undo, useDoc, useRenderDoc,
 } from '../state/doc'
 import { emit } from '../plugins/host'
 import { flushSave } from '../state/persist'
+import { refreshLibrary, useLibrary } from '../state/library'
+import { focusNode } from '../state/search'
 import { cycleTheme, toast, ui, useUi } from '../state/ui'
-import { revealBox, setInsetRight, setView, useView, zoomBy } from '../state/view'
+import { animateTo, revealBox, setInsetLeft, setInsetRight, setView, useView, zoomBy } from '../state/view'
 import { Canvas } from './Canvas'
 import { fitCurrent, goHome, setLayout, resetZoom, LAYOUTS } from './commands'
 import { ExportDialog } from './ExportDialog'
 import { useEditorHotkeys } from './hotkeys'
 import { Inspector } from './Inspector'
+import { usePresent } from '../state/present'
+import { A11yLive } from './A11yLive'
+import { ComparePicker, CompareView } from './Compare'
+import { HistoryPanel } from './History'
+import { FocusBar } from './FocusBar'
+import { Outline } from './Outline'
+import { Presentation } from './Presentation'
 import { Minimap } from './Minimap'
 import { StatusSlot } from './StatusSlot'
+import { TagFilter } from './TagFilter'
 import { ContextMenu, Palette, SearchBar, type ContextState } from './Overlays'
 
 type Phase = 'loading' | 'ready' | 'missing' | 'error'
@@ -37,12 +46,19 @@ export function Editor({ id }: { id: string }) {
     let alive = true
     let opened = false
     setPhase('loading')
+    ui.setTagFilter([])
     store
       .load(id)
       .then(async (doc) => {
         if (!alive) return
         if (!doc) return setPhase('missing')
         openDoc(doc)
+        const pend = useUi.getState().pendingSelect
+        if (pend && pend.mapId === id) {
+          useUi.setState({ pendingSelect: null })
+          if (doc.nodes[pend.nodeId]) setTimeout(() => focusNode(pend.nodeId), 60)
+        }
+        if (!useLibrary.getState().loaded) void refreshLibrary() // for the map picker and link checks
         try {
           const saved = JSON.parse(localStorage.getItem(`bm.view.${id}`) ?? 'null')
           restore.current = saved && Number.isFinite(saved.k) ? saved : null
@@ -53,8 +69,7 @@ export function Editor({ id }: { id: string }) {
           void document.fonts.ready.then(() => {
             // text widths measured before the web font loaded are stale
             resetMeasureCache()
-            const s = useDoc.getState()
-            if (s.doc) useDoc.setState({ layout: computeLayout(s.doc) })
+            layoutNow()
           })
         }
         opened = true
@@ -70,7 +85,7 @@ export function Editor({ id }: { id: string }) {
     const onFont = () => {
       resetMeasureCache()
       const s = useDoc.getState()
-      if (s.doc) useDoc.setState({ layout: computeLayout(s.doc, { draft: s.draft ?? undefined }) })
+      if (s.doc) layoutNow()
     }
     document.fonts?.addEventListener('loadingdone', onFont)
     return () => {
@@ -102,7 +117,22 @@ export function Editor({ id }: { id: string }) {
 
 function Workspace({ restore }: { restore: { x: number; y: number; k: number } | null }) {
   useEditorHotkeys()
-  const panelOpen = useUi((s) => s.inspectorOpen)
+  const presenting = usePresent((s) => s.active)
+  const outlineOpen = useUi((s) => s.outlineOpen) && !presenting
+  const panelOpen = useUi((s) => s.inspectorOpen) && !presenting
+  const firstOutline = useRef(true)
+  useLayoutEffect(() => {
+    const next = outlineOpen && innerWidth >= 900 ? 336 : 0
+    const before = useView.getState().insetLeft
+    setInsetLeft(next)
+    // the visible centre moves by half the panel width: slide the map so it stays in view
+    if (!firstOutline.current && next !== before) {
+      const v = useView.getState()
+      animateTo({ x: v.x + (next - before) / 2, y: v.y, k: v.k }, 220)
+    }
+    firstOutline.current = false
+  }, [outlineOpen])
+  useEffect(() => () => setInsetLeft(0), [])
   // The floating inspector covers the right edge on wide screens; fits should avoid it.
   useLayoutEffect(() => {
     setInsetRight(panelOpen && innerWidth >= 900 ? 340 : 0)
@@ -113,7 +143,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
     if (restore) setView(restore)
     else fitCurrent(false)
   }, [restore])
-  const doc = useDoc((s) => s.doc)!
+  const doc = useRenderDoc()!
   const layout = useDoc((s) => s.layout)!
   const inspectorOpen = useUi((s) => s.inspectorOpen)
   const connectFrom = useDoc((s) => s.connectFrom)
@@ -150,10 +180,17 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
   return (
     <div ref={wrapRef} className="relative h-full overflow-hidden" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       <Canvas doc={doc} layout={layout} onContext={setMenu} />
-      <TopBar />
-      <Minimap doc={doc} layout={layout} />
-      <Dock />
-      <SearchBar />
+      {!presenting && (
+        <>
+          <TopBar />
+          <FocusBar />
+          <Minimap doc={doc} layout={layout} />
+          <Dock />
+          <SearchBar />
+        </>
+      )}
+      <Presentation />
+      <A11yLive />
       {connectFrom && (
         <div className="glass rise absolute left-1/2 top-16 z-30 flex -translate-x-1/2 items-center gap-3 rounded-xl py-2 pl-4 pr-2 text-[13px]">
           <Link2 size={15} className="text-accent" />
@@ -161,10 +198,14 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
           <button className="btn" style={{ height: 26 }} onClick={() => setConnectFrom(null)}><X size={14} /> Cancel</button>
         </div>
       )}
-      {inspectorOpen && <Inspector onClose={() => ui.setInspector(false)} />}
+      {outlineOpen && <Outline />}
+      {inspectorOpen && !presenting && <Inspector onClose={() => ui.setInspector(false)} />}
       <ContextMenu state={menu} onClose={closeMenu} />
       <Palette />
       <ExportDialog />
+      <HistoryPanel />
+      <ComparePicker />
+      <CompareView />
     </div>
   )
 }
@@ -181,6 +222,7 @@ function SaveStatus() {
 
 function TopBar() {
   const doc = useDoc((s) => s.doc)!
+  const outlineOpen = useUi((s) => s.outlineOpen)
   const mode = useUi((s) => s.themeMode)
   const inspectorOpen = useUi((s) => s.inspectorOpen)
   const canUndo = useDoc((s) => s.past.length > 0)
@@ -212,7 +254,9 @@ function TopBar() {
         <button className="btn icon" aria-label="Undo" title="Undo (⌘Z)" disabled={!canUndo} onClick={undo}><Undo2 size={16} /></button>
         <button className="btn icon" aria-label="Redo" title="Redo (⇧⌘Z)" disabled={!canRedo} onClick={redo}><Redo2 size={16} /></button>
         <span className="mx-1 h-5 w-px bg-line" />
+        <button className={`btn icon ${outlineOpen ? 'on' : ''}`} aria-label="Toggle outline" aria-pressed={outlineOpen} title="Outline (⌘⇧O)" onClick={ui.toggleOutline}><PanelLeft size={16} /></button>
         <LayoutMenu />
+        <TagFilter />
         <button className="btn icon" aria-label="Find" title="Find (⌘F)" onClick={() => ui.setSearch(true)}><Search size={16} /></button>
         <button className="btn icon" aria-label="Command palette" title="Commands (⌘K)" onClick={() => ui.setPalette(true)}><Command size={16} /></button>
         <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>

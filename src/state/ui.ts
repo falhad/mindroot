@@ -1,7 +1,8 @@
 import { create } from 'zustand'
+import type { MapDoc } from '../core/types'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
-export type Route = { name: 'dashboard' } | { name: 'editor'; id: string }
+export type Route = { name: 'dashboard' } | { name: 'editor'; id: string } | { name: 'tasks' } | { name: 'capture' }
 
 export interface Toast {
   id: number
@@ -24,6 +25,7 @@ interface UiState {
   themeMode: ThemeMode
   dark: boolean
   inspectorOpen: boolean
+  outlineOpen: boolean
   paletteOpen: boolean
   searchOpen: boolean
   exportOpen: boolean
@@ -31,6 +33,14 @@ interface UiState {
   settingsOpen: boolean
   /** Tab id in the settings dialog: `general`, `plugins`, or a plugin id. */
   settingsTab: string
+  /** A node to select when a map finishes loading (set when following a link between maps). */
+  pendingSelect: { mapId: string; nodeId: string } | null
+  /** The compare view: two versions side by side. */
+  compare: { a: MapDoc; b: MapDoc; labelA: string; labelB: string } | null
+  comparePicker: boolean
+  historyOpen: boolean
+  /** Tags selected in the tag filter (empty = no filter). Not saved with the map. */
+  tagFilter: string[]
   toasts: Toast[]
 }
 
@@ -50,6 +60,8 @@ function systemDark() {
 
 export function parseRoute(hash: string): Route {
   const m = /^#\/m\/([A-Za-z0-9_-]+)/.exec(hash)
+  if (hash.startsWith('#/tasks')) return { name: 'tasks' }
+  if (hash.startsWith('#/capture')) return { name: 'capture' }
   return m ? { name: 'editor', id: m[1] } : { name: 'dashboard' }
 }
 
@@ -60,12 +72,18 @@ export const useUi = create<UiState>(() => ({
   themeMode: mode,
   dark: mode === 'dark' || (mode === 'system' && systemDark()),
   inspectorOpen: typeof innerWidth === 'undefined' ? true : innerWidth >= 1100,
+  outlineOpen: false,
   paletteOpen: false,
   searchOpen: false,
   exportOpen: false,
   helpOpen: false,
   settingsOpen: false,
   settingsTab: 'general',
+  pendingSelect: null,
+  compare: null,
+  comparePicker: false,
+  historyOpen: false,
+  tagFilter: [],
   toasts: [],
   confirm: null,
 }))
@@ -89,7 +107,7 @@ export function cycleTheme() {
 }
 
 export function goTo(route: Route) {
-  const hash = route.name === 'editor' ? `#/m/${route.id}` : '#/'
+  const hash = route.name === 'editor' ? `#/m/${route.id}` : route.name === 'tasks' ? '#/tasks' : route.name === 'capture' ? '#/capture' : '#/'
   if (location.hash !== hash) history.pushState(null, '', hash)
   set({ route })
 }
@@ -105,10 +123,17 @@ export const dismissToast = (id: number) => set((s) => ({ toasts: s.toasts.filte
 export const ui = {
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
   setInspector: (inspectorOpen: boolean) => set({ inspectorOpen }),
+  setCompare: (compare: UiState['compare']) => set({ compare }),
+  setComparePicker: (comparePicker: boolean) => set({ comparePicker }),
+  setHistory: (historyOpen: boolean) => set({ historyOpen }),
+  toggleOutline: () => set((s) => ({ outlineOpen: !s.outlineOpen })),
+  setOutline: (outlineOpen: boolean) => set({ outlineOpen }),
   setPalette: (paletteOpen: boolean) => set({ paletteOpen }),
   setSearch: (searchOpen: boolean) => set({ searchOpen }),
   setExport: (exportOpen: boolean) => set({ exportOpen }),
   setHelp: (helpOpen: boolean) => set({ helpOpen }),
+  setTagFilter: (tagFilter: string[]) => set({ tagFilter }),
+  toggleTag: (tag: string) => set((s) => ({ tagFilter: s.tagFilter.includes(tag) ? s.tagFilter.filter((t) => t !== tag) : [...s.tagFilter, tag] })),
   setSettings: (settingsOpen: boolean, settingsTab?: string) => set((s) => ({ settingsOpen, settingsTab: settingsTab ?? s.settingsTab })),
 }
 

@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import { importJson, importMarkdown } from '../core/outline'
 import { docFromTemplate, TEMPLATES } from '../core/templates'
 import { createDoc, plainTitle } from '../core/tree'
 import { uid } from '../core/ids'
 import type { MapDoc, MapMeta } from '../core/types'
+import { docFromFile } from '../io/importers'
 import { prepareForSave, store } from '../io/storage'
+import { refreshDigests } from './digest'
 import { toast } from './ui'
 
 export type Filter = 'all' | 'starred' | 'trash'
@@ -37,6 +38,7 @@ export async function refreshLibrary() {
     const items = await store.list()
     set({ items, loaded: true })
     void rebuildDerived(items)
+    void refreshDigests(items)
   } catch (e) {
     toast(`Could not read your maps: ${e instanceof Error ? e.message : e}`, 'error')
   } finally {
@@ -85,10 +87,8 @@ export async function createMap(templateId = 'blank'): Promise<string> {
 
 export async function importFile(file: File): Promise<string | null> {
   try {
-    const text = await file.text()
-    const base = file.name.replace(/\.[^.]+$/, '').replace(/\.branchmint$/, '')
-    const isJson = /\.json$/i.test(file.name) || /^\s*[{[]/.test(text)
-    const doc = isJson ? importJson(text) : importMarkdown(text, base)
+    const { useRegistry } = await import('../plugins/host') // loaded on use: the host imports this module
+    const doc = await docFromFile(file, useRegistry.getState().importers)
     await persistNew(doc)
     void refreshLibrary()
     return doc.meta.id
@@ -98,7 +98,8 @@ export async function importFile(file: File): Promise<string | null> {
   }
 }
 
-async function mutate(id: string, fn: (d: MapDoc) => void) {
+/** Change a map on disk (it is not open in the editor), then refresh the library. */
+export async function mutate(id: string, fn: (d: MapDoc) => void) {
   const doc = await store.load(id)
   if (!doc) return
   fn(doc)

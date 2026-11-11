@@ -34,6 +34,9 @@ impl Paths {
     pub fn maps(&self) -> PathBuf {
         self.vault().join("maps")
     }
+    pub fn templates(&self) -> PathBuf {
+        self.vault().join("templates")
+    }
     pub fn assets(&self) -> PathBuf {
         self.vault().join("assets")
     }
@@ -54,7 +57,7 @@ impl Paths {
             fs::create_dir_all(self.vault()).map_err(|e| e.to_string())?;
             fs::rename(&old, self.maps()).map_err(|e| e.to_string())?;
         }
-        for d in [self.maps(), self.assets(), self.cache(), self.settings(), self.plugins()] {
+        for d in [self.maps(), self.templates(), self.assets(), self.cache(), self.settings(), self.plugins()] {
             fs::create_dir_all(d).map_err(|e| e.to_string())?;
         }
         Ok(())
@@ -88,9 +91,14 @@ pub fn validate_plugin_id(id: &str) -> CmdResult<()> {
 /// `<64 hex>.<png|jpg|webp|gif>`
 pub fn validate_asset_name(name: &str) -> CmdResult<()> {
     let ok = name.split_once('.').is_some_and(|(h, ext)| {
-        h.len() == 64 && h.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) && matches!(ext, "png" | "jpg" | "webp" | "gif")
+        h.len() == 64 && h.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) && (matches!(ext, "png" | "jpg" | "webp" | "gif") || is_attachment_ext(ext))
     });
     if ok { Ok(()) } else { Err(format!("invalid asset name: {name:?}")) }
+}
+
+/// Attachment files: a short lower-case alphanumeric extension. `tmp` is reserved for atomic writes.
+fn is_attachment_ext(ext: &str) -> bool {
+    (1..=8).contains(&ext.len()) && ext.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()) && ext != "tmp"
 }
 
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> CmdResult<()> {
@@ -104,7 +112,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> CmdResult<()> {
 }
 
 /// A map file is valid when every non-empty line is a JSON value (JSONL, or a one-line JSON doc).
-fn validate_map_text(text: &str) -> CmdResult<()> {
+pub fn validate_map_text(text: &str) -> CmdResult<()> {
     let mut lines = 0;
     for (i, line) in text.lines().enumerate() {
         if line.trim().is_empty() {
@@ -335,7 +343,13 @@ mod tests {
         }
         let hash = "a".repeat(64);
         assert!(validate_asset_name(&format!("{hash}.png")).is_ok());
-        assert!(validate_asset_name(&format!("{hash}.exe")).is_err());
+        // attachments: any short lower-case alphanumeric extension may be stored (opening risky ones is refused elsewhere)
+        assert!(validate_asset_name(&format!("{hash}.pdf")).is_ok());
+        assert!(validate_asset_name(&format!("{hash}.tmp")).is_err()); // reserved for atomic writes
+        for bad in ["PDF", "toolongext", "a/b", "p.df", ""] {
+            assert!(validate_asset_name(&format!("{hash}.{bad}")).is_err(), "{bad}");
+        }
+        assert!(validate_asset_name(&format!("{hash}.png/../x")).is_err());
         assert!(validate_asset_name("../x.png").is_err());
         assert!(validate_asset_name(&format!("{}.png", "A".repeat(64))).is_err());
     }

@@ -38,6 +38,8 @@ enum P {
     Path,
     /// `:1:<path>` .. `:3:<path>` (merge stages).
     Stage,
+    /// `<40 hex>:<path>`: a file as it was in a commit.
+    CommitPath,
     /// `HEAD:refs/heads/<branch>`.
     PushDest,
     /// `HEAD...origin/<branch>`.
@@ -77,6 +79,8 @@ const TEMPLATES: &[&[P]] = &[
     &[L("merge"), Ref, L("--no-edit"), L("-m"), Msg, L("--allow-unrelated-histories")],
     &[L("merge"), L("--abort")],
     &[L("show"), Stage],
+    &[L("show"), CommitPath],
+    &[L("log"), L("--format=%H%x1f%an%x1f%at%x1f%s"), L("-n"), L("200"), L("--"), Path],
     &[L("rm"), L("-q"), L("--"), Path],
 ];
 
@@ -115,6 +119,7 @@ fn matches_pos(p: &P, a: &str) -> bool {
         Msg => a.len() <= 500 && !a.contains('\0'),
         Path => valid_path(a),
         Stage => a.strip_prefix(':').and_then(|r| r.split_once(':')).is_some_and(|(n, path)| matches!(n, "1" | "2" | "3") && valid_path(path)),
+        CommitPath => a.split_once(':').is_some_and(|(sha, path)| sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) && valid_path(path)),
         PushDest => a.strip_prefix("HEAD:refs/heads/").is_some_and(valid_branch),
         SymRange => a.strip_prefix("HEAD...origin/").is_some_and(valid_branch),
         AheadRange => a.strip_suffix("..HEAD").and_then(|r| r.strip_prefix("origin/")).is_some_and(valid_branch),
@@ -238,6 +243,26 @@ mod tests {
     }
 
     #[test]
+    fn history_calls_only_accept_exact_shapes() {
+        let sha = "a".repeat(40);
+        for bad in [
+            s(&["show", "HEAD:maps/abc.jsonl"]),
+            s(&["show", &format!("{}:../secret", sha)]),
+            s(&["show", &format!("{}:other/file.jsonl", sha)]),
+            s(&["show", &format!("{}:maps/a.jsonl", "A".repeat(40))]),
+            s(&["show", &format!("{}:maps/a.jsonl", "a".repeat(39))]),
+            s(&["show", "--output=/tmp/x", "maps/a.jsonl"]),
+            s(&["log", "--format=%H", "-n", "200", "--", "maps/a.jsonl"]),
+            s(&["log", "--format=%H%x1f%an%x1f%at%x1f%s", "-n", "99999", "--", "maps/a.jsonl"]),
+            s(&["log", "--format=%H%x1f%an%x1f%at%x1f%s", "-n", "200", "--", "../x"]),
+            s(&["log", "--format=%H%x1f%an%x1f%at%x1f%s", "-n", "200"]),
+            s(&["log", "-p"]),
+        ] {
+            assert!(check_args(&bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
     fn accepts_the_calls_the_app_makes() {
         for a in [
             s(&["status", "--porcelain"]),
@@ -252,6 +277,8 @@ mod tests {
             s(&["checkout", "-f", "-B", "main", "origin/main"]),
             s(&["merge", "origin/main", "--no-edit", "-m", "m", "--allow-unrelated-histories"]),
             s(&["add", "-A", "--", "maps/abc.jsonl"]),
+            s(&["log", "--format=%H%x1f%an%x1f%at%x1f%s", "-n", "200", "--", "maps/abc123.jsonl"]),
+            s(&["show", &format!("{}:maps/abc123.jsonl", "0123456789abcdef".repeat(3)[..40].to_string())]),
         ] {
             assert!(check_args(&a).is_ok(), "{a:?}");
         }

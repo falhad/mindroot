@@ -1,12 +1,21 @@
 import { uid } from './ids'
+import { isDueDate } from './tasks'
 import { createDoc, orderedIds } from './tree'
-import { SCHEMA_VERSION, type MapDoc, type MindNode } from './types'
+import { SCHEMA_VERSION, type Group, type MapDoc, type MindNode, type Summary } from './types'
 
 export interface OutNode {
   text: string
   notes?: string
   link?: string
   checklist?: { text: string; done: boolean }[]
+  collapsed?: boolean
+  /** `#rrggbb` */
+  color?: string
+  /** Mind-map side for a child of the central idea. */
+  side?: 'left' | 'right'
+  tags?: string[]
+  /** An id from the source file. `buildOutlineDoc` returns the node id made for it. */
+  ref?: string
   children: OutNode[]
 }
 
@@ -80,25 +89,36 @@ export function parseOutline(text: string): OutNode[] {
 
 /** Build a document from an outline. A single top-level item becomes the root. */
 export function docFromOutline(forest: OutNode[], fallbackTitle = 'Imported map'): MapDoc {
+  return buildOutlineDoc(forest, fallbackTitle).doc
+}
+
+/** Like `docFromOutline`, and also tells which node id was made for each `ref` of the outline. */
+export function buildOutlineDoc(forest: OutNode[], fallbackTitle = 'Imported map'): { doc: MapDoc; idByRef: Map<string, string> } {
   const rootOut: OutNode = forest.length === 1 ? forest[0] : { text: fallbackTitle, children: forest }
   const doc = createDoc(rootOut.text || fallbackTitle)
-  const apply = (n: MindNode, o: OutNode) => {
+  const idByRef = new Map<string, string>()
+  const apply = (n: MindNode, o: OutNode, isRootChild: boolean) => {
     if (o.notes) n.notes = o.notes
     if (o.link) n.link = o.link
     if (o.checklist?.length) n.checklist = o.checklist.map((c) => ({ id: uid(8), text: c.text, done: c.done }))
+    if (o.collapsed) n.collapsed = true
+    if (o.color && /^#[0-9a-fA-F]{6}$/.test(o.color)) n.color = o.color
+    if (isRootChild && o.side) n.side = o.side
+    if (o.tags?.length) n.tags = [...o.tags]
+    if (o.ref !== undefined) idByRef.set(o.ref, n.id)
   }
   const build = (parentId: string, o: OutNode) => {
     for (const c of o.children) {
       const id = uid()
       doc.nodes[id] = { id, parentId, children: [], text: c.text }
       doc.nodes[parentId].children.push(id)
-      apply(doc.nodes[id], c)
+      apply(doc.nodes[id], c, parentId === doc.root)
       build(id, c)
     }
   }
-  apply(doc.nodes[doc.root], rootOut)
+  apply(doc.nodes[doc.root], rootOut, false)
   build(doc.root, rootOut)
-  return doc
+  return { doc, idByRef }
 }
 
 export function toMarkdown(doc: MapDoc): string {
@@ -157,6 +177,11 @@ export function sanitizeDoc(raw: unknown): MapDoc {
     n.children = n.children.filter((c) => nodes[c])
   }
   visit(r.root, null)
+  // floating nodes: no parent, a position, and not the root
+  for (const [id, src] of Object.entries(r.nodes)) {
+    if (!seen.has(id) && src && !src.parentId && isPos(src.pos)) visit(id, null)
+  }
+  for (const n of Object.values(nodes)) cleanNodeFields(n)
 
   const now = Date.now()
   const meta = r.meta ?? ({} as Partial<MapDoc['meta']>)
@@ -182,7 +207,77 @@ export function sanitizeDoc(raw: unknown): MapDoc {
     themeId: typeof r.themeId === 'string' ? r.themeId : 'mint',
     bg: BGS.includes(r.bg as string) ? r.bg! : 'dots',
   }
+  for (const rel of doc.relations) {
+    if (!['end', 'both', 'none'].includes(rel.arrow as string)) delete rel.arrow
+    if (!['dashed', 'solid', 'dotted'].includes(rel.dash as string)) delete rel.dash
+  }
+  const groups = cleanGroups(nodes, (r as Partial<MapDoc>).groups)
+  if (groups.length) doc.groups = groups
+  const summaries = cleanSummaries(nodes, (r as Partial<MapDoc>).summaries)
+  if (summaries.length) doc.summaries = summaries
+  if (FONTS.includes(r.font as string)) doc.font = r.font
+  if (r.dir === 'rtl' || r.dir === 'ltr') doc.dir = r.dir
+  if (Array.isArray(r.customTheme) && r.customTheme.length === 8 && r.customTheme.every((c) => typeof c === 'string' && HEX.test(c))) {
+    doc.customTheme = [...r.customTheme]
+  }
+  if (r.extra && typeof r.extra === 'object') doc.extra = r.extra
   return doc
+}
+
+const FONTS = ['inter', 'vazirmatn', 'serif', 'mono']
+const HEX = /^#[0-9a-fA-F]{6}$/
+const isPos = (p: unknown): p is { x: number; y: number } =>
+  !!p && typeof p === 'object' && Number.isFinite((p as { x: unknown }).x) && Number.isFinite((p as { y: unknown }).y)
+
+/** Drop invalid values of the optional node fields (hand-edited or damaged files). */
+function cleanNodeFields(n: MindNode) {
+  const o = n as unknown as Record<string, unknown>
+  if (Array.isArray(n.tags)) {
+    const tags = n.tags.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    if (tags.length) n.tags = tags
+    else delete o.tags
+  } else delete o.tags
+  if (typeof n.due !== 'string' || !isDueDate(n.due)) delete o.due
+  if (typeof n.done !== 'boolean') delete o.done
+  if (!n.mapLink || typeof n.mapLink.mapId !== 'string' || !n.mapLink.mapId) delete o.mapLink
+  else if (n.mapLink.nodeId !== undefined && typeof n.mapLink.nodeId !== 'string') n.mapLink = { mapId: n.mapLink.mapId }
+  if (Array.isArray(n.attachments)) {
+    const list = n.attachments.filter(
+      (a) => a && typeof a.id === 'string' && typeof a.name === 'string' && typeof a.asset === 'string' && /^[A-Za-z0-9._-]+$/.test(a.asset) && !a.asset.includes('..'),
+    )
+    if (list.length) n.attachments = list
+    else delete o.attachments
+  } else delete o.attachments
+  if (n.pos !== undefined && (!isPos(n.pos) || n.parentId !== null)) delete o.pos
+  if (typeof n.sticky !== 'boolean' || !n.sticky) delete o.sticky
+  if (n.notesFmt !== 'md') delete o.notesFmt
+}
+
+function cleanGroups(nodes: Record<string, MindNode>, raw: unknown): Group[] {
+  if (!Array.isArray(raw)) return []
+  const out: Group[] = []
+  for (const g of raw) {
+    if (!g || typeof g.id !== 'string' || !Array.isArray(g.ids) || !g.ids.length) continue
+    const ids: string[] = g.ids.filter((x: unknown): x is string => typeof x === 'string')
+    if (ids.length !== g.ids.length || !ids.every((id: string) => nodes[id])) continue
+    const parent = nodes[ids[0]].parentId
+    if (!parent || !ids.every((id: string) => nodes[id].parentId === parent)) continue
+    out.push({ id: g.id, ids, ...(typeof g.label === 'string' && g.label ? { label: g.label } : {}), ...(typeof g.color === 'string' && g.color ? { color: g.color } : {}) })
+  }
+  return out
+}
+
+function cleanSummaries(nodes: Record<string, MindNode>, raw: unknown): Summary[] {
+  if (!Array.isArray(raw)) return []
+  const out: Summary[] = []
+  for (const s of raw) {
+    if (!s || typeof s.id !== 'string' || typeof s.parentId !== 'string' || typeof s.from !== 'string' || typeof s.to !== 'string') continue
+    const p = nodes[s.parentId]
+    if (!p || !p.children.includes(s.from) || !p.children.includes(s.to)) continue
+    if (p.children.indexOf(s.from) > p.children.indexOf(s.to)) continue
+    out.push({ id: s.id, parentId: s.parentId, from: s.from, to: s.to, label: typeof s.label === 'string' ? s.label : '' })
+  }
+  return out
 }
 
 function genericToOutline(v: unknown, depth = 0): OutNode | null {

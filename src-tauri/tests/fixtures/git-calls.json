@@ -41,6 +41,14 @@
   "origin"
  ],
  [
+  "log",
+  "--format=%H%x1f%an%x1f%at%x1f%s",
+  "-n",
+  "200",
+  "--",
+  "maps/ID.jsonl"
+ ],
+ [
   "ls-files"
  ],
  [
@@ -111,6 +119,10 @@
  [
   "show",
   ":3:maps/ID.jsonl"
+ ],
+ [
+  "show",
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:maps/ID.jsonl"
  ],
  [
   "status",

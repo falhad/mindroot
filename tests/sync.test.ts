@@ -12,6 +12,8 @@ import { docFromOutline, parseOutline, sanitizeDoc } from '../src/core/outline'
 import * as T from '../src/core/tree'
 import type { MapDoc } from '../src/core/types'
 import { connectRemote, describeGitError, syncOnce, type SyncDeps, type SyncResult } from '../src/sync/engine'
+import { listVersions, loadVersionText } from '../src/sync/history'
+import { restoreSubtree } from '../src/core/diff'
 
 const run = promisify(execFile)
 const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' }
@@ -27,7 +29,7 @@ function record(args: string[]) {
   const a = args.map((x, i) => {
     if (args[i - 1] === '-m') return 'message'
     if (args[0] === 'remote' && i === args.length - 1 && /^(add|set-url)$/.test(args[1])) return 'git@github.com:you/vault.git'
-    return x.replace(/maps\/[A-Za-z0-9_-]+\.jsonl?/g, 'maps/ID.jsonl')
+    return x.replace(/maps\/[A-Za-z0-9_-]+\.jsonl?/g, 'maps/ID.jsonl').replace(/^[0-9a-f]{40}:/, `${'a'.repeat(40)}:`)
   })
   recorded.add(JSON.stringify(a))
 }
@@ -325,5 +327,72 @@ describe('error messages', () => {
     ['something odd happened', /git push failed: something odd/],
   ])('%s', (raw, re) => {
     expect(describeGitError(raw, ['push'])).toMatch(re)
+  })
+})
+
+describe('map history (real git)', () => {
+  it('lists the commits of one map newest first, and loads the map as it was', async () => {
+    await freshRemote('h1')
+    const a = new Device('h1a')
+    await a.init()
+    const doc = newMap('# Trip\n- Route', 1000)
+    a.save(doc)
+    await a.sync()
+    a.save(edit(a.load(doc.meta.id), 2000, (x) => void T.addChild(x, x.root, 'Packing')))
+    await a.sync()
+    a.save(edit(a.load(doc.meta.id), 3000, (x) => void (x.nodes[nid(x, 'Route')].text = 'Route v2')))
+    await a.sync()
+    // another map's commits do not appear in this map's history
+    const other = newMap('# Other')
+    a.save(other)
+    await a.sync()
+
+    const git = a.deps().git
+    const versions = await listVersions(git, doc.meta.id)
+    expect(versions).toHaveLength(3)
+    expect(versions[0].subject).toMatch(/^Sync from h1a/)
+    expect(versions[0].author).toBe('h1a')
+    expect(versions[0].at).toBeGreaterThan(Date.now() - 60_000)
+    expect(versions[0].sha).toMatch(/^[0-9a-f]{40}$/)
+    expect(await listVersions(git, other.meta.id)).toHaveLength(1)
+
+    const oldest = sanitizeDoc(parseDocText(await loadVersionText(git, doc.meta.id, versions[2].sha)))
+    expect(Object.values(oldest.nodes).map((n) => n.text).sort()).toEqual(['Route', 'Trip'])
+    const newest = sanitizeDoc(parseDocText(await loadVersionText(git, doc.meta.id, versions[0].sha)))
+    expect(Object.values(newest.nodes).map((n) => n.text).sort()).toEqual(['Packing', 'Route v2', 'Trip'])
+  })
+
+  it('a deleted idea can be brought back from an older version; the root is used when its parent is gone', async () => {
+    await freshRemote('h2')
+    const a = new Device('h2a')
+    await a.init()
+    const doc = newMap('# Plan\n- Goals\n  - Q1\n- Risks')
+    a.save(doc)
+    await a.sync()
+    a.save(edit(a.load(doc.meta.id), 2000, (x) => void T.removeNodes(x, [nid(x, 'Goals')])))
+    await a.sync()
+
+    const git = a.deps().git
+    const versions = await listVersions(git, doc.meta.id)
+    const before = sanitizeDoc(parseDocText(await loadVersionText(git, doc.meta.id, versions[1].sha)))
+    const now = a.load(doc.meta.id)
+    const back = restoreSubtree(now, before, nid(before, 'Goals'))!
+    expect(now.nodes[back].children.map((c) => now.nodes[c].text)).toEqual(['Q1'])
+    const q1 = restoreSubtree(a.load(doc.meta.id), before, nid(before, 'Q1'))
+    expect(q1).not.toBeNull() // its parent (Goals) is gone, so it lands under the root
+  })
+
+  it('a vault with no commits has no history, not an error', async () => {
+    await freshRemote('h3')
+    const a = new Device('h3a')
+    await a.init()
+    expect(await listVersions(a.deps().git, 'abc123')).toEqual([])
+  })
+
+  it('refuses ids and commit ids that are not what they should be', async () => {
+    const git = async () => ({ code: 0, stdout: '', stderr: '' })
+    await expect(listVersions(git, '../x')).rejects.toThrow(/map id/)
+    await expect(loadVersionText(git, 'abc', 'HEAD; rm -rf')).rejects.toThrow(/commit id/)
+    await expect(loadVersionText(git, '../x', 'a'.repeat(40))).rejects.toThrow(/map id/)
   })
 })

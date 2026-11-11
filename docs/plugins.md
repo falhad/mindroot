@@ -90,9 +90,28 @@ export default {
 }
 ```
 
-## What plugins cannot do yet
+## API version 2
 
-The API is version 1 and read-only for map content: a plugin can look at the open map but not edit it, and cannot add new node types or file formats. Writing to maps (a `ctx.docs.edit(...)` that produces one undo step) is the natural next addition; so are import/export formats and AI helpers. Because `api` is in the manifest, new capabilities can be added without breaking installed plugins.
+Version 2 adds what the built-in AI and collaboration plugins need. Plugins written for version 1 still load: the API only grows. Set `"api": 2` in the manifest when you use these.
+
+| API | What it does | Needs permission |
+|---|---|---|
+| `ctx.docs.edit(label, recipe)` | Change the open map. One call is one undo step. Returns false when no map is open or nothing changed. | |
+| `ctx.docs.selection()` | Ids of the selected ideas. | |
+| `ctx.docs.applyRemote(doc)` | Put a version made elsewhere into the open map (not an undo step). Used by live collaboration. | |
+| `ctx.docs.setUndoHandlers({ undo, redo })` | Take over undo and redo. Pass `null` to give them back. | |
+| `ctx.formats.registerImporter({ id, title, extensions, parse(file) })` | Add a file type to **Import**. `parse` returns a map. | |
+| `ctx.formats.registerExporter({ id, title, extension, mime, build(doc) })` | Add a format to **Export**. `build` returns text or bytes. | |
+| `ctx.net.request({ url, method, headers, body, timeoutMs })` | HTTP request. `https` only (`http` to localhost). Answers `{ status, body }`. | `net` |
+| `ctx.secrets.get / set / remove` | Keep a secret (an API key) in the operating system keychain. Never saved in the vault. In the browser build it lasts for the tab only. | `secrets` |
+
+`permissions` in the manifest can now also list `"net"` and `"secrets"`. They are shown to the user.
+
+### Plugin gallery
+
+**Settings → Plugins → Browse plugins** lists plugins from a JSON file (default: `plugins/index.json` in this repository; the address can be changed). Each entry has an id, version, permissions, the zip address and its **SHA-256**. The app downloads the zip over https, checks the SHA-256 before opening it, and refuses a zip whose `manifest.json` has another id than the entry or asks for permissions the list did not show. Plugins install **switched off**; a new plugin, or an update that asks for more permissions, must be switched on again by you.
+
+To publish your own: `node scripts/pack-plugin.mjs path/to/plugin --author "You"` makes `plugins/dist/<id>-<version>.zip` and updates `plugins/index.json`. Commit both.
 
 ## For app developers
 

@@ -1,7 +1,8 @@
-import { relationPath, edgePath } from './edges'
+import { arrowHead, bracketPath, DASH, relationPath, edgePath } from './edges'
+import { resolveColor, withAlpha } from './themes'
 import type { LayoutResult } from './layout'
 import { boundsOf } from './layout'
-import { PLACEHOLDER } from './measure'
+import { fontStack, PLACEHOLDER } from './measure'
 import { DARK, LIGHT, isRtl, makeVisualContext, nodeVisual } from './visual'
 import type { MapDoc } from './types'
 
@@ -17,6 +18,12 @@ export interface SvgOptions {
   iconMarkup?: (name: string) => string | null
   /** CSS @font-face rules (data URLs) so exported images keep the app fonts. */
   fontCss?: string
+  /** Mark nodes and edges with `data-node` / `data-edge` ids so a page can show and hide them (HTML export). */
+  interactive?: boolean
+  /** Use only characters a PDF base font can draw (badge symbols), for the vector PDF. */
+  pdfSafe?: boolean
+  /** Outline these nodes (the compare view): added, removed, changed or moved. */
+  marks?: Record<string, 'added' | 'removed' | 'changed' | 'moved'>
 }
 
 export interface SvgResult {
@@ -36,7 +43,7 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
   const out: string[] = []
 
   out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${Math.ceil(b.w)}" height="${Math.ceil(b.h)}" viewBox="${b.x} ${b.y} ${b.w} ${b.h}" font-family="'Inter Variable', 'Vazirmatn Variable', Inter, -apple-system, 'Segoe UI', Roboto, sans-serif">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${Math.ceil(b.w)}" height="${Math.ceil(b.h)}" viewBox="${b.x} ${b.y} ${b.w} ${b.h}" font-family="${fontStack(doc.font).replace(/"/g, "'")}">`,
   )
   if (opts.fontCss) out.push(`<style>${opts.fontCss}</style>`)
   out.push(`<title>${esc(doc.meta.title)}</title>`)
@@ -48,28 +55,51 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
   out.push('</defs>')
   if (opts.background) out.push(`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${pal.bg}"/>`)
 
+  // group boundaries sit behind everything
+  for (const g of doc.groups ?? []) {
+    const gb = layout.groupBoxes[g.id]
+    if (!gb) continue
+    const c = resolveColor(g.color, ctx.theme, opts.dark) ?? pal.muted
+    out.push(`<rect data-group="${g.id}" x="${gb.x}" y="${gb.y}" width="${gb.w}" height="${gb.h}" rx="16" fill="${withAlpha(c, 0.08)}" stroke="${c}" stroke-width="1.5" stroke-dasharray="6 5"/>`)
+    if (g.label) out.push(`<text x="${gb.x + 12}" y="${gb.y + 14}" font-size="12" font-weight="600" fill="${c}" dominant-baseline="central">${esc(g.label)}</text>`)
+  }
+
   // edges
   out.push('<g fill="none" stroke-linecap="round" stroke-linejoin="round">')
+  for (const s of doc.summaries ?? []) {
+    const sb = layout.summaryBoxes[s.id]
+    if (!sb) continue
+    out.push(`<path data-summary="${s.id}" d="${bracketPath(sb.bracket, sb.side)}" stroke="${pal.muted}" stroke-width="2"/>`)
+  }
   for (const id of layout.order) {
     const n = doc.nodes[id]
-    if (!n.parentId) continue
+    if (!n.parentId || n.sticky) continue
     const v = nodeVisual(doc, layout, ctx, id)
-    out.push(`<path d="${edgePath(doc.edge, layout.boxes[n.parentId], layout.boxes[id], layout.attach[id])}" stroke="${v.accent}" stroke-width="${v.edgeWidth}" opacity="0.85"/>`)
+    out.push(`<path${opts.interactive ? ` data-edge="${id}"` : ''} d="${edgePath(doc.edge, layout.boxes[n.parentId], layout.boxes[id], layout.attach[id])}" stroke="${v.accent}" stroke-width="${v.edgeWidth}" opacity="0.85"/>`)
   }
   for (const r of doc.relations) {
     const a = layout.boxes[r.from]
     const c = layout.boxes[r.to]
     if (!a || !c) continue
     const p = relationPath(a, c)
-    const ah = 8
-    const x1 = p.end.x - Math.cos(p.angle - 0.45) * ah
-    const y1 = p.end.y - Math.sin(p.angle - 0.45) * ah
-    const x2 = p.end.x - Math.cos(p.angle + 0.45) * ah
-    const y2 = p.end.y - Math.sin(p.angle + 0.45) * ah
-    out.push(`<path d="${p.d}" stroke="${pal.muted}" stroke-width="1.8" stroke-dasharray="6 5"/>`)
-    out.push(`<path d="M${x1} ${y1}L${p.end.x} ${p.end.y}L${x2} ${y2}" stroke="${pal.muted}" stroke-width="1.8"/>`)
+    const dash = DASH[r.dash ?? 'dashed']
+    const arrow = r.arrow ?? 'end'
+    out.push(`<path d="${p.d}" stroke="${pal.muted}" stroke-width="1.8"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`)
+    if (arrow !== 'none') out.push(`<path data-arrow="end" d="${arrowHead(p.end, p.angle)}" stroke="${pal.muted}" stroke-width="1.8"/>`)
+    if (arrow === 'both') out.push(`<path data-arrow="start" d="${arrowHead(p.start, p.startAngle)}" stroke="${pal.muted}" stroke-width="1.8"/>`)
+    if (r.label) {
+      // a halo in the background colour keeps the text readable over the line
+      out.push(
+        `<text x="${p.mid.x}" y="${p.mid.y}" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="500" fill="${pal.muted}" stroke="${pal.bg}" stroke-width="4" paint-order="stroke" stroke-linejoin="round">${esc(r.label)}</text>`,
+      )
+    }
   }
   out.push('</g>')
+  for (const s of doc.summaries ?? []) {
+    const sb = layout.summaryBoxes[s.id]
+    if (!sb || !s.label) continue
+    out.push(`<text x="${sb.label.x + sb.label.w / 2}" y="${sb.label.y + sb.label.h / 2}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="${pal.ink}"${isRtl(s.label) ? ' direction="rtl"' : ''}>${esc(s.label)}</text>`)
+  }
 
   // nodes
   for (const id of layout.order) {
@@ -77,7 +107,7 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
     const bx = layout.boxes[id]
     const m = layout.metrics[id]
     const v = nodeVisual(doc, layout, ctx, id)
-    out.push(`<g transform="translate(${bx.x} ${bx.y})">`)
+    out.push(`<g${opts.interactive ? ` data-node="${id}"${n.children.length ? ' class="has-kids"' : ''}` : ''} transform="translate(${bx.x} ${bx.y})">`)
     if (v.fill || v.stroke) {
       const fill = v.gradient ? `url(#g-${id})` : (v.fill ?? 'none')
       out.push(
@@ -116,8 +146,10 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
       bxp += 18
     }
     if (n.notes?.trim()) badge('¶')
-    if (n.link) badge('↗')
-    if (n.checklist?.length) badge('☑')
+    if (n.link) badge(opts.pdfSafe ? '»' : '↗')
+    if (n.checklist?.length) badge(opts.pdfSafe ? '+' : '☑')
+    if (n.tags?.length) badge('#')
+    if (n.mapLink) badge(opts.pdfSafe ? '›' : '⇢')
 
     if (n.image) {
       out.push(`<image x="${(bx.w - m.imgW) / 2}" y="${top + textBlockH + 8}" width="${m.imgW}" height="${m.imgH}" href="${esc(n.image.src)}" preserveAspectRatio="xMidYMid slice"/>`)
@@ -129,6 +161,14 @@ export function renderSvg(doc: MapDoc, layout: LayoutResult, opts: SvgOptions): 
       out.push(
         `<g><circle cx="${right}" cy="${bx.y + bx.h / 2}" r="11" fill="${pal.surface}" stroke="${v.accent}" stroke-width="1.5"/><text x="${right}" y="${bx.y + bx.h / 2 + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="${pal.ink}">${n.children.length}</text></g>`,
       )
+    }
+  }
+  if (opts.marks) {
+    const colour = { added: '#16a34a', removed: '#dc2626', changed: '#d97706', moved: '#2563eb' }
+    for (const [mid, kind] of Object.entries(opts.marks)) {
+      const mb = layout.boxes[mid]
+      if (!mb) continue
+      out.push(`<rect data-mark="${kind}" x="${mb.x - 5}" y="${mb.y - 5}" width="${mb.w + 10}" height="${mb.h + 10}" rx="${14}" fill="${colour[kind]}" fill-opacity="0.12" stroke="${colour[kind]}" stroke-width="3"${kind === 'removed' ? ' stroke-dasharray="7 5"' : ''}/>`)
     }
   }
   out.push('</svg>')

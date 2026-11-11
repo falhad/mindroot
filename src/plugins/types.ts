@@ -2,8 +2,39 @@ import type * as ReactNS from 'react'
 import type { ReactNode } from 'react'
 import type { MapDoc } from '../core/types'
 
+export interface ImporterSpec {
+  /** Unique inside the plugin. */
+  id: string
+  title: string
+  /** File extensions with the dot, lower case: `['.mm']`. */
+  extensions: string[]
+  parse(file: File): Promise<MapDoc>
+}
+
+export interface ExporterSpec {
+  id: string
+  title: string
+  /** With the dot: `.opml`. */
+  extension: string
+  mime: string
+  build(doc: MapDoc): Promise<Uint8Array | string>
+}
+
+export interface NetRequest {
+  url: string
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  headers?: Record<string, string>
+  body?: string
+  timeoutMs?: number
+}
+
+export interface NetResponse {
+  status: number
+  body: string
+}
+
 /**
- * The Branchmint plugin API (version 1).
+ * The Branchmint plugin API (version 2; version 1 plugins still load).
  *
  * A plugin is an object with a manifest and an `activate(ctx)` function. Everything a plugin
  * adds (commands, status chips, settings panels, event listeners) is registered through `ctx`
@@ -12,7 +43,12 @@ import type { MapDoc } from '../core/types'
  * Built-in plugins (like Git sync) use exactly this API. Plugins installed in the plugins
  * folder get the same `ctx`.
  */
-export const PLUGIN_API_VERSION = 1
+export const PLUGIN_API_VERSION = 2
+/** Plugins written for these API versions still load (the API only grows). */
+export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2]
+
+/** `native` = app Rust commands, `net` = HTTP requests, `secrets` = the OS keychain. */
+export type PluginPermission = 'native' | 'net' | 'secrets'
 
 export interface PluginManifest {
   /** Unique, lower-case, e.g. `branchmint.sync` or `acme.word-count`. */
@@ -23,7 +59,7 @@ export interface PluginManifest {
   /** Script file inside the plugin folder (installed plugins only). Default `index.js`. */
   main?: string
   /** What the plugin needs: `native` = call the app's Rust commands. Shown to the user. */
-  permissions?: ('native')[]
+  permissions?: PluginPermission[]
 }
 
 export interface Disposable {
@@ -100,6 +136,27 @@ export interface PluginContext {
     pauseSaves(): () => void
     /** Re-read the open map from disk, merging any unsaved edits into it. */
     reloadOpen(): Promise<void>
+    /** (API 2) Change the open map. One call = one undo step. False when no map is open or nothing changed. */
+    edit(label: string, recipe: (draft: MapDoc) => void): boolean
+    /** (API 2) Ids of the selected nodes in the open map. */
+    selection(): string[]
+    /** (API 2) Put a version that came from other people into the open map. Not an undo step. */
+    applyRemote(doc: MapDoc): void
+    /** (API 2) Take over undo and redo (return true when handled). Pass null to give them back. */
+    setUndoHandlers(handlers: { undo(): boolean; redo(): boolean } | null): void
+  }
+  /** (API 2) Add import and export formats. Removed when the plugin is turned off. */
+  formats: {
+    registerImporter(spec: ImporterSpec): Disposable
+    registerExporter(spec: ExporterSpec): Disposable
+  }
+  /** (API 2) HTTP requests. Needs the `net` permission. https only (plain http only to localhost). */
+  net?: { request(req: NetRequest): Promise<NetResponse> }
+  /** (API 2) Secrets (API keys) kept in the OS keychain, never in the vault. Needs the `secrets` permission. */
+  secrets?: {
+    get(key: string): Promise<string | null>
+    set(key: string, value: string): Promise<void>
+    remove(key: string): Promise<void>
   }
   /** Call the app's Rust commands. Desktop only; needs the `native` permission. */
   native?: {

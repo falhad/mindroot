@@ -85,7 +85,7 @@ class Merger {
     if (!t) return o
     const out: Rec = {}
     for (const k of new Set([...Object.keys(o), ...Object.keys(t), ...Object.keys(b ?? {})])) {
-      const v = k === 'children' ? this.children(b?.children, o.children, t.children) : this.scalar(k, b?.[k], o[k], t[k])
+      const v = k === 'children' || k === 'ids' ? this.children(b?.[k], o[k], t[k]) : this.scalar(k, b?.[k], o[k], t[k])
       if (v !== undefined) out[k] = v
     }
     return out
@@ -120,6 +120,8 @@ function repairTree(nodes: Record<string, Rec>, root: string): number {
     for (const c of nodes[id].children) mark(c)
   }
   mark(root)
+  // floating nodes (no parent, with a position) are roots of their own, not orphans
+  for (const n of Object.values(nodes)) if (n.id !== root && !n.parentId && n.pos) mark(n.id)
   let rescued = 0
   for (const id of Object.keys(nodes).sort()) {
     if (reach.has(id)) continue
@@ -134,7 +136,7 @@ function repairTree(nodes: Record<string, Rec>, root: string): number {
   return rescued
 }
 
-const HEADER_KEYS = ['root', 'layout', 'edge', 'themeId', 'bg']
+const HEADER_KEYS = ['root', 'layout', 'edge', 'themeId', 'bg', 'font', 'dir', 'customTheme']
 
 export function mergeDocs(base: RawDoc | null, ours: RawDoc, theirs: RawDoc): MergeResult {
   const B = toRecords(base ?? { nodes: {}, relations: [], meta: {} })
@@ -162,11 +164,25 @@ export function mergeDocs(base: RawDoc | null, ours: RawDoc, theirs: RawDoc): Me
 
   const nodes = m.table(B.nodes, O.nodes, T.nodes)
   const relations = m.table(B.relations, O.relations, T.relations)
+  const groups = m.table(B.groups, O.groups, T.groups)
+  const summaries = m.table(B.summaries, O.summaries, T.summaries)
+  // data from a newer version: keep what either side has
+  const oe = O.header.extra ?? {}
+  const te = T.header.extra ?? {}
+  const records = [...new Set<string>([...(oe.records ?? []), ...(te.records ?? [])])]
+  const extraHeader = { ...(te.header ?? {}), ...(oe.header ?? {}) }
+  const extra: Rec = {}
+  if (records.length) extra.records = records
+  if (Object.keys(extraHeader).length) extra.header = extraHeader
   const root = header.root ?? O.header.root
   const rescued = nodes[root] ? repairTree(nodes, root) : 0
   const keepRel = Object.values(relations).filter((r) => nodes[r.from] && nodes[r.to])
 
-  const doc = sanitizeDoc({ ...header, v: 2, meta, nodes, relations: keepRel })
+  const doc = sanitizeDoc({
+    ...header, v: 3, meta, nodes, relations: keepRel,
+    groups: Object.values(groups), summaries: Object.values(summaries),
+    ...(Object.keys(extra).length ? { extra } : {}),
+  })
   doc.meta.updatedAt = meta.updatedAt
   syncMeta(doc)
   return { doc, conflicts: m.conflicts, rescued }

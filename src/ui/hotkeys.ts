@@ -3,9 +3,10 @@ import { navigate } from '../core/layout'
 import { inTextField, handleCopy, handlePaste } from '../state/clipboard'
 import {
   addChild, addSibling, deleteSelection, duplicateSelection, indent, outdent, primary, redo, reorder, select, selectAll,
-  setConnectFrom, startEdit, toggleCollapse, undo, useDoc,
+  setConnectFrom, startEdit, toggleCollapse, undo, useDoc, activeFocus, exitFocus, toggleFocus,
 } from '../state/doc'
 import { flushSave } from '../state/persist'
+import { startPresentation, usePresent } from '../state/present'
 import { clearSearch, focusNode } from '../state/search'
 import { toast, ui, useUi } from '../state/ui'
 import { revealBox, zoomBy } from '../state/view'
@@ -19,6 +20,7 @@ export function useEditorHotkeys() {
       const k = e.key.toLowerCase()
       const ds = useDoc.getState()
       if (!ds.doc) return
+      if (usePresent.getState().active) return // the presentation owns the keyboard
 
       // overlays that own the keyboard
       const u = useUi.getState()
@@ -38,12 +40,14 @@ export function useEditorHotkeys() {
           case 'd': e.preventDefault(); duplicateSelection(); return
           case 'e': e.preventDefault(); ui.setExport(true); return
           case 'i': e.preventDefault(); ui.toggleInspector(); return
+          case 'o': if (e.shiftKey) { e.preventDefault(); ui.toggleOutline() } return
           case 's': e.preventDefault(); void flushSave().then(() => toast('Saved', 'success')); return
           case '0': e.preventDefault(); fitCurrent(); return
           case '1': e.preventDefault(); resetZoom(); return
           case '=': case '+': e.preventDefault(); zoomBy(1.25); return
           case '-': e.preventDefault(); zoomBy(0.8); return
           case '/': e.preventDefault(); ui.setHelp(true); return
+          case '.': e.preventDefault(); toggleFocus(); setTimeout(fitCurrent, 30); return
         }
         return
       }
@@ -59,6 +63,7 @@ export function useEditorHotkeys() {
         case 'Tab': e.preventDefault(); addChild(); return
         case 'Enter': e.preventDefault(); addSibling(e.shiftKey); return
         case 'F2': e.preventDefault(); startEdit(); return
+        case 'F5': e.preventDefault(); if (!startPresentation(e.shiftKey ? 'branch' : 'node')) toast('Add some ideas to present first'); return
         case 'Delete': case 'Backspace': e.preventDefault(); deleteSelection(); return
         case ' ': e.preventDefault(); toggleCollapse(); return
         case '?': e.preventDefault(); ui.setHelp(true); return
@@ -66,6 +71,7 @@ export function useEditorHotkeys() {
         case 'Escape':
           if (ds.connectFrom) setConnectFrom(null)
           else if (useUi.getState().searchOpen) { ui.setSearch(false); clearSearch() }
+          else if (activeFocus(ds)) { exitFocus(); setTimeout(fitCurrent, 30) }
           else select([])
           return
         case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': {

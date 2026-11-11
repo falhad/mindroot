@@ -1,15 +1,17 @@
 import { THEMES } from '../core/themes'
-import type { BgKind, EdgeKind, LayoutKind } from '../core/types'
+import type { BgKind, EdgeKind, FontId, LayoutKind } from '../core/types'
 import { modKey } from '../io/env'
 import {
-  addChild, addSibling, commit, deleteSelection, duplicateSelection, expandToLevel, indent, outdent, redo, reorder, select,
-  selectAll, setConnectFrom, startEdit, toggleCollapse, undo, useDoc, primary,
+  addChild, addFloatAt, addSibling, commit, deleteSelection, duplicateSelection, expandToLevel, floatSelection, groupSelection, indent, outdent, redo, reorder, select,
+  selectAll, setConnectFrom, toggleFocus, startEdit, summarizeSelection, toggleCollapse, undo, ungroupSelection, useDoc, primary,
 } from '../state/doc'
 import { flushSave } from '../state/persist'
-import { createMap } from '../state/library'
+import { startPresentation } from '../state/present'
+import { createMap, refreshLibrary, useLibrary } from '../state/library'
+import { saveAsTemplate } from '../state/templates'
 import { useRegistry } from '../plugins/host'
 import { cycleTheme, goTo, toast, ui } from '../state/ui'
-import { fitView, setView, useView, zoomBy } from '../state/view'
+import { fitView, screenToWorld, setView, useView, zoomBy } from '../state/view'
 
 export interface Command {
   id: string
@@ -43,7 +45,12 @@ export const setLayout = (layout: LayoutKind) => {
   setTimeout(fitCurrent, 30)
 }
 export const setEdge = (edge: EdgeKind) => commit((d) => void (d.edge = edge))
-export const setMapTheme = (id: string) => commit((d) => void (d.themeId = id))
+export const setMapTheme = (id: string) => commit((d) => { d.themeId = id; delete d.customTheme })
+export const setFont = (font: FontId | undefined) => commit((d) => { if (font && font !== 'inter') d.font = font; else delete d.font })
+export const setDirection = (dir: 'ltr' | 'rtl') => {
+  commit((d) => { if (dir === 'rtl') d.dir = 'rtl'; else delete d.dir })
+  setTimeout(fitCurrent, 30)
+}
 export const setBg = (bg: BgKind) => commit((d) => void (d.bg = bg))
 
 export function fitCurrent(animate = true) {
@@ -81,6 +88,13 @@ export async function newMapAndOpen() {
   goTo({ name: 'editor', id })
 }
 
+/** World position of the middle of the visible canvas. */
+function centre(): [number, number] {
+  const { w, h } = useView.getState()
+  const p = screenToWorld(w / 2, h / 2)
+  return [p.x, p.y]
+}
+
 export function buildCommands(): Command[] {
   const c = (group: string, id: string, title: string, run: () => void, hint?: string): Command => ({ group, id, title, run, hint })
   const list: Command[] = [
@@ -104,6 +118,23 @@ export function buildCommands(): Command[] {
         toast('Click the node to link to · Esc to cancel')
       }
     }),
+    c('Arrange', 'group', 'Group selected siblings (boundary)', () => {
+      if (!groupSelection()) toast('Select nodes that share the same parent to group them')
+    }),
+    c('Arrange', 'ungroup', 'Remove group around selection', () => {
+      if (!ungroupSelection()) toast('The selection is not in a group')
+    }),
+    c('Arrange', 'summary', 'Add summary bracket over selected siblings', () => {
+      if (!summarizeSelection()) toast('Select two or more neighbouring siblings for a bracket')
+    }),
+    c('Arrange', 'float', 'Make selection a floating branch', () => {
+      if (!floatSelection()) toast('Select a node that is not the central idea')
+    }),
+    c('Arrange', 'new-float', 'Add floating node', () => addFloatAt(...centre())),
+    c('Arrange', 'new-sticky', 'Add sticky note', () => addFloatAt(...centre(), true)),
+    c('View', 'present', 'Present: one idea at a time', () => { if (!startPresentation('node')) toast('Add some ideas to present first') }, 'F5'),
+    c('View', 'present-branch', 'Present: one branch at a time', () => { if (!startPresentation('branch')) toast('Add some ideas to present first') }),
+    c('View', 'focus', 'Focus on selected branch / leave focus', () => { toggleFocus(); setTimeout(fitCurrent, 30) }, `${modKey} .`),
     c('View', 'collapse', 'Collapse / expand', () => toggleCollapse(), 'Space'),
     c('View', 'expand-all', 'Expand all', () => expandToLevel(null)),
     c('View', 'collapse-1', 'Collapse to level 1', () => expandToLevel(1)),
@@ -113,10 +144,19 @@ export function buildCommands(): Command[] {
     c('View', 'zoom100', 'Actual size', resetZoom, `${modKey} 1`),
     c('View', 'zin', 'Zoom in', () => zoomBy(1.25), `${modKey} =`),
     c('View', 'zout', 'Zoom out', () => zoomBy(0.8), `${modKey} -`),
+    c('View', 'outline', 'Toggle outline panel', ui.toggleOutline, `${modKey} ⇧ O`),
     c('View', 'inspector', 'Toggle side panel', ui.toggleInspector, `${modKey} I`),
     c('View', 'theme-mode', 'Switch light / dark / system', cycleTheme),
+    c('View', 'clear-tags', 'Clear tag filter', () => ui.setTagFilter([])),
+    c('Map', 'dir-rtl', 'Direction: right to left (mirror the map)', () => setDirection('rtl')),
+    c('Map', 'dir-ltr', 'Direction: left to right', () => setDirection('ltr')),
     c('Map', 'search', 'Find in map', () => ui.setSearch(true), `${modKey} F`),
     c('Map', 'export', 'Export…', () => ui.setExport(true), `${modKey} E`),
+    c('Map', 'history', 'History of this map…', () => ui.setHistory(true)),
+    c('Map', 'compare', 'Compare with another map…', () => { if (!useLibrary.getState().loaded) void refreshLibrary(); ui.setComparePicker(true) }),
+    c('Map', 'save-template', 'Save this map as a template', () => {
+      void saveAsTemplate().then(() => toast('Saved as a template. Find it on the maps page.', 'success')).catch((e) => toast(String(e instanceof Error ? e.message : e), 'error'))
+    }),
     c('Map', 'new', 'New map', () => void newMapAndOpen()),
     c('Map', 'home', 'All maps', () => void goHome()),
     c('Help', 'help', 'Keyboard shortcuts', () => ui.setHelp(true), '?'),

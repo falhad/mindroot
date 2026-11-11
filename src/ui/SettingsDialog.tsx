@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
+import { autoCheckEnabled, setAutoCheck, updater, useUpdater } from '../io/updater'
+import { askConfirm, toast } from '../state/ui'
+import { PluginGallery } from './PluginGallery'
+import { registerCaptureShortcut } from '../io/captureShortcut'
+import { DEFAULT_SHORTCUT, getInboxName, getShortcut, setInboxName, setShortcut } from '../state/capture'
 import { Blocks, FolderOpen, Moon, Puzzle, Settings2, Sun, Monitor, X } from 'lucide-react'
 import { isTauri } from '../io/env'
-import { setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
+import { forgetPluginEnabled, setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
 import { applyTheme, ui, useUi } from '../state/ui'
 import { Modal } from './Overlays'
 
@@ -68,7 +73,85 @@ function General() {
         <div className="label mb-2">Keyboard</div>
         <button className="btn outline" onClick={() => { ui.setSettings(false); ui.setHelp(true) }}>Show all shortcuts</button>
       </section>
+      {isTauri && <UpdateSettings />}
+      {isTauri && <CaptureSettings />}
     </div>
+  )
+}
+
+/** Check for a new version, install it, and restart. Updates are signed; anything else is refused. */
+function UpdateSettings() {
+  const { state, current } = useUpdater()
+  const [auto, setAuto] = useState(autoCheckEnabled())
+  useEffect(() => {
+    void updater.load()
+  }, [])
+  const busy = state.kind === 'checking' || state.kind === 'downloading'
+  return (
+    <section>
+      <div className="label mb-2">Updates</div>
+      <p className="mb-2.5 text-[12.5px] text-muted">You have Branchmint {current || '…'}.</p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        {state.kind === 'available' ? (
+          <button className="btn primary" onClick={() => void updater.install()}>Install version {state.version}</button>
+        ) : state.kind === 'ready' ? (
+          <button className="btn primary" onClick={() => void updater.restart()}>Restart to finish the update</button>
+        ) : (
+          <button className="btn outline" disabled={busy} onClick={() => void updater.check()}>{state.kind === 'checking' ? 'Checking…' : 'Check for updates'}</button>
+        )}
+        <label className="flex cursor-pointer items-center gap-2 text-[12.5px]">
+          <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={auto} onChange={(e) => { setAuto(e.target.checked); setAutoCheck(e.target.checked) }} />
+          Check when Branchmint starts
+        </label>
+      </div>
+      <div className="mt-2.5 text-[12.5px]" role="status" aria-live="polite" data-testid="update-status">
+        {state.kind === 'uptodate' && 'You have the latest version.'}
+        {state.kind === 'available' && (
+          <div>
+            <b>Version {state.version} is available.</b>
+            {state.notes && <p className="mt-1 whitespace-pre-wrap text-muted" dir="auto">{state.notes}</p>}
+          </div>
+        )}
+        {state.kind === 'downloading' && `Downloading… ${state.percent}%`}
+        {state.kind === 'ready' && `Version ${state.version} is installed. Restart to use it.`}
+        {state.kind === 'error' && <span style={{ color: 'var(--danger)' }}>{state.message}</span>}
+      </div>
+    </section>
+  )
+}
+
+/** Quick capture: the system-wide shortcut and the name of the map that collects the notes. */
+function CaptureSettings() {
+  const [shortcut, setShortcutText] = useState(getShortcut())
+  const [inbox, setInbox] = useState(getInboxName())
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const apply = async () => {
+    const ok = await registerCaptureShortcut(shortcut.trim() || DEFAULT_SHORTCUT)
+    if (ok) {
+      setShortcut(shortcut)
+      setMsg({ ok: true, text: `Press ${shortcut.trim() || DEFAULT_SHORTCUT} anywhere to capture a thought.` })
+    } else {
+      await registerCaptureShortcut(getShortcut()) // put the old one back
+      setMsg({ ok: false, text: 'That shortcut is not valid or another app uses it. The old one still works.' })
+    }
+  }
+  return (
+    <section>
+      <div className="label mb-2">Quick capture</div>
+      <p className="mb-2.5 text-[12.5px] text-muted">A small window opens from anywhere on your computer. Type a thought, press Enter, and it is added to one map.</p>
+      <div className="grid gap-2.5 sm:grid-cols-[1fr_auto]">
+        <label className="text-[12.5px]">
+          <span className="mb-1 block text-muted">Shortcut, for example Alt+Shift+Space or CommandOrControl+Shift+N</span>
+          <input className="field" aria-label="Capture shortcut" value={shortcut} spellCheck={false} onChange={(e) => setShortcutText(e.target.value)} />
+        </label>
+        <button className="btn outline self-end" onClick={() => void apply()}>Apply</button>
+      </div>
+      <label className="mt-2.5 block text-[12.5px]">
+        <span className="mb-1 block text-muted">Map that collects the notes</span>
+        <input className="field" aria-label="Inbox map name" dir="auto" value={inbox} onChange={(e) => { setInbox(e.target.value); setInboxName(e.target.value) }} />
+      </label>
+      {msg && <p className="mt-2 text-[12.5px]" role="status" style={{ color: msg.ok ? undefined : 'var(--danger)' }}>{msg.text}</p>}
+    </section>
   )
 }
 
@@ -85,6 +168,7 @@ function Plugins() {
       <ul className="space-y-2">
         {plugins.map((p) => <PluginRow key={p.manifest.id} p={p} />)}
       </ul>
+      <PluginGallery />
       {isTauri && (
         <div className="rounded-xl border border-dashed border-[var(--line-strong)] p-3.5 text-[12.5px] text-muted">
           <div className="mb-1 flex items-center gap-1.5 font-medium text-ink"><FolderOpen size={14} /> Install a plugin</div>
@@ -111,6 +195,19 @@ function PluginRow({ p }: { p: PluginRecord }) {
         </div>
         {p.manifest.description && <p className="mt-0.5 text-[12.5px] leading-snug text-muted">{p.manifest.description}</p>}
         {p.state === 'error' && <p className="mt-1 text-[12.5px] text-danger" role="alert">Could not start: {p.error}</p>}
+        {!p.builtin && isTauri && (
+          <button className="mt-1.5 text-[12px] text-muted hover:text-ink" onClick={async () => {
+            if (!(await askConfirm({ title: `Remove ${p.manifest.name}?`, body: 'Its folder is deleted. Restart Branchmint to finish.', confirmLabel: 'Remove', danger: true }))) return
+            try {
+              const { invoke } = await import('@tauri-apps/api/core')
+              await invoke('plugin_uninstall', { id: p.manifest.id })
+              await forgetPluginEnabled(p.manifest.id) // a plugin installed again later starts switched off
+              toast(`${p.manifest.name} removed. Restart Branchmint to finish.`, 'success')
+            } catch (e) {
+              toast(`Could not remove it: ${e instanceof Error ? e.message : e}`, 'error')
+            }
+          }}>Remove</button>
+        )}
       </div>
       <label className="relative mt-0.5 inline-flex shrink-0 cursor-pointer items-center" title={on ? 'Turn off' : 'Turn on'}>
         <input type="checkbox" role="switch" className="peer sr-only" checked={on} disabled={p.state === 'error' && !p.builtin} onChange={(e) => void setPluginEnabled(p.manifest.id, e.target.checked)} aria-label={`${p.manifest.name} enabled`} />

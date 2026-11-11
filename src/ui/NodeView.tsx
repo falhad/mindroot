@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
+import { ArrowUpRight, Hash, Link2, Minus, NotebookText, SquareCheckBig } from 'lucide-react'
 import { PLACEHOLDER, type NodeMetrics } from '../core/measure'
 import type { Box, MindNode } from '../core/types'
 import { isRtl, type NodeVisual } from '../core/visual'
@@ -16,13 +16,21 @@ export interface NodeViewProps {
   selected: boolean
   editing: boolean
   dim: boolean
+  /** Part of the path to a tag-filter match: shown a little faded. */
+  soft?: boolean
+  /** Not revealed yet in a presentation. */
+  stepHidden?: boolean
+  /** Depth in the map, the central idea is 1. */
+  level?: number
+  /** Another person who has this idea selected (live collaboration). */
+  peer?: { name: string; color: string }
   match: boolean
   dropInto: boolean
   dragging: boolean
   connecting: boolean
 }
 
-function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, dropInto, dragging, connecting }: NodeViewProps) {
+function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, soft, stepHidden, level, peer, match, dropInto, dragging, connecting }: NodeViewProps) {
   const plain = !vis.fill && !vis.stroke
   const style: CSSProperties = {
     transform: `translate(${box.x}px, ${box.y}px)`,
@@ -33,15 +41,25 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, 
     border: vis.stroke ? `${vis.strokeWidth}px solid ${vis.stroke}` : undefined,
     background: vis.gradient ? `linear-gradient(135deg, ${vis.gradient[0]}, ${vis.gradient[1]})` : (vis.fill ?? undefined),
     ['--sel' as string]: vis.accent,
-    font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px var(--font-sans)`,
+    ...(peer ? { outline: `2.5px solid ${peer.color}`, outlineOffset: 3 } : {}),
+    font: `${m.fontWeight} ${m.fontSize}px/${m.lineH}px ${m.family}`,
   }
-  const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
+  const cls = ['node', plain && 'plain', selected && 'selected', dim && 'dim', soft && 'soft', stepHidden && 'step-hidden', match && 'match', dropInto && 'drop-into', dragging && 'dragging', connecting && 'connect-target']
     .filter(Boolean)
     .join(' ')
   const textW = box.w - m.padX * 2 - m.iconW - m.badgeW
 
   return (
-    <div className={cls} style={style} data-node-id={node.id}>
+    <div
+      className={cls}
+      style={style}
+      data-node-id={node.id}
+      role="treeitem"
+      aria-level={level}
+      aria-selected={selected}
+      aria-expanded={node.children.length ? !node.collapsed : undefined}
+      aria-label={node.text.replace(/\s+/g, ' ').trim() || 'New idea'}
+    >
       <div style={{ display: 'flex', padding: `${m.padY}px ${m.padX}px 0`, height: m.lines.length * m.lineH }}>
         {node.icon && (
           <span style={{ width: m.iconW, display: 'grid', placeItems: 'center start', height: m.lineH, flex: 'none' }}>
@@ -72,6 +90,12 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, 
             {node.checklist?.length ? (
               <span data-badge="check" title="Checklist" style={badge}><SquareCheckBig size={13} /></span>
             ) : null}
+            {node.mapLink ? (
+              <span data-badge="maplink" title="Linked map (click to open)" style={badge}><ArrowUpRight size={13} /></span>
+            ) : null}
+            {node.tags?.length ? (
+              <span data-badge="tags" title={node.tags.map((t) => `#${t}`).join(' ')} style={badge}><Hash size={13} /></span>
+            ) : null}
           </span>
         )}
       </div>
@@ -85,6 +109,11 @@ function NodeViewImpl({ node, box, m, vis, side, selected, editing, dim, match, 
       )}
       {vis.underline && (
         <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: 2, background: vis.underline }} />
+      )}
+      {peer && (
+        <span data-peer={peer.name} aria-hidden style={{ position: 'absolute', left: 0, bottom: '100%', marginBottom: 5, padding: '1px 6px', borderRadius: 6, fontSize: 11, fontWeight: 600, lineHeight: '16px', color: '#fff', background: peer.color, whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {peer.name}
+        </span>
       )}
       {node.children.length > 0 && (
         <button
@@ -148,7 +177,8 @@ function Editor({ node, m, width }: { node: MindNode; m: NodeMetrics; width: num
       value={value}
       dir={rtl ? 'rtl' : 'ltr'}
       rows={m.lines.length}
-      spellCheck={false}
+      spellCheck
+      lang={rtl ? 'fa' : undefined}
       placeholder={PLACEHOLDER}
       style={{ font: 'inherit', lineHeight: `${m.lineH}px`, height: m.lines.length * m.lineH, width: Math.max(width, 20) }}
       onChange={(e) => {

@@ -1,15 +1,20 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { edgePath, relationPath } from '../core/edges'
+import { DASH, edgePath, hitRelation, relationPath } from '../core/edges'
 import { hitTest, type LayoutResult } from '../core/layout'
-import { subtreeIds, movable } from '../core/tree'
+import { tagFilterState } from '../core/tags'
+import { attachFloat, moveFloat, subtreeIds, movable, updateRelation } from '../core/tree'
 import type { Box, MapDoc } from '../core/types'
-import { makeVisualContext, nodeVisual } from '../core/visual'
+import { isRtl, makeVisualContext, nodeVisual } from '../core/visual'
 import { openExternal } from '../io/files'
 import { inTextField } from '../state/clipboard'
-import { connectNodes, dropNodes, select, setConnectFrom, startEdit, toggleCollapse, useDoc, type DropDest } from '../state/doc'
+import { addFloatAt, commit, connectNodes, dropNodes, select, setConnectFrom, startEdit, toggleCollapse, useDoc, type DropDest } from '../state/doc'
 import { useSearch } from '../state/search'
 import { ui, useUi } from '../state/ui'
 import { MAX_ZOOM, MIN_ZOOM, screenToWorld, setView, setViewport, useView, zoomAt } from '../state/view'
+import { followMapLink } from '../state/links'
+import { usePresence } from '../state/presence'
+import { usePresent } from '../state/present'
+import { GroupBoxes, SummaryBraces } from './GroupView'
 import { NodeView } from './NodeView'
 import { useTweenedBoxes } from './useTween'
 
@@ -75,7 +80,8 @@ function dropToDest(layout: LayoutResult, doc: MapDoc, drop: Drop, px: number): 
 /** The side of a node its children grow towards (where the collapse button goes). */
 function childSide(doc: MapDoc, layout: LayoutResult, id: string): 'left' | 'right' | 'up' | 'down' {
   if (!doc.nodes[id].parentId) {
-    return doc.layout === 'right' ? 'right' : doc.layout === 'left' ? 'left' : doc.layout === 'up' ? 'up' : 'down'
+    const side = doc.layout === 'right' ? 'right' : doc.layout === 'left' ? 'left' : doc.layout === 'up' ? 'up' : 'down'
+    return doc.dir === 'rtl' ? (side === 'right' ? 'left' : side === 'left' ? 'right' : side) : side
   }
   const a = layout.attach[id]
   if (a === 'radial') {
@@ -108,6 +114,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
   const [drag, setDrag] = useState<DragState | null>(null)
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [panning, setPanning] = useState(false)
+  const [editingRel, setEditingRel] = useState<string | null>(null)
   const gesture = useRef<Gesture | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const selRef = useRef(selection)
@@ -284,9 +291,22 @@ export function Canvas({ doc, layout, onContext }: Props) {
     if (g.kind === 'drag') {
       const d = drag
       setDrag(null)
-      if (d?.drop && !cancelled) {
+      if (d && !cancelled) {
         const w = screenToWorld(p.x, p.y)
-        dropNodes(d.ids, dropToDest(layout, doc, d.drop, w.x))
+        const floating = d.ids.filter((id) => !doc.nodes[id]?.parentId)
+        const attached = d.ids.filter((id) => doc.nodes[id]?.parentId)
+        // floating branches move with the pointer; only dropping straight onto a node attaches them
+        if (floating.length) {
+          const onto = d.drop?.kind === 'into' ? d.drop.id : null
+          commit((dd) => {
+            for (const id of floating) {
+              const pos = dd.nodes[id]?.pos
+              if (onto && attachFloat(dd, id, onto)) continue
+              if (pos) moveFloat(dd, id, pos.x + (dd.dir === 'rtl' ? -d.dx : d.dx), pos.y + d.dy)
+            }
+          })
+        }
+        if (attached.length && d.drop) dropNodes(attached, dropToDest(layout, doc, d.drop, w.x))
       }
     }
     if (g.kind === 'marquee') {
@@ -318,14 +338,25 @@ export function Canvas({ doc, layout, onContext }: Props) {
     if (bd && nodeEl) {
       const n = doc.nodes[nodeEl.dataset.nodeId!]
       select([n.id])
-      if (bd.dataset.badge === 'link' && n.link && (e.metaKey || e.ctrlKey)) void openExternal(n.link)
+      if (bd.dataset.badge === 'maplink' && n.mapLink) followMapLink(n.mapLink)
+      else if (bd.dataset.badge === 'link' && n.link && (e.metaKey || e.ctrlKey)) void openExternal(n.link)
       else ui.setInspector(true)
     }
   }
 
   const onDoubleClick = (e: React.MouseEvent) => {
-    const nodeEl = (e.target as HTMLElement).closest('[data-node-id]') as HTMLElement | null
-    if (nodeEl && !(e.target as HTMLElement).closest('.node-edit,[data-collapse],[data-badge]')) startEdit(nodeEl.dataset.nodeId!)
+    const target = e.target as HTMLElement
+    if (target.closest('.node-edit,input,textarea,[data-collapse],[data-badge]')) return
+    // The canvas captures the pointer, so the browser may report the canvas itself as the target of
+    // a double-click. Find what was hit by position, not by event target.
+    const p = local(e)
+    const w = screenToWorld(p.x, p.y)
+    const hit = hitTest(layout, w.x, w.y, undefined, 2)
+    if (hit) return startEdit(hit)
+    const rel = hitRelation(doc.relations, layout.boxes, w.x, w.y, 10 / useView.getState().k)
+    if (rel) return setEditingRel(rel)
+    // empty canvas: a new floating node (Shift = sticky note)
+    addFloatAt(w.x, w.y, e.shiftKey)
   }
 
   const onContextMenu = (e: React.MouseEvent) => {
@@ -349,6 +380,20 @@ export function Canvas({ doc, layout, onContext }: Props) {
   const matches = useMemo(() => new Set(search.hits.map((h) => h.id)), [search.hits])
   const searching = search.query.trim() !== ''
   const selSet = useMemo(() => new Set(selection), [selection])
+  const presentActive = usePresent((s) => s.active)
+  const presentStep = usePresent((s) => s.step)
+  const presentSteps = usePresent((s) => s.steps)
+  // ids shown so far in a presentation; null when not presenting
+  const shown = useMemo(() => (presentActive ? new Set(presentSteps.slice(0, presentStep + 1).flat()) : null), [presentActive, presentStep, presentSteps])
+  const peers = usePresence((s) => s.peers)
+  // the people editing this map with you: who has which idea selected
+  const peerBy = useMemo(() => {
+    const m = new Map<string, { name: string; color: string }>()
+    for (const p of peers) for (const id of p.selection) if (!m.has(id)) m.set(id, { name: p.name, color: p.color })
+    return m
+  }, [peers])
+  const tagFilter = useUi((s) => s.tagFilter)
+  const tagState = useMemo(() => tagFilterState(doc, tagFilter), [doc, tagFilter])
 
   const dropIndicator = (() => {
     if (!drag?.drop || drag.drop.kind === 'into') return null
@@ -381,6 +426,9 @@ export function Canvas({ doc, layout, onContext }: Props) {
       style={background}
       tabIndex={-1}
       data-testid="canvas"
+      role="tree"
+      aria-label="Mind map"
+      aria-multiselectable="true"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finish(e)}
@@ -389,8 +437,9 @@ export function Canvas({ doc, layout, onContext }: Props) {
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
     >
-      <div className="world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
-        <svg className="edges" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <div className="world" role="presentation" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})` }}>
+        <GroupBoxes doc={doc} layout={layout} dark={dark} shown={shown} />
+        <svg className="edges" aria-hidden="true" focusable="false" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M1 1L9 5L1 9" fill="none" stroke="var(--muted)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -398,7 +447,7 @@ export function Canvas({ doc, layout, onContext }: Props) {
           </defs>
           {layout.order.map((id) => {
             const n = doc.nodes[id]
-            if (!n.parentId) return null
+            if (!n.parentId || n.sticky || (shown && !(shown.has(id) && shown.has(n.parentId)))) return null
             const hot = selSet.has(id) || selSet.has(n.parentId)
             return (
               <EdgeView
@@ -410,10 +459,21 @@ export function Canvas({ doc, layout, onContext }: Props) {
               />
             )
           })}
+          <SummaryBraces doc={doc} layout={layout} shown={shown} />
           {doc.relations.map((r) => {
-            if (!layout.boxes[r.from] || !layout.boxes[r.to]) return null
+            if (!layout.boxes[r.from] || !layout.boxes[r.to] || (shown && !(shown.has(r.from) && shown.has(r.to)))) return null
             const p = relationPath(renderBox(r.from), renderBox(r.to))
-            return <path key={r.id} d={p.d} stroke="var(--muted)" strokeWidth={1.8} strokeDasharray="6 5" markerEnd="url(#arrow)" />
+            const arrow = r.arrow ?? 'end'
+            return (
+              <g key={r.id} data-relation={r.id}>
+                <path d={p.d} stroke="var(--muted)" strokeWidth={1.8} strokeDasharray={DASH[r.dash ?? 'dashed']}
+                  markerEnd={arrow !== 'none' ? 'url(#arrow)' : undefined} markerStart={arrow === 'both' ? 'url(#arrow)' : undefined} />
+                {r.label && editingRel !== r.id && (
+                  <text x={p.mid.x} y={p.mid.y} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={500} fill="var(--muted)" stroke="var(--canvas)" strokeWidth={4}
+                    paintOrder="stroke" strokeLinejoin="round" pointerEvents="none" direction={isRtl(r.label) ? 'rtl' : 'ltr'}>{r.label}</text>
+                )}
+              </g>
+            )
           })}
         </svg>
         {layout.order.map((id) => (
@@ -426,7 +486,11 @@ export function Canvas({ doc, layout, onContext }: Props) {
             side={childSide(doc, layout, id)}
             selected={selSet.has(id)}
             editing={editingId === id}
-            dim={searching && !matches.has(id)}
+            dim={searching ? !matches.has(id) : tagState?.get(id) === 'dim'}
+            soft={!searching && tagState?.get(id) === 'path'}
+            level={layout.depth[id] + 1}
+            stepHidden={!!shown && !shown.has(id)}
+            peer={peerBy.get(id)}
             match={searching && matches.has(id)}
             dropInto={drag?.drop?.kind === 'into' && drag.drop.id === id}
             dragging={!!drag && drag.skip.has(id)}
@@ -434,6 +498,35 @@ export function Canvas({ doc, layout, onContext }: Props) {
           />
         ))}
         {dropIndicator && <div className="drop-line" style={dropIndicator} />}
+        {editingRel && (() => {
+          const r = doc.relations.find((x) => x.id === editingRel)
+          if (!r || !layout.boxes[r.from] || !layout.boxes[r.to]) return null
+          const mid = relationPath(renderBox(r.from), renderBox(r.to)).mid
+          const done = (save: boolean, value: string) => {
+            setEditingRel(null)
+            if (save) commit((d) => updateRelation(d, r.id, { label: value }))
+          }
+          return (
+            <input
+              autoFocus
+              aria-label="Link label"
+              className="field"
+              dir="auto"
+              defaultValue={r.label ?? ''}
+              placeholder="Label"
+              style={{ position: 'absolute', left: mid.x, top: mid.y, transform: 'translate(-50%, -50%)', width: 140, height: 28, textAlign: 'center', zIndex: 6 }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.nativeEvent.isComposing) return
+                if (e.key === 'Enter') done(true, e.currentTarget.value)
+                else if (e.key === 'Escape') done(false, '')
+              }}
+              onBlur={(e) => done(true, e.currentTarget.value)}
+            />
+          )
+        })()}
       </div>
       {marquee && (
         <div
