@@ -94,10 +94,23 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
+      # An Apple variable that is set but EMPTY makes Tauri try to import a certificate and fail. So the
+      # Apple variables are given only when the secret exists; otherwise the build is made unsigned.
+      - name: Is macOS signing configured?
+        id: apple
+        env:
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          if [ -n "$CERT" ]; then echo "signed=true" >> "$GITHUB_OUTPUT"; else echo "signed=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Build and release (macOS signing and notarization)
+        if: steps.apple.outputs.signed == 'true'
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Optional code signing. Leave the secrets unset and the installers are built unsigned.
+          # Signs the update files (latest.json and the .sig files) so installed apps accept them. See docs/releasing.md.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # macOS: APPLE_CERTIFICATE (base64 .p12), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
           #        and for notarization APPLE_ID, APPLE_PASSWORD (app-specific), APPLE_TEAM_ID.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -106,6 +119,24 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tauriScript: pnpm tauri
+          args: ${{ matrix.args }}
+          tagName: ${{ env.TAG }}
+          releaseName: Branchmint ${{ env.TAG }}
+          releaseBody: |
+            Installers for macOS (Apple Silicon and Intel), Windows and Linux.
+
+            These builds are not code-signed unless signing secrets were set. See "Installing an unsigned build" in docs/releasing.md.
+          releaseDraft: true
+          includeUpdaterJson: true
+          prerelease: false
+
+      - name: Build and release (unsigned installers)
+        if: steps.apple.outputs.signed != 'true'
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Signs the update files (latest.json and the .sig files) so installed apps accept them. See docs/releasing.md.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
