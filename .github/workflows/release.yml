@@ -98,6 +98,7 @@ jobs:
       # Apple variables are given only when the secret exists; otherwise the build is made unsigned.
       - name: Is macOS signing configured?
         id: apple
+        shell: bash # the Windows runner would otherwise use PowerShell
         env:
           CERT: ${{ secrets.APPLE_CERTIFICATE }}
         run: |
