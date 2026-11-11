@@ -1,6 +1,6 @@
 [package]
 name = "branchmint"
-version = "0.1.0"
+version = "0.2.0"
 description = "Branchmint — a fast, beautiful mind-mapping app"
 edition = "2021"
 license = "MIT"
