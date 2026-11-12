@@ -49,6 +49,28 @@ describe('AI client: responses', () => {
     expect(parseResponse('anthropic', JSON.stringify({ content: [{ type: 'thinking', thinking: 'x' }, { type: 'text', text: 'hi ' }, { type: 'text', text: 'there' }] }))).toBe('hi there')
   })
 
+  it('reads a streamed reply (server-sent events) from either format', () => {
+    const oa = ['data: {"choices":[{"delta":{"role":"assistant","content":"{\\"te"}}]}', '', 'data: {"choices":[{"delta":{"content":"xt\\":\\"ok\\"}"}}]}', '', 'data: [DONE]', ''].join('\n')
+    expect(parseResponse('openai', oa)).toBe('{"text":"ok"}')
+    const an = ['event: content_block_delta', 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hel"}}', '', 'event: content_block_delta', 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"lo"}}', ''].join('\n')
+    expect(parseResponse('anthropic', an)).toBe('hello')
+    expect(() => parseResponse('openai', 'data: [DONE]\n')).toThrow(/nothing/)
+  })
+
+  it('asks for a normal (not streamed) reply', () => {
+    expect(JSON.parse(buildRequest(openai, 'k', msgs).body!).stream).toBe(false)
+    expect(JSON.parse(buildRequest(anthropic, 'k', msgs).body!).stream).toBe(false)
+  })
+
+  it('an unreadable reply shows its first words (without the key) so the cause can be seen', async () => {
+    const html = { request: async () => ({ status: 200, body: '<html><body>Open the dashboard: sk-secret </body></html>' }) }
+    const err = (await chat(openai, 'sk-secret', msgs, html).catch((e: unknown) => e)) as Error
+    expect(err.message).toMatch(/understand/)
+    expect(err.message).toContain('<html>')
+    expect(err.message).not.toContain('sk-secret')
+    expect(err.message.length).toBeLessThan(260)
+  })
+
   it('an empty or malformed reply is an error, not an empty string', () => {
     expect(() => parseResponse('openai', JSON.stringify({ choices: [] }))).toThrow(/nothing|empty/i)
     expect(() => parseResponse('anthropic', '{"content":[]}')).toThrow(/nothing|empty/i)

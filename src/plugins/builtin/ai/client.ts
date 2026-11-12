@@ -36,7 +36,7 @@ export function buildRequest(cfg: AiConfig, key: string, messages: ChatMessage[]
       url: /\/v1$/.test(root) ? `${root}/messages` : `${root}/v1/messages`,
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: cfg.model, max_tokens: MAX_TOKENS, ...(system ? { system } : {}), messages: messages.filter((m) => m.role !== 'system') }),
+      body: JSON.stringify({ model: cfg.model, max_tokens: MAX_TOKENS, stream: false, ...(system ? { system } : {}), messages: messages.filter((m) => m.role !== 'system') }),
       timeoutMs: cfg.timeoutMs,
     }
   }
@@ -44,7 +44,7 @@ export function buildRequest(cfg: AiConfig, key: string, messages: ChatMessage[]
     url: `${root}/chat/completions`,
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: cfg.model, messages }),
+    body: JSON.stringify({ model: cfg.model, messages, stream: false }),
     timeoutMs: cfg.timeoutMs,
   }
 }
@@ -55,7 +55,10 @@ export function parseResponse(kind: AiKind, body: string): string {
   try {
     data = JSON.parse(body)
   } catch {
-    throw new Error('Could not understand the reply from the AI service')
+    // some gateways stream the answer even when asked not to: server-sent events ("data: {...}" lines)
+    if (/^\s*(event:|data:)/m.test(body)) return parseSse(kind, body)
+    const snippet = body.replace(/\s+/g, ' ').trim().slice(0, 120)
+    throw new Error(`Could not understand the reply from the AI service${snippet ? `: "${snippet}"` : ' (it was empty)'}`)
   }
   let text = ''
   if (kind === 'anthropic') {
@@ -63,6 +66,28 @@ export function parseResponse(kind: AiKind, body: string): string {
   } else {
     const c = data?.choices?.[0]?.message?.content
     text = typeof c === 'string' ? c : Array.isArray(c) ? c.map((p: any) => (typeof p?.text === 'string' ? p.text : '')).join('') : ''
+  }
+  if (!text.trim()) throw new Error('The AI service returned nothing')
+  return text
+}
+
+/** The text of a streamed answer: the pieces from every `data:` line, joined. */
+function parseSse(kind: AiKind, body: string): string {
+  let text = ''
+  for (const line of body.split('\n')) {
+    const m = /^data:\s?(.*)$/.exec(line.trim())
+    if (!m || m[1] === '[DONE]') continue
+    try {
+      const d = JSON.parse(m[1])
+      if (kind === 'anthropic') text += d?.type === 'content_block_delta' && typeof d.delta?.text === 'string' ? d.delta.text : ''
+      else {
+        const c = d?.choices?.[0]
+        const piece = c?.delta?.content ?? c?.message?.content
+        text += typeof piece === 'string' ? piece : ''
+      }
+    } catch {
+      /* a keep-alive or comment line */
+    }
   }
   if (!text.trim()) throw new Error('The AI service returned nothing')
   return text
@@ -86,7 +111,12 @@ export async function chat(cfg: AiConfig, key: string, messages: ChatMessage[], 
   if (!key.trim()) throw new Error('Add your API key in Settings → AI')
   const res = await net.request(buildRequest(cfg, key.trim(), messages))
   if (res.status < 200 || res.status >= 300) throw new Error(`The AI service answered ${res.status}${errorDetail(res.body, key.trim())}`)
-  return parseResponse(cfg.kind, res.body)
+  try {
+    return parseResponse(cfg.kind, res.body)
+  } catch (e) {
+    // an unreadable reply may quote the request: never show the key
+    throw new Error((e instanceof Error ? e.message : String(e)).split(key.trim()).join('…'))
+  }
 }
 
 /** The first complete JSON object in a model's answer (it may be fenced or have words around it). */
