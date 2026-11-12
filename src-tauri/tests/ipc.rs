@@ -36,14 +36,14 @@ fn json_call(w: &tauri::WebviewWindow<tauri::test::MockRuntime>, cmd: &str, args
 }
 
 fn app() -> (App, std::path::PathBuf) {
-    let home = std::env::temp_dir().join(format!("branchmint-ipc-{}", std::process::id()));
+    let home = std::env::temp_dir().join(format!("mindroot-ipc-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&home);
     std::fs::create_dir_all(&home).unwrap();
     // app_data_dir() derives from these; keep the test out of the real user data folder
     std::env::set_var("HOME", &home);
     std::env::set_var("XDG_DATA_HOME", home.join("data"));
     std::env::set_var("APPDATA", &home);
-    let app = branchmint_lib::configure(mock_builder()).build(mock_context(noop_assets())).expect("app");
+    let app = mindroot_lib::configure(mock_builder()).build(mock_context(noop_assets())).expect("app");
     (app, home)
 }
 
@@ -101,9 +101,9 @@ fn every_command_works_the_way_the_frontend_calls_it() {
     assert_eq!(json_call(&w, "template_list", json!({})), json!([]));
 
     // plugin settings   (src/plugins/host.ts)
-    assert!(json_call(&w, "plugin_settings_get", json!({ "id": "branchmint.sync" })).is_null());
-    json_call(&w, "plugin_settings_set", json!({ "id": "branchmint.sync", "json": r#"{"enabled":true}"# }));
-    assert_eq!(json_call(&w, "plugin_settings_get", json!({ "id": "branchmint.sync" })).as_str().unwrap(), r#"{"enabled":true}"#);
+    assert!(json_call(&w, "plugin_settings_get", json!({ "id": "mindroot.sync" })).is_null());
+    json_call(&w, "plugin_settings_set", json!({ "id": "mindroot.sync", "json": r#"{"enabled":true}"# }));
+    assert_eq!(json_call(&w, "plugin_settings_get", json!({ "id": "mindroot.sync" })).as_str().unwrap(), r#"{"enabled":true}"#);
     assert!(call(&w, "plugin_settings_get", InvokeBody::Json(json!({ "id": "../x" })), &[]).is_err());
 
     // installed plugins

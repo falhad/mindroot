@@ -10,7 +10,7 @@ fn every_call_the_sync_engine_makes_is_allowed() {
     assert!(calls.len() > 15, "fixture looks too small: {} calls", calls.len());
     let mut rejected = Vec::new();
     for c in &calls {
-        if let Err(e) = branchmint_lib::check_git_args(c) {
+        if let Err(e) = mindroot_lib::check_git_args(c) {
             rejected.push(format!("{c:?}: {e}"));
         }
     }

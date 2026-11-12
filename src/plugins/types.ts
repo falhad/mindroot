@@ -34,7 +34,7 @@ export interface NetResponse {
 }
 
 /**
- * The Branchmint plugin API (version 2; version 1 plugins still load).
+ * The Mindroot plugin API (version 2; version 1 plugins still load).
  *
  * A plugin is an object with a manifest and an `activate(ctx)` function. Everything a plugin
  * adds (commands, status chips, settings panels, event listeners) is registered through `ctx`
@@ -51,7 +51,7 @@ export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2]
 export type PluginPermission = 'native' | 'net' | 'secrets'
 
 export interface PluginManifest {
-  /** Unique, lower-case, e.g. `branchmint.sync` or `acme.word-count`. */
+  /** Unique, lower-case, e.g. `mindroot.sync` or `acme.word-count`. */
   id: string
   name: string
   version: string

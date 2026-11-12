@@ -101,7 +101,7 @@ export function Dashboard() {
       <header data-tauri-drag-region className={`drag-region flex h-14 shrink-0 items-center gap-2 border-b border-line px-3 sm:gap-3 sm:px-4 ${isMac && isTauri ? 'mac-inset' : ''}`}>
         <div className="no-drag flex items-center gap-2.5">
           <img src="/favicon.svg" alt="" width={26} height={26} />
-          <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">Branchmint</span>
+          <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">Mindroot</span>
         </div>
         <div className="no-drag relative mx-auto min-w-0 w-full max-w-md flex-1">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />

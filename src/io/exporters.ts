@@ -106,7 +106,7 @@ export async function buildVectorPdf(doc: MapDoc, o: ExportOptions): Promise<Uin
     const w = width * k
     const h = height * k
     const pdf = new jsPDF({ unit: 'pt', format: [w, h], orientation: w >= h ? 'landscape' : 'portrait', compress: false })
-    pdf.setProperties({ title: doc.meta.title, creator: 'Branchmint' })
+    pdf.setProperties({ title: doc.meta.title, creator: 'Mindroot' })
     await svg2pdf(host.firstElementChild as SVGElement, pdf, { x: 0, y: 0, width: w, height: h })
     return new Uint8Array(pdf.output('arraybuffer'))
   } finally {
@@ -128,7 +128,7 @@ export async function buildPdf(doc: MapDoc, o: ExportOptions): Promise<Uint8Arra
   const w = width * k
   const h = height * k
   const pdf = new jsPDF({ unit: 'pt', format: [w, h], orientation: w >= h ? 'landscape' : 'portrait', compress: true })
-  pdf.setProperties({ title: doc.meta.title, creator: 'Branchmint' })
+  pdf.setProperties({ title: doc.meta.title, creator: 'Mindroot' })
   pdf.addImage(dataUrl, 'PNG', 0, 0, w, h, undefined, 'FAST')
   return new Uint8Array(pdf.output('arraybuffer'))
 }
@@ -160,7 +160,7 @@ export async function exportMap(doc: MapDoc, format: ExportFormat, o: ExportOpti
     case 'html':
       return saveFile(await buildHtmlPage(doc), { defaultName: `${name}.html`, extensions: ['html'], label: 'Web page' })
     case 'json':
-      return saveFile(exportJson(doc), { defaultName: `${name}.branchmint.json`, extensions: ['json'], label: 'Branchmint map' })
+      return saveFile(exportJson(doc), { defaultName: `${name}.mindroot.json`, extensions: ['json'], label: 'Mindroot map' })
     case 'md':
       return saveFile(toMarkdown(doc), { defaultName: `${name}.md`, extensions: ['md'], label: 'Markdown' })
     case 'svg':

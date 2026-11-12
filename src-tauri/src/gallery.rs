@@ -164,7 +164,7 @@ pub async fn plugin_install<R: Runtime>(app: AppHandle<R>, url: String, sha256: 
         // every hop must be https (a redirect must not lead the download to plain http or another scheme)
         .redirect(reqwest::redirect::Policy::custom(|a| if a.url().scheme() == "https" && a.previous().len() < 5 { a.follow() } else { a.stop() }))
         .timeout(std::time::Duration::from_secs(60))
-        .user_agent("Branchmint")
+        .user_agent("Mindroot")
         .build()
         .map_err(|e| e.to_string())?;
     let mut res = client.get(url).send().await.map_err(|e| format!("Download failed: {}", e.without_url()))?;

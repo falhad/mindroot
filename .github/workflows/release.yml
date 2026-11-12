@@ -124,7 +124,7 @@ jobs:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
           tagName: ${{ env.TAG }}
-          releaseName: Branchmint ${{ env.TAG }}
+          releaseName: Mindroot ${{ env.TAG }}
           releaseBody: |
             Installers for macOS (Apple Silicon and Intel), Windows and Linux.
 
@@ -145,7 +145,7 @@ jobs:
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
           tagName: ${{ env.TAG }}
-          releaseName: Branchmint ${{ env.TAG }}
+          releaseName: Mindroot ${{ env.TAG }}
           releaseBody: |
             Installers for macOS (Apple Silicon and Intel), Windows and Linux.
 

@@ -183,17 +183,17 @@ describe('installed plugin loader', () => {
         syntax: { manifest: manifest('bad.syntax'), code: 'SYNTAX' },
         nofile: { manifest: manifest('no.file') },
         badmanifest: { manifest: { id: 'X' } },
-        dup: { manifest: manifest('branchmint.sync'), code: 'GOOD' },
+        dup: { manifest: manifest('mindroot.sync'), code: 'GOOD' },
       }),
       importer,
-      new Set(['branchmint.sync']),
+      new Set(['mindroot.sync']),
     )
     const by = Object.fromEntries(found.map((f) => [f.plugin.manifest.id, f.error]))
     expect(by['ok.plugin']).toBeUndefined()
     expect(by['no.activate']).toMatch(/default/)
     expect(by['bad.syntax']).toMatch(/syntax/)
     expect(by['no.file']).toMatch(/not found/)
-    expect(by['branchmint.sync']).toMatch(/already used/)
+    expect(by['mindroot.sync']).toMatch(/already used/)
     expect(found.find((f) => f.error?.includes('badmanifest'))).toBeTruthy()
     expect(found.every((f) => f.builtin === false)).toBe(true)
   })

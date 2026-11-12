@@ -165,9 +165,9 @@ describe('AI plugin in the app', async () => {
     const topic = Object.values(d.nodes).find((n) => n.text === 'Topic')!.id
     store.select([topic])
     // settings: an OpenRouter-style endpoint; the key goes to the secrets store, never to the settings
-    localStorage.setItem('bm.plugin.branchmint.ai', JSON.stringify({ kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', model: 'm', timeoutMs: 5000 }))
-    sessionStorage.setItem('bm.secret.branchmint.ai.apikey', key)
-    const run = (cmd: string) => useRegistry.getState().commands.find((c) => c.id === `branchmint.ai:${cmd}`)!.run()
+    localStorage.setItem('bm.plugin.mindroot.ai', JSON.stringify({ kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', model: 'm', timeoutMs: 5000 }))
+    sessionStorage.setItem('bm.secret.mindroot.ai.apikey', key)
+    const run = (cmd: string) => useRegistry.getState().commands.find((c) => c.id === `mindroot.ai:${cmd}`)!.run()
     return { d, topic, run }
   }
   const settle = () => new Promise((r) => setTimeout(r, 30))
@@ -200,7 +200,7 @@ describe('AI plugin in the app', async () => {
   it('without an API key nothing is sent', async () => {
     const f = reply('{"items":["x"]}')
     const { run } = await setup(f, '')
-    sessionStorage.removeItem('bm.secret.branchmint.ai.apikey')
+    sessionStorage.removeItem('bm.secret.mindroot.ai.apikey')
     run('expand')
     await settle()
     expect(f).not.toHaveBeenCalled()

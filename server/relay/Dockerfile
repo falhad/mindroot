@@ -1,8 +1,8 @@
-# Branchmint relay. Build:  docker build -t branchmint-relay server/relay
+# Mindroot relay. Build:  docker build -t mindroot-relay server/relay
 # Run (bound to this machine only; put a TLS reverse proxy in front):
-#   docker run -d --name branchmint-relay --restart unless-stopped \
-#     -e SECRET="$(openssl rand -hex 32)" -v branchmint-relay-data:/data \
-#     -p 127.0.0.1:8787:8787 branchmint-relay
+#   docker run -d --name mindroot-relay --restart unless-stopped \
+#     -e SECRET="$(openssl rand -hex 32)" -v mindroot-relay-data:/data \
+#     -p 127.0.0.1:8787:8787 mindroot-relay
 FROM node:24-alpine
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 DATA_DIR=/data
 WORKDIR /app

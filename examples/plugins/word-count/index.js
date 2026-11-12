@@ -1,6 +1,6 @@
-// Example Branchmint plugin: a word counter in the header.
+// Example Mindroot plugin: a word counter in the header.
 // Install: copy this folder into the plugins folder (Settings > Plugins shows where),
-// restart Branchmint, then switch the plugin on under Settings > Plugins.
+// restart Mindroot, then switch the plugin on under Settings > Plugins.
 //
 // A plugin is an ES module whose default export has activate(ctx).
 // ctx.react is the app's React, so no build step or bundling is needed.

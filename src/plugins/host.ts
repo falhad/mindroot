@@ -276,7 +276,7 @@ function setRecord(id: string, patch: Partial<PluginRecord>) {
   set((s) => ({ plugins: s.plugins.map((p) => (p.manifest.id === id ? { ...p, ...patch } : p)) }))
 }
 
-const CORE = 'branchmint.core'
+const CORE = 'mindroot.core'
 
 interface CoreSettings {
   /** Built-in plugins the user turned off. */

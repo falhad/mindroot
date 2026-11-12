@@ -200,7 +200,7 @@ fn ensure_identity(vault: &Path) {
     let get = |key: &str| {
         Command::new("git").args(["config", "--get", key]).current_dir(vault).output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|s| !s.is_empty())
     };
-    for (key, fallback) in [("user.name", "Branchmint"), ("user.email", "branchmint@localhost")] {
+    for (key, fallback) in [("user.name", "Mindroot"), ("user.email", "mindroot@localhost")] {
         if get(key).is_none() {
             let _ = Command::new("git").args(["config", key, fallback]).current_dir(vault).output();
         }
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn runs_real_git_in_a_folder_and_reports_exit_codes() {
-        let dir = std::env::temp_dir().join(format!("branchmint-git-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("mindroot-git-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         ensure_repo(&dir, "main").unwrap();

@@ -8,7 +8,7 @@ export function SyncStatus() {
   const { phase, lastSyncAt, error, settings } = useSync()
   if (phase === 'off' && !settings.remoteUrl) return null
   const base = 'btn gap-1.5 text-[12px]'
-  const open = () => ui.setSettings(true, 'branchmint.sync')
+  const open = () => ui.setSettings(true, 'mindroot.sync')
   if (phase === 'syncing')
     return <button className={base} onClick={open} title="Syncing with Git"><Loader2 size={14} className="animate-spin" /> <span className="hidden md:inline">Syncing…</span></button>
   if (phase === 'error')

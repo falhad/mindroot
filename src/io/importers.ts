@@ -19,7 +19,7 @@ const extOf = (name: string) => (/\.[^.]+$/.exec(name)?.[0] ?? '').toLowerCase()
 /** Read any supported file into a new map (fresh map id). Throws an error with a readable message. */
 export async function docFromFile(file: File, plugins: ImporterSpec[] = []): Promise<MapDoc> {
   const ext = extOf(file.name)
-  const base = file.name.replace(/\.[^.]+$/, '').replace(/\.branchmint$/, '')
+  const base = file.name.replace(/\.[^.]+$/, '').replace(/\.(mindroot|branchmint)$/, '')
 
   const plugin = plugins.find((p) => p.extensions.includes(ext))
   if (plugin) {

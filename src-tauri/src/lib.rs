@@ -1,4 +1,4 @@
-//! Branchmint backend: file storage for maps, the Git runner used by sync, and plugin files.
+//! Mindroot backend: file storage for maps, the Git runner used by sync, and plugin files.
 
 mod attachments;
 mod gallery;
@@ -63,5 +63,5 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build()).plugin(tauri_plugin_process::init());
     builder
         .run(tauri::generate_context!())
-        .expect("error while running Branchmint");
+        .expect("error while running Mindroot");
 }

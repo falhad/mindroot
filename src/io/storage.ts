@@ -74,7 +74,7 @@ let idb: Promise<IDBDatabase> | null = null
 
 function openIdb(): Promise<IDBDatabase> {
   idb ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open('branchmint', 3)
+    const req = indexedDB.open('mindroot', 3)
     req.onupgradeneeded = () => {
       const db = req.result
       if (!db.objectStoreNames.contains('maps')) db.createObjectStore('maps')

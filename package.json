@@ -1,7 +1,28 @@
 {
-  "name": "branchmint",
+  "name": "mindroot",
   "private": true,
   "version": "0.2.1",
+  "description": "A fast, keyboard-first, local-first mind-mapping app for the desktop, with Git sync, plugins and live collaboration.",
+  "author": "Farhad (https://github.com/falhad)",
+  "homepage": "https://github.com/falhad/mindroot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/falhad/mindroot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/falhad/mindroot/issues"
+  },
+  "keywords": [
+    "mind-map",
+    "mindmap",
+    "tauri",
+    "local-first",
+    "git-sync",
+    "react",
+    "rust",
+    "rtl",
+    "desktop-app"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

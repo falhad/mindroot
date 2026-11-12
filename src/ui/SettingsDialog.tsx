@@ -90,7 +90,7 @@ function UpdateSettings() {
   return (
     <section>
       <div className="label mb-2">Updates</div>
-      <p className="mb-2.5 text-[12.5px] text-muted">You have Branchmint {current || '…'}.</p>
+      <p className="mb-2.5 text-[12.5px] text-muted">You have Mindroot {current || '…'}.</p>
       <div className="flex flex-wrap items-center gap-2.5">
         {state.kind === 'available' ? (
           <button className="btn primary" onClick={() => void updater.install()}>Install version {state.version}</button>
@@ -101,7 +101,7 @@ function UpdateSettings() {
         )}
         <label className="flex cursor-pointer items-center gap-2 text-[12.5px]">
           <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={auto} onChange={(e) => { setAuto(e.target.checked); setAutoCheck(e.target.checked) }} />
-          Check when Branchmint starts
+          Check when Mindroot starts
         </label>
       </div>
       <div className="mt-2.5 text-[12.5px]" role="status" aria-live="polite" data-testid="update-status">
@@ -172,7 +172,7 @@ function Plugins() {
       {isTauri && (
         <div className="rounded-xl border border-dashed border-[var(--line-strong)] p-3.5 text-[12.5px] text-muted">
           <div className="mb-1 flex items-center gap-1.5 font-medium text-ink"><FolderOpen size={14} /> Install a plugin</div>
-          Put its folder (with <code>manifest.json</code> and <code>index.js</code>) here, then restart Branchmint:
+          Put its folder (with <code>manifest.json</code> and <code>index.js</code>) here, then restart Mindroot:
           <code className="mt-1 block break-all text-ink">{path || '…'}</code>
           Installed plugins start switched off. They run with full access to the app, so only enable code you trust.
         </div>
@@ -197,12 +197,12 @@ function PluginRow({ p }: { p: PluginRecord }) {
         {p.state === 'error' && <p className="mt-1 text-[12.5px] text-danger" role="alert">Could not start: {p.error}</p>}
         {!p.builtin && isTauri && (
           <button className="mt-1.5 text-[12px] text-muted hover:text-ink" onClick={async () => {
-            if (!(await askConfirm({ title: `Remove ${p.manifest.name}?`, body: 'Its folder is deleted. Restart Branchmint to finish.', confirmLabel: 'Remove', danger: true }))) return
+            if (!(await askConfirm({ title: `Remove ${p.manifest.name}?`, body: 'Its folder is deleted. Restart Mindroot to finish.', confirmLabel: 'Remove', danger: true }))) return
             try {
               const { invoke } = await import('@tauri-apps/api/core')
               await invoke('plugin_uninstall', { id: p.manifest.id })
               await forgetPluginEnabled(p.manifest.id) // a plugin installed again later starts switched off
-              toast(`${p.manifest.name} removed. Restart Branchmint to finish.`, 'success')
+              toast(`${p.manifest.name} removed. Restart Mindroot to finish.`, 'success')
             } catch (e) {
               toast(`Could not remove it: ${e instanceof Error ? e.message : e}`, 'error')
             }

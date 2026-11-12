@@ -5,10 +5,10 @@
       "id": "example.word-count",
       "name": "Word count",
       "version": "1.0.0",
-      "description": "Shows how many words and ideas the open map has. A small example of a Branchmint plugin.",
-      "author": "Branchmint",
+      "description": "Shows how many words and ideas the open map has. A small example of a Mindroot plugin.",
+      "author": "Mindroot",
       "permissions": [],
-      "url": "https://raw.githubusercontent.com/falhad/branchmint/main/plugins/dist/example.word-count-1.0.0.zip",
+      "url": "https://raw.githubusercontent.com/falhad/mindroot/main/plugins/dist/example.word-count-1.0.0.zip",
       "sha256": "bdf7a3fee15cc71953ddead2a58f4a2fa6a3a9ea0a5b28547ec73fe901a040a1"
     }
   ]

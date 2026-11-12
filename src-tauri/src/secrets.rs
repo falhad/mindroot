@@ -6,7 +6,16 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::storage::{validate_plugin_id, CmdResult};
 
-const SERVICE: &str = "app.branchmint.desktop";
+const SERVICE: &str = "app.mindroot.desktop";
+/// The keychain service and the plugin id prefix of the app before it was renamed to Mindroot.
+const LEGACY_SERVICE: &str = "app.branchmint.desktop";
+const LEGACY_ID_PREFIX: &str = "branchmint.";
+const ID_PREFIX: &str = "mindroot.";
+
+/// The account name that the old app used for the same secret.
+fn legacy_account(account: &str) -> Option<String> {
+    account.strip_prefix(ID_PREFIX).map(|rest| format!("{LEGACY_ID_PREFIX}{rest}"))
+}
 
 trait Store: Send + Sync {
     fn get(&self, account: &str) -> CmdResult<Option<String>>;
@@ -22,11 +31,24 @@ impl Keychain {
     }
 }
 
+impl Keychain {
+    /// A secret saved by the old app: copy it to the new service, so the next read finds it there.
+    /// Any failure counts as "no secret": the user can then type the key again.
+    fn adopt_legacy(account: &str) -> Option<String> {
+        let old = keyring::Entry::new(LEGACY_SERVICE, &legacy_account(account)?).ok()?;
+        let value = old.get_password().ok()?;
+        if let Ok(entry) = Self::entry(account) {
+            let _ = entry.set_password(&value);
+        }
+        Some(value)
+    }
+}
+
 impl Store for Keychain {
     fn get(&self, account: &str) -> CmdResult<Option<String>> {
         match Self::entry(account)?.get_password() {
             Ok(v) => Ok(Some(v)),
-            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(keyring::Error::NoEntry) => Ok(Self::adopt_legacy(account)),
             Err(e) => Err(format!("Keychain: {e}")),
         }
     }

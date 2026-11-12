@@ -62,7 +62,7 @@ export function CollabSettings({ ctx }: { ctx: PluginContext }) {
       <div className="rounded-xl border border-line p-3.5">
         <div className="mb-1.5 text-[13px] font-semibold">Join a shared map</div>
         <p className="mb-2 text-[12.5px] text-muted">Paste the invite someone sent you. It sets the server and secret and opens the map.</p>
-        <textarea className="field" rows={2} aria-label="Invite" placeholder="branchmint-invite:…" spellCheck={false} style={{ resize: 'vertical' }} value={invite} onChange={(e) => setInvite(e.target.value)} />
+        <textarea className="field" rows={2} aria-label="Invite" placeholder="mindroot-invite:…" spellCheck={false} style={{ resize: 'vertical' }} value={invite} onChange={(e) => setInvite(e.target.value)} />
         <button className="btn primary mt-2" disabled={busy || !invite.trim()} onClick={async () => {
           setBusy(true)
           setMsg(null)

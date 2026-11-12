@@ -2,6 +2,6 @@
   "id": "example.word-count",
   "name": "Word count",
   "version": "1.0.0",
-  "description": "Shows how many words and ideas the open map has. A small example of a Branchmint plugin.",
+  "description": "Shows how many words and ideas the open map has. A small example of a Mindroot plugin.",
   "main": "index.js"
 }

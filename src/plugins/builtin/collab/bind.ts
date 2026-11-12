@@ -16,7 +16,7 @@ import type { MapDoc, MapMeta, MindNode } from '../../../core/types'
 import { between } from './order'
 
 /** Origin of this device's own edits. Undo tracks only this origin. */
-export const LOCAL = 'branchmint-local'
+export const LOCAL = 'mindroot-local'
 
 const JSON_PREFIX = 'j:'
 const DOC_FIELDS = ['layout', 'edge', 'themeId', 'bg', 'font', 'dir', 'customTheme'] as const

@@ -1,5 +1,5 @@
 /**
- * Branchmint map file, version 3 (JSON Lines). Version 3 only adds optional fields and the
+ * Mindroot map file, version 3 (JSON Lines). Version 3 only adds optional fields and the
  * `group` / `sum` records; anything this version does not know is kept and written back. One record per line:
  *
  *   {"t":"map","v":2,"meta":{...},"root":"...","layout":"mindmap","edge":"curve","themeId":"mint","bg":"dots"}

@@ -14,7 +14,7 @@ export interface Invite {
   title: string
 }
 
-const PREFIX = 'branchmint-invite:'
+const PREFIX = 'mindroot-invite:'
 const MAP_ID = /^[A-Za-z0-9_-]{1,64}$/
 const ROOM = /^[0-9a-f]{40}$/
 const TOKEN = /^[0-9a-f]{64}$/

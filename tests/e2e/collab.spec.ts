@@ -49,7 +49,7 @@ async function startSession(ctxA: BrowserContext, ctxB: BrowserContext) {
   await runCommand(a, 'Share this map live')
   await expect(status(a)).toHaveAttribute('data-collab-status', 'live')
   const invite = await a.evaluate(() => navigator.clipboard.readText())
-  expect(invite.startsWith('branchmint-invite:')).toBe(true)
+  expect(invite.startsWith('mindroot-invite:')).toBe(true)
 
   await openApp(b)
   await openSettingsTab(b)
@@ -142,9 +142,9 @@ test.describe('live collaboration (two browsers and the relay)', () => {
     const invite = await a.evaluate(() => navigator.clipboard.readText())
 
     // the same invite with a different secret inside
-    const body = JSON.parse(Buffer.from(invite.slice('branchmint-invite:'.length), 'base64url').toString('utf8'))
+    const body = JSON.parse(Buffer.from(invite.slice('mindroot-invite:'.length), 'base64url').toString('utf8'))
     body.k = 'c'.repeat(64) // a token the relay did not issue for this room
-    const forged = 'branchmint-invite:' + Buffer.from(JSON.stringify(body)).toString('base64url')
+    const forged = 'mindroot-invite:' + Buffer.from(JSON.stringify(body)).toString('base64url')
 
     const ctxC = await browser.newContext()
     const c = await ctxC.newPage()
@@ -165,7 +165,7 @@ test.describe('live collaboration (two browsers and the relay)', () => {
     const { a, b } = await startSession(ctxA, ctxB)
     // the invite text does not contain the master secret
     const invite = await a.evaluate(() => navigator.clipboard.readText())
-    expect(Buffer.from(invite.slice('branchmint-invite:'.length), 'base64url').toString('utf8')).not.toContain(SECRET)
+    expect(Buffer.from(invite.slice('mindroot-invite:'.length), 'base64url').toString('utf8')).not.toContain(SECRET)
     // B can use the map it was invited to ...
     await expect(status(b)).toHaveAttribute('data-collab-status', 'live')
     // ... but has no secret and no server of its own, so it cannot share another map
@@ -182,9 +182,9 @@ test.describe('live collaboration (two browsers and the relay)', () => {
     const ctxB = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
     const { a, b } = await startSession(ctxA, ctxB)
     const invite = await a.evaluate(() => navigator.clipboard.readText())
-    const body = JSON.parse(Buffer.from(invite.slice('branchmint-invite:'.length), 'base64url').toString('utf8'))
+    const body = JSON.parse(Buffer.from(invite.slice('mindroot-invite:'.length), 'base64url').toString('utf8'))
     body.s = 'ws://127.0.0.1:8799' // a different (not running) server, for the same map
-    const other = 'branchmint-invite:' + Buffer.from(JSON.stringify(body)).toString('base64url')
+    const other = 'mindroot-invite:' + Buffer.from(JSON.stringify(body)).toString('base64url')
 
     await openSettingsTab(b)
     await b.getByLabel('Invite').fill(other)

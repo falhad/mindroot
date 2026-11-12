@@ -4,7 +4,7 @@
 //! real name (so the viewer shows a readable title), then ask the OS to open that copy.
 //! Only document, image, audio and video types on an allowlist are opened. For any other type
 //! (programs, scripts, archives, unknown) the file is only *shown* in the file manager, so
-//! nothing can run by a click inside Branchmint.
+//! nothing can run by a click inside Mindroot.
 
 use std::fs;
 use std::io::Write;

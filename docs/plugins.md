@@ -1,4 +1,4 @@
-# Writing a Branchmint plugin
+# Writing a Mindroot plugin
 
 A plugin can add **commands** (they appear in the `⌘K` palette), **status chips** (small items in the header), a **settings panel** (a tab in Settings), and **listeners for app events**. The built-in Git sync is a plugin that uses only this API (`src/plugins/builtin/sync`).
 
@@ -11,7 +11,7 @@ A plugin can add **commands** (they appear in the `⌘K` palette), **status chip
      manifest.json
      index.js
    ```
-3. Restart Branchmint. The plugin is listed but **switched off**. Switch it on in Settings → Plugins.
+3. Restart Mindroot. The plugin is listed but **switched off**. Switch it on in Settings → Plugins.
 
 A working example is in [`examples/plugins/word-count`](../examples/plugins/word-count).
 

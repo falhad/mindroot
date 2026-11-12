@@ -1,4 +1,4 @@
-# Releasing Branchmint
+# Releasing Mindroot
 
 Two GitHub Actions workflows live in `.github/workflows/`:
 
@@ -27,8 +27,8 @@ git push origin main v0.2.0
 1. The workflow first checks that the tag equals the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`. If not, it stops and tells you which file is wrong (`node scripts/version.mjs` shows all three).
 2. Four builds run in parallel (about 10 to 15 minutes in total).
 3. Open the repository's **Releases** page. You will find a draft with these files:
-   - macOS: `Branchmint_<version>_aarch64.dmg` and `Branchmint_<version>_x64.dmg`
-   - Windows: `Branchmint_<version>_x64-setup.exe` and a `.msi`
+   - macOS: `Mindroot_<version>_aarch64.dmg` and `Mindroot_<version>_x64.dmg`
+   - Windows: `Mindroot_<version>_x64-setup.exe` and a `.msi`
    - Linux: `.deb`, `.rpm` and `.AppImage`
 4. Check the draft, then press **Publish release**.
 
@@ -41,10 +41,10 @@ The repository can stay private. Installers are then visible only to people with
 Without signing secrets, the installers are not code-signed. Your own machine is fine. On other machines:
 
 - **macOS:** the system may say the app is damaged or from an unidentified developer. Move it to Applications, then run
-  `xattr -dr com.apple.quarantine /Applications/Branchmint.app`
+  `xattr -dr com.apple.quarantine /Applications/Mindroot.app`
   or right-click the app, choose **Open**, and confirm.
 - **Windows:** SmartScreen shows "Windows protected your PC". Choose **More info → Run anyway**.
-- **Linux:** `chmod +x Branchmint_*.AppImage` and run it, or install the `.deb` / `.rpm`.
+- **Linux:** `chmod +x Mindroot_*.AppImage` and run it, or install the `.deb` / `.rpm`.
 
 ## Turn on signing (optional, later)
 
@@ -82,14 +82,14 @@ One-time setup (the key pair is already made for you; see below if you want your
 | Password | Add its password as the repository secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` |
 | Backup | Keep the key file and password in a safe place. If you lose them, installed apps cannot be updated and you must ship a new build with a new public key by hand |
 
-To make your own key pair: `pnpm tauri signer generate -w ~/.tauri/branchmint-updater.key`, then put the new **public** key (the `.key.pub` file) into `plugins.updater.pubkey` in `tauri.conf.json`. Do this before the first public release: a changed key cannot update apps that already have the old one.
+To make your own key pair: `pnpm tauri signer generate -w ~/.tauri/mindroot-updater.key`, then put the new **public** key (the `.key.pub` file) into `plugins.updater.pubkey` in `tauri.conf.json`. Do this before the first public release: a changed key cannot update apps that already have the old one.
 
 ### The repository must be public (or the files hosted elsewhere)
 
 The updater downloads `latest.json` and the installers **without a login**. GitHub does not allow that for a **private** repository: the address answers "not found", and the app shows "Could not find update information". Choose one:
 
 - Make the repository public.
-- Publish releases from a separate **public** repository (for example `branchmint-releases`) and point `endpoints` there.
+- Publish releases from a separate **public** repository (for example `mindroot-releases`) and point `endpoints` there.
 - Host `latest.json` and the installers on your own server and put its address in `endpoints`.
 
 Until one of these is done, update checks fail with a plain message and nothing else is affected. People can still install new versions by hand from the release page.

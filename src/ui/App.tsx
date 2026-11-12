@@ -54,7 +54,7 @@ function installUpdateCheck() {
   setTimeout(() => {
     void updater.check().then(() => {
       const s = useUpdater.getState().state
-      if (s.kind === 'available') toast(`Branchmint ${s.version} is available`, 'info', { label: 'See details', run: () => ui.setSettings(true, 'general') }, 12_000)
+      if (s.kind === 'available') toast(`Mindroot ${s.version} is available`, 'info', { label: 'See details', run: () => ui.setSettings(true, 'general') }, 12_000)
     })
   }, 8000)
 }

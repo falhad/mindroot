@@ -6,7 +6,7 @@ import { SyncStatus } from './SyncStatus'
 /** Keeps the vault folder in a private Git repository. The first plugin built on the plugin API. */
 export const syncPlugin: Plugin = {
   manifest: {
-    id: 'branchmint.sync',
+    id: 'mindroot.sync',
     name: 'Git sync',
     version: '1.0.0',
     description: 'Back up your maps to a private Git repository and keep several computers in step.',

@@ -1,6 +1,6 @@
 # Git sync and the vault
 
-Branchmint keeps all maps in one folder, the **vault**. Git sync (a built-in plugin) turns that folder into a Git repository and keeps it in step with a private repo, like the Obsidian Git plugin does for a notes vault.
+Mindroot keeps all maps in one folder, the **vault**. Git sync (a built-in plugin) turns that folder into a Git repository and keeps it in step with a private repo, like the Obsidian Git plugin does for a notes vault.
 
 ```
 <app data>/vault/              <- the Git repository
@@ -10,13 +10,13 @@ Branchmint keeps all maps in one folder, the **vault**. Git sync (a built-in plu
 <app data>/cache/<id>.json     thumbnails + search text (never synced; rebuilt on demand)
 ```
 
-On macOS `<app data>` is `~/Library/Application Support/app.branchmint.desktop`.
+On macOS `<app data>` is `~/Library/Application Support/app.mindroot.desktop`.
 
 ## Set it up
 
-1. Create a **private** repository (for example `you/branchmint-vault`). Leave it empty.
+1. Create a **private** repository (for example `you/mindroot-vault`). Leave it empty.
 2. Make sure `git` can reach it without a prompt: an SSH key in your agent, or `gh auth setup-git` for https. Check with `git ls-remote <address>`.
-3. In Branchmint open **Settings → Git sync**, paste the address, press **Connect and sync**.
+3. In Mindroot open **Settings → Git sync**, paste the address, press **Connect and sync**.
 4. On a second computer, do the same with the same address. Its maps are downloaded and merged with any local ones.
 
 Sync runs on start, every N minutes, about 30 seconds after you stop editing, when you close the app, and on **Sync now**. The header shows its state ("Synced 2 min ago", "Sync problem"). The status text explains failures in plain words (no internet, login refused, repository not found).
@@ -25,7 +25,7 @@ Sync runs on start, every N minutes, about 30 seconds after you stop editing, wh
 
 1. Saves the open map, commits everything in the vault (`Sync from <device> at <time>`).
 2. `git fetch`. A device that has no commits yet adopts the remote history first.
-3. If the remote has new commits, merges them. Git merges what it can; for map files it cannot merge, Branchmint merges them itself (below).
+3. If the remote has new commits, merges them. Git merges what it can; for map files it cannot merge, Mindroot merges them itself (below).
 4. `git push`. If someone pushed in between, it fetches, merges and pushes again (up to 4 times).
 5. Reloads the open map if its file changed. If you typed during the sync, your unsaved edits are merged into the incoming version, not lost.
 
@@ -74,7 +74,7 @@ Every sync is a commit, so each map has a version history. **⌘K → History of
 ## Limits to know
 
 - Needs `git` installed. Desktop app only.
-- Both devices should have the same Branchmint version family; an older app may not read newer files.
+- Both devices should have the same Mindroot version family; an older app may not read newer files.
 - A synced repo contains your maps and images in clear text. Keep the repository private.
 - If Git cannot ask for a password (no key, no stored https login), sync reports "GitHub did not accept the login" instead of hanging.
 - A long, offline editing session on two devices is merged idea by idea, but if both changed the same text the newer one wins.

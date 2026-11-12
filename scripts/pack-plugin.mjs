@@ -45,7 +45,7 @@ const entry = {
   description: manifest.description ?? '',
   ...(author ? { author } : {}),
   permissions: manifest.permissions ?? [],
-  url: `https://raw.githubusercontent.com/falhad/branchmint/main/plugins/dist/${zipName}`,
+  url: `https://raw.githubusercontent.com/falhad/mindroot/main/plugins/dist/${zipName}`,
   sha256,
 }
 const at = index.plugins.findIndex((p) => p.id === manifest.id)

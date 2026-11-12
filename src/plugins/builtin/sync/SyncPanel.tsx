@@ -24,7 +24,7 @@ export function SyncPanel({ desktop }: { desktop: boolean }) {
         <AlertTriangle size={18} className="mt-0.5 shrink-0 text-danger" />
         <div>
           <div className="font-medium">Git is not installed</div>
-          <p className={hint}>Install Git (for example with <code>brew install git</code> or from git-scm.com), then restart Branchmint.</p>
+          <p className={hint}>Install Git (for example with <code>brew install git</code> or from git-scm.com), then restart Mindroot.</p>
         </div>
       </div>
     )
@@ -53,7 +53,7 @@ export function SyncPanel({ desktop }: { desktop: boolean }) {
         <label className={field}>
           <span className="text-[13px] font-medium">Git address</span>
           <input className="field" value={url} spellCheck={false} placeholder="git@github.com:you/your-vault.git" onChange={(e) => setUrl(e.target.value)} />
-          <span className={hint}>Use a private repository. Branchmint uses the Git login you already have (an SSH key, or <code>gh auth setup-git</code> for https).</span>
+          <span className={hint}>Use a private repository. Mindroot uses the Git login you already have (an SSH key, or <code>gh auth setup-git</code> for https).</span>
         </label>
         <label className={field}>
           <span className="text-[13px] font-medium">Branch</span>
@@ -89,8 +89,8 @@ export function SyncPanel({ desktop }: { desktop: boolean }) {
           </select>
         </label>
         <Check_ label="Sync about 30 seconds after I stop editing" checked={s.settings.onChange} disabled={!connected} onChange={(v) => void c.saveSettings({ onChange: v })} />
-        <Check_ label="Sync when I close Branchmint" checked={s.settings.onQuit} disabled={!connected} onChange={(v) => void c.saveSettings({ onQuit: v })} />
-        <p className={hint}>Two devices can edit the same map. Branchmint merges their changes idea by idea. If both change the same text, the newer edit wins and you see a message. Nothing is deleted without a trace: every sync is a Git commit you can go back to.</p>
+        <Check_ label="Sync when I close Mindroot" checked={s.settings.onQuit} disabled={!connected} onChange={(v) => void c.saveSettings({ onQuit: v })} />
+        <p className={hint}>Two devices can edit the same map. Mindroot merges their changes idea by idea. If both change the same text, the newer edit wins and you see a message. Nothing is deleted without a trace: every sync is a Git commit you can go back to.</p>
       </section>
     </div>
   )

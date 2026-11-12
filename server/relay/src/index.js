@@ -1,4 +1,4 @@
-// Branchmint relay: passes Yjs updates between the people editing a shared map.
+// Mindroot relay: passes Yjs updates between the people editing a shared map.
 // It is a plain WebSocket server speaking the y-websocket protocol. It keeps one Yjs document per room in
 // memory, saves it to DATA_DIR, and never looks at what is inside.
 //
@@ -195,7 +195,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     port: Number(process.env.PORT ?? 8787),
     host: process.env.HOST ?? '127.0.0.1',
   })
-  console.log(`Branchmint relay listening on port ${relay.port}`)
+  console.log(`Mindroot relay listening on port ${relay.port}`)
   const stop = async () => {
     await relay.close()
     process.exit(0)

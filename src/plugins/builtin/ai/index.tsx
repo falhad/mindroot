@@ -70,7 +70,7 @@ async function run(ctx: PluginContext, task: Task) {
 
 export const aiPlugin: Plugin = {
   manifest: {
-    id: 'branchmint.ai',
+    id: 'mindroot.ai',
     name: 'AI assistant',
     version: '1.0.0',
     description: 'Expand an idea, summarize a branch, find gaps, or rewrite text with a model you choose (OpenAI-compatible or Anthropic-compatible). Only the selected branch is sent.',

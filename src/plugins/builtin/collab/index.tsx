@@ -176,7 +176,7 @@ export async function joinFromInvite(ctx: PluginContext, text: string): Promise<
 
 export const collabPlugin: Plugin = {
   manifest: {
-    id: 'branchmint.collab',
+    id: 'mindroot.collab',
     name: 'Live collaboration',
     version: '1.0.0',
     description: 'Edit a map together with other people at the same time, through a small relay server you run. Offline edits merge when you reconnect.',

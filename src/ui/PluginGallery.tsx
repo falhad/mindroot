@@ -64,7 +64,7 @@ export function PluginGallery() {
       const have = installed.find((p) => p.manifest.id === e.id)
       if (!have || e.permissions.some((p) => !(have.manifest.permissions ?? []).includes(p))) await forgetPluginEnabled(e.id)
       setRestart(true)
-      toast(`${e.name} installed. Restart Branchmint, then switch it on.`, 'success')
+      toast(`${e.name} installed. Restart Mindroot, then switch it on.`, 'success')
     } catch (err) {
       toast(`Could not install ${e.name}: ${err instanceof Error ? err.message : String(err)}`, 'error')
     } finally {
@@ -82,7 +82,7 @@ export function PluginGallery() {
       </div>
       {error && <p className="text-[12.5px]" style={{ color: 'var(--danger)' }} role="alert">{error}</p>}
       {entries && entries.length === 0 && !error && <p className="text-[12.5px] text-muted">The list has no plugins yet.</p>}
-      {restart && <p className="rounded-lg bg-hover px-3 py-2 text-[12.5px]" role="status">Restart Branchmint to use what you installed. New plugins start switched off.</p>}
+      {restart && <p className="rounded-lg bg-hover px-3 py-2 text-[12.5px]" role="status">Restart Mindroot to use what you installed. New plugins start switched off.</p>}
       <ul className="space-y-2">
         {(entries ?? []).map((e) => {
           const state = entryState(e, installed.map((p) => ({ id: p.manifest.id, version: p.manifest.version })))

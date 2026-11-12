@@ -69,7 +69,7 @@ pub async fn net_request(req: NetRequest) -> CmdResult<NetResponse> {
     let client = reqwest::Client::builder()
         .redirect(Policy::none())
         .timeout(timeout)
-        .user_agent("Branchmint")
+        .user_agent("Mindroot")
         .build()
         .map_err(|e| e.to_string())?;
     let mut builder = client.request(method, url).headers(headers);

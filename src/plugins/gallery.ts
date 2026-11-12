@@ -1,7 +1,7 @@
 import type { PluginPermission } from './types'
 
 /** Where the list of installable plugins is published. It can be changed in Settings. */
-export const DEFAULT_INDEX_URL = 'https://raw.githubusercontent.com/falhad/branchmint/main/plugins/index.json'
+export const DEFAULT_INDEX_URL = 'https://raw.githubusercontent.com/falhad/mindroot/main/plugins/index.json'
 
 export interface GalleryEntry {
   id: string
@@ -28,7 +28,7 @@ export function parseIndex(text: string): { entries: GalleryEntry[]; skipped: nu
     throw new Error('The plugin gallery list is not valid JSON')
   }
   const list = (data as { plugins?: unknown } | null)?.plugins
-  if (!Array.isArray(list)) throw new Error('This is not a Branchmint plugin gallery list (no "plugins" array)')
+  if (!Array.isArray(list)) throw new Error('This is not a Mindroot plugin gallery list (no "plugins" array)')
   const entries: GalleryEntry[] = []
   const seen = new Set<string>()
   let skipped = 0

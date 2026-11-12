@@ -158,7 +158,7 @@ const BGS = ['dots', 'grid', 'none']
 export function sanitizeDoc(raw: unknown): MapDoc {
   const r = raw as Partial<MapDoc> | null
   if (!r || typeof r !== 'object' || typeof r.nodes !== 'object' || !r.nodes || typeof r.root !== 'string' || !r.nodes[r.root]) {
-    throw new Error('Not a Branchmint map')
+    throw new Error('Not a Mindroot map')
   }
   const nodes: Record<string, MindNode> = {}
   const seen = new Set<string>()
@@ -293,7 +293,7 @@ function genericToOutline(v: unknown, depth = 0): OutNode | null {
   }
 }
 
-/** Import JSON text: a Branchmint export, or any `{text|title, children}` tree. Always assigns a fresh map id. */
+/** Import JSON text: a Mindroot export, or any `{text|title, children}` tree. Always assigns a fresh map id. */
 export function importJson(text: string): MapDoc {
   let data: unknown
   try {

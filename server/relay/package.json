@@ -1,8 +1,8 @@
 {
-  "name": "branchmint-relay",
+  "name": "mindroot-relay",
   "version": "1.0.0",
   "private": true,
-  "description": "Passes live-editing updates between people sharing a Branchmint map.",
+  "description": "Passes live-editing updates between people sharing a Mindroot map.",
   "type": "module",
   "main": "src/index.js",
   "engines": { "node": ">=20" },

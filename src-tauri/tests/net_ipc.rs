@@ -61,14 +61,14 @@ fn sha_hex(b: &[u8]) -> String {
 
 #[test]
 fn net_and_secrets_work_the_way_the_frontend_calls_them() {
-    branchmint_lib::use_memory_secrets();
-    let home = std::env::temp_dir().join(format!("branchmint-net-{}", std::process::id()));
+    mindroot_lib::use_memory_secrets();
+    let home = std::env::temp_dir().join(format!("mindroot-net-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&home);
     std::fs::create_dir_all(&home).unwrap();
     std::env::set_var("HOME", &home);
     std::env::set_var("XDG_DATA_HOME", home.join("data"));
     std::env::set_var("APPDATA", &home);
-    let app = branchmint_lib::configure(mock_builder()).build(mock_context(noop_assets())).unwrap();
+    let app = mindroot_lib::configure(mock_builder()).build(mock_context(noop_assets())).unwrap();
     let w = WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
 
     // a normal request: method, headers and body reach the server; status and body come back
@@ -144,12 +144,12 @@ fn net_and_secrets_work_the_way_the_frontend_calls_them() {
     assert!(call(&w, "plugin_uninstall", json!({ "id": "../x" })).is_err());
 
     // secrets: per plugin, set / get / remove
-    assert!(call(&w, "secret_get", json!({ "pluginId": "branchmint.ai", "key": "k" })).unwrap().is_null());
-    call(&w, "secret_set", json!({ "pluginId": "branchmint.ai", "key": "k", "value": "S3CRET" })).unwrap();
-    assert_eq!(call(&w, "secret_get", json!({ "pluginId": "branchmint.ai", "key": "k" })).unwrap(), "S3CRET");
+    assert!(call(&w, "secret_get", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap().is_null());
+    call(&w, "secret_set", json!({ "pluginId": "mindroot.ai", "key": "k", "value": "S3CRET" })).unwrap();
+    assert_eq!(call(&w, "secret_get", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap(), "S3CRET");
     assert!(call(&w, "secret_get", json!({ "pluginId": "other.plugin", "key": "k" })).unwrap().is_null());
-    call(&w, "secret_remove", json!({ "pluginId": "branchmint.ai", "key": "k" })).unwrap();
-    assert!(call(&w, "secret_get", json!({ "pluginId": "branchmint.ai", "key": "k" })).unwrap().is_null());
+    call(&w, "secret_remove", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap();
+    assert!(call(&w, "secret_get", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap().is_null());
     // bad plugin ids and empty keys are refused
     assert!(call(&w, "secret_set", json!({ "pluginId": "", "key": "k", "value": "v" })).is_err());
     assert!(call(&w, "secret_set", json!({ "pluginId": "../x", "key": "k", "value": "v" })).is_err());

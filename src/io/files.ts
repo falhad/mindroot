@@ -57,7 +57,7 @@ export function pickFile(accept: string, multiple = false): Promise<File[]> {
 }
 
 export function safeFileName(s: string): string {
-  return (s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim() || 'Branchmint map').slice(0, 80)
+  return (s.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim() || 'Mindroot map').slice(0, 80)
 }
 
 /** Open a URL in the system browser (Tauri) or a new tab. Only http(s)/mailto are allowed. */

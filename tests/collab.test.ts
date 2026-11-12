@@ -216,12 +216,12 @@ describe('invites and room names', async () => {
   const secret = 'abcdefghijklmnop0123456789'
   const room = 'a'.repeat(40)
   const token = 'b'.repeat(64)
-  const make = (o: object) => 'branchmint-invite:' + btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  const make = (o: object) => 'mindroot-invite:' + btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   const ok = { s: 'wss://relay.example.com', r: room, k: token, m: 'map1', t: 'x' }
 
   it('an invite survives encode and decode, including a Persian title', () => {
     const text = encodeInvite({ serverUrl: 'wss://relay.example.com', room, token, mapId: 'map_1-x', title: 'نقشه من' })
-    expect(text.startsWith('branchmint-invite:')).toBe(true)
+    expect(text.startsWith('mindroot-invite:')).toBe(true)
     expect(decodeInvite(`  ${text}\n`)).toEqual({ serverUrl: 'wss://relay.example.com', room, token, mapId: 'map_1-x', title: 'نقشه من' })
   })
 
@@ -230,7 +230,7 @@ describe('invites and room names', async () => {
     function await_room() {
       return encodeInvite({ serverUrl: 'wss://relay.example.com', room, token, mapId: 'm', title: '' })
     }
-    const body = atob(r.slice('branchmint-invite:'.length).replace(/-/g, '+').replace(/_/g, '/'))
+    const body = atob(r.slice('mindroot-invite:'.length).replace(/-/g, '+').replace(/_/g, '/'))
     expect(Object.keys(JSON.parse(body)).sort()).toEqual(['k', 'm', 'r', 's', 't'])
     expect(body).not.toContain(secret)
   })
@@ -238,7 +238,7 @@ describe('invites and room names', async () => {
   it('rejects text that is not an invite or has unsafe or invalid parts', () => {
     expect(decodeInvite(make(ok))).not.toBeNull()
     expect(decodeInvite('hello')).toBeNull()
-    expect(decodeInvite('branchmint-invite:%%%')).toBeNull()
+    expect(decodeInvite('mindroot-invite:%%%')).toBeNull()
     expect(decodeInvite(make({ ...ok, s: 'ws://relay.example.com' }))).toBeNull() // plain ws only for this computer
     expect(decodeInvite(make({ ...ok, s: 'ws://localhost:8787' }))).not.toBeNull()
     expect(decodeInvite(make({ ...ok, s: 'https://relay.example.com' }))).toBeNull()
@@ -248,7 +248,7 @@ describe('invites and room names', async () => {
     expect(decodeInvite(make({ ...ok, k: 'g'.repeat(64) }))).toBeNull()
     expect(decodeInvite(make({ ...ok, m: '../x' }))).toBeNull()
     expect(decodeInvite(make({ ...ok, m: '' }))).toBeNull()
-    expect(decodeInvite('branchmint-invite:' + 'A'.repeat(5000))).toBeNull()
+    expect(decodeInvite('mindroot-invite:' + 'A'.repeat(5000))).toBeNull()
   })
 
   it('room names and tokens match what the relay computes with Node’s HMAC', async () => {

@@ -1,45 +1,107 @@
-# Branchmint
+<div align="center">
 
-A fast, keyboard-first mind-mapping app for the desktop. Built with **Tauri 2**, React 19, TypeScript 7, Vite 8, Tailwind 4, and Zustand 5.
+<img src="src-tauri/icons/128x128@2x.png" width="96" alt="Mindroot icon" />
 
-## Run it
+# Mindroot
 
-```bash
-pnpm install
-pnpm tauri dev        # desktop app (hot reload)
-pnpm dev              # browser only: http://localhost:1420 (maps live in IndexedDB)
-pnpm tauri build      # installer for this computer (.app/.dmg, .msi, .deb ...)
-                      # all platforms: push a tag, see docs/releasing.md
-pnpm test             # unit + sync tests (vitest; the sync tests use real git)
-cargo test --manifest-path src-tauri/Cargo.toml   # storage, git runner, and an IPC test of every command
-pnpm typecheck
-```
+**A fast, keyboard-first mind-mapping app for the desktop.**<br />
+Local-first. Your maps are plain files on your disk. Sync them with your own Git repository.
 
-Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system dependencies](https://tauri.app/start/prerequisites/).
+[![CI](https://github.com/falhad/mindroot/actions/workflows/ci.yml/badge.svg)](https://github.com/falhad/mindroot/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/falhad/mindroot?label=download)](https://github.com/falhad/mindroot/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-14b8a6.svg)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-14b8a6.svg)](CONTRIBUTING.md)
 
-## What it does
+[Download](#download) · [Features](#features) · [Build from source](#build-from-source) · [Write a plugin](docs/plugins.md) · [Contribute](CONTRIBUTING.md)
 
-- Infinite canvas: pan, zoom (wheel / pinch / `⌘ +/-`), minimap, fit to screen, camera remembered per map.
-- Six layouts: mind map (both sides), right tree, left tree, org chart down/up, radial. Three line styles. Right-to-left maps (the whole layout mirrors) for Persian, Arabic and Hebrew.
-- Nodes: add child/sibling, inline editing (multi-line, RTL aware), delete, duplicate, drag to re-parent or re-order, multi-select (shift-click / marquee), collapse/expand (Space, or the ⊖ button that appears on hover), cross-links between any two nodes.
-- Per node: colour (theme slots or custom), shape, icon (lucide or emoji), notes (Markdown, code, LaTeX), link, image, checklist with progress, tags, due date and done state, attached files, and a link to another map or to one idea in it.
-- Structure: groups (a boundary around siblings), summary brackets, labelled cross-links with arrows and line styles, floating ideas and sticky notes (double-click empty canvas; Shift for a sticky note).
-- Views: **focus mode** (one branch on its own, `⌘.`), **outline** (an editable list beside the map, `⌘⇧O`), **presentation** (`F5` one idea at a time, `⇧F5` one branch at a time), tag filter, **compare** two maps or versions, **tasks** across all maps, backlinks.
-- Customise a map: eight own colours, per-map font (Inter, Vazirmatn, serif, mono), direction (left to right or mirrored).
-- Quick capture: a system-wide shortcut (default `Alt+Shift+Space`) opens a small window; a thought goes into your Inbox map.
-- Undo/redo (300 steps), copy/cut/paste (rich inside the app, outlines as plain text, images from the clipboard).
-- Dashboard: search across titles and node text, sort, star, tags, trash with restore, rename, duplicate, six templates, import by file picker or drag-and-drop.
-- Autosave (600 ms debounce, atomic writes, flushed on close/hide), save-state indicator.
-- **Git sync** (built-in plugin): keep your maps in a private Git repository and in step across computers, with idea-by-idea merging. See [docs/sync.md](docs/sync.md).
-- **Plugins**: add commands, header chips, settings panels and event listeners; built-in and installed plugins share one API. See [docs/plugins.md](docs/plugins.md).
-- Import: Branchmint JSON, any `{text|title, children}` JSON, Markdown/indented outlines, FreeMind (`.mm`), OPML, XMind, Obsidian canvas. Export: JSON, Markdown, OPML, PNG, SVG, PDF (vector with selectable text, or image), and a single-file **web page** you can open anywhere.
-- **Live collaboration** with a small relay server you run, with presence, and undo that only undoes your own edits. See [docs/collab.md](docs/collab.md).
-- **AI assistant** (plugin): expand an idea, find gaps, summarize, rewrite, with any OpenAI-compatible or Anthropic-compatible service. See [docs/ai.md](docs/ai.md).
-- **Plugin gallery** and signed **automatic updates**. See [docs/plugins.md](docs/plugins.md) and [docs/releasing.md](docs/releasing.md).
-- Map history from Git (restore a version or one idea). Custom templates.
-- Fonts: Inter + Vazirmatn (Persian/Arabic), bundled for offline use and embedded in SVG/PNG/PDF exports.
-- Light / dark / system appearance; six colour themes; responsive down to phone width (touch pan, pinch zoom).
-- Command palette (`⌘K`), in-map find (`⌘F`), shortcut sheet (`?`).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/map-dark.png" />
+  <img src="docs/screenshots/map-light.png" alt="A mind map in Mindroot" />
+</picture>
+
+</div>
+
+## Why Mindroot
+
+- **Your data stays yours.** No account and no cloud. Each map is one readable JSON Lines file. The app works fully offline.
+- **Made for the keyboard.** `Tab` adds a child, `Enter` adds a sibling, the arrow keys move. You can build a full map and never touch the mouse.
+- **Git is the sync engine.** Point the app at a private Git repository. Two computers can edit the same map; Mindroot merges them idea by idea, not line by line.
+- **Right-to-left is a first-class citizen.** Persian, Arabic and Hebrew maps mirror the whole layout. The Vazirmatn font is bundled and embedded in exports.
+- **Open to extension.** Git sync, the AI assistant and live collaboration are plugins on the same public API that you can use.
+
+Built with Tauri 2 (Rust), React 19, TypeScript, Vite, Tailwind 4 and Zustand. The installer is small and the app starts fast, because Tauri uses the system web view and not a bundled browser.
+
+## Download
+
+Get the installer for your system from the [latest release](https://github.com/falhad/mindroot/releases/latest).
+
+| System | File |
+|---|---|
+| macOS (Apple Silicon) | `Mindroot_<version>_aarch64.dmg` |
+| macOS (Intel) | `Mindroot_<version>_x64.dmg` |
+| Windows | `Mindroot_<version>_x64-setup.exe` or `.msi` |
+| Linux | `.AppImage`, `.deb` or `.rpm` |
+
+The builds are not code-signed yet. Your system shows a warning the first time:
+
+- **macOS:** move the app to Applications, then run `xattr -dr com.apple.quarantine /Applications/Mindroot.app`. Or right-click the app, choose **Open**, and confirm.
+- **Windows:** on the SmartScreen dialog choose **More info → Run anyway**.
+- **Linux:** `chmod +x Mindroot_*.AppImage` and run it, or install the `.deb` / `.rpm`.
+
+## Features
+
+### Think on an infinite canvas
+
+Six layouts (mind map, right tree, left tree, org chart down and up, radial), three line styles, six colour themes, light and dark. Each idea can have a colour, shape, icon, tags, a due date, a checklist, attached files and a link to another map. Cross-links, groups, summary brackets, floating ideas and sticky notes add structure.
+
+### Notes in Markdown, with code and LaTeX
+
+![Markdown notes on an idea](docs/screenshots/notes-light.png)
+
+### Outline, focus and presentation
+
+Edit the map as a list beside the canvas (`⌘⇧O`). Work on one branch alone in focus mode (`⌘.`). Present one idea or one branch at a time (`F5` / `⇧F5`).
+
+![The outline beside the map](docs/screenshots/outline-dark.png)
+
+### A library for all your maps
+
+Search across titles and idea text. Star, tag, sort, trash and restore. Start from six templates or save your own. A tasks view shows the open tasks of all maps.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png" />
+  <img src="docs/screenshots/dashboard-light.png" alt="The dashboard with all maps" />
+</picture>
+
+### Six layouts
+
+![An org chart layout](docs/screenshots/layout-dark.png)
+
+### Right-to-left maps
+
+Persian, Arabic and Hebrew maps mirror the whole layout.
+
+![A Persian map with a mirrored layout](docs/screenshots/rtl-dark.png)
+
+![An Arabic map as a mirrored tree](docs/screenshots/arabic-light.png)
+
+### Sync, teamwork and AI
+
+| | |
+|---|---|
+| **Git sync** | Keep maps in a private Git repository and in step across computers, with idea-by-idea merging. Restore an old version of a map, or one idea from it. [docs/sync.md](docs/sync.md) |
+| **Live collaboration** | Edit one map together in real time through a small relay server that you run. Presence, and undo that only undoes your own edits. [docs/collab.md](docs/collab.md) |
+| **AI assistant** | Expand an idea, find gaps, summarize, rewrite. Use your own key with any OpenAI-compatible or Anthropic-compatible service. [docs/ai.md](docs/ai.md) |
+| **Plugins** | Add commands, header chips, settings panels and event listeners. Install from the plugin gallery. [docs/plugins.md](docs/plugins.md) |
+| **Compare** | See the difference between two maps or two versions. |
+| **Quick capture** | A system-wide shortcut (default `Alt+Shift+Space`) puts a thought into your Inbox map. |
+
+### Import and export
+
+- **Import:** Markdown and indented outlines, FreeMind (`.mm`), OPML, XMind, Obsidian canvas, Mindroot JSON, and any `{text|title, children}` JSON.
+- **Export:** JSON, Markdown, OPML, PNG, SVG, PDF (vector with selectable text, or image), and a single-file web page that opens anywhere.
+
+The full feature guide is in [docs/features.md](docs/features.md).
 
 ## Keyboard
 
@@ -62,7 +124,30 @@ Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system 
 | Fit / 100% / zoom | `⌘0` / `⌘1` / `⌘+` `⌘-` |
 | Palette / find / export / panel | `⌘K` / `⌘F` / `⌘E` / `⌘I` |
 
-(`Ctrl` on Windows and Linux.)
+(`Ctrl` on Windows and Linux. Press `?` in the app for the full sheet.)
+
+## Build from source
+
+Requirements: Node 20+, pnpm, Rust 1.80+, Git (for sync), and the [Tauri system dependencies](https://tauri.app/start/prerequisites/).
+
+```bash
+pnpm install
+pnpm tauri dev        # desktop app (hot reload)
+pnpm dev              # browser only: http://localhost:1420 (maps live in IndexedDB)
+pnpm tauri build      # installer for this computer (.app/.dmg, .msi, .deb ...)
+                      # all platforms: push a tag, see docs/releasing.md
+```
+
+Tests:
+
+```bash
+pnpm typecheck
+pnpm test             # unit + sync tests (vitest; the sync tests use real git)
+pnpm e2e              # end-to-end tests in a browser (Playwright)
+cargo test --manifest-path src-tauri/Cargo.toml   # storage, git runner, and an IPC test of every command
+```
+
+`node scripts/readme-shots.mjs` makes the screenshots on this page again.
 
 ## Architecture
 
@@ -77,26 +162,40 @@ src/core     Pure TypeScript, no React, fully unit-tested (also: focus, present,
 src/state    Zustand stores: doc (history, selection, derived layout), view, ui, library, search
 src/io       storage (Tauri commands or IndexedDB), image assets, exporters, file dialogs
 src/sync     Git sync engine + three-way map merge (pure, tested against real Git)
-src/plugins  plugin API, host, loader for installed plugins; builtin/ has Git sync
+src/plugins  plugin API, host, loader for installed plugins; builtin/ has Git sync, AI and collaboration
 src/ui       React components
-src-tauri    Rust: atomic JSON file storage, raw-bytes export command
+src-tauri    Rust: atomic file storage, Git runner, network and secrets commands, plugin install
+server/relay The small relay server for live collaboration (Node, Docker)
 ```
 
 Design notes:
 
 - **One map, one file, one record per line.** Each map is `<app-data>/vault/maps/<id>.jsonl` (JSON Lines), written atomically (temp file + rename). The first line holds a `meta` block, so the dashboard lists maps by reading one line each. Images are content-addressed files in `vault/assets/`. Thumbnails and search text live in a local cache. `sanitizeDoc` repairs dangling ids, cycles and bad enums on load. Format details: [docs/sync.md](docs/sync.md).
+- **Merge by idea, not by line.** One record per line lets Git see small diffs. On a conflict, a three-way merge works on ideas: two people can edit different ideas of one map and both edits survive.
 - **Undo = array of Immer snapshots.** Structural sharing keeps this cheap. Rapid edits with the same key (typing in notes) merge into one step.
 - **Same numbers everywhere.** Node sizes come from one measure function; the canvas, minimap, thumbnails and all exports read the same layout, so exports match the screen.
 - **Browser fallback.** Outside Tauri the storage layer uses IndexedDB, so `pnpm dev` is a complete app for fast UI work.
 - PDF export has two forms: vector (shapes and selectable text, Helvetica) for maps whose text a PDF base font can draw, and a 2-3x raster on a page sized to the map for the rest (Persian, Arabic, CJK, emoji). See [docs/features.md](docs/features.md).
 
-## Not built yet
+## Roadmap
 
-A mobile app, public share links (the web-page export is the closest today), per-room revocable collaboration tokens (changing the relay secret revokes all), and vector PDF text in scripts a PDF font cannot shape (Persian and Arabic fall back to the image PDF).
+Not built yet. Help is welcome on each item:
+
+- A mobile app.
+- Public share links (the web-page export is the closest today).
+- Per-room revocable collaboration tokens (today, a change of the relay secret revokes all).
+- Vector PDF text for scripts that a PDF base font cannot shape (Persian and Arabic use the image PDF today).
+- Code-signed installers for macOS and Windows.
+
+## Contributing
+
+Bug reports, ideas, plugins and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). For a security problem, see [SECURITY.md](SECURITY.md).
+
+If Mindroot is useful to you, a star helps other people find it.
 
 ## Releases
 
-GitHub Actions run the tests on every push (`ci.yml`) and build installers for macOS, Windows and Linux when you push a version tag (`release.yml`). See [docs/releasing.md](docs/releasing.md).
+GitHub Actions run the tests on every push (`ci.yml`) and build installers for macOS, Windows and Linux when a version tag is pushed (`release.yml`). See [docs/releasing.md](docs/releasing.md).
 
 ## License
 

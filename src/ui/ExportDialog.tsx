@@ -14,7 +14,7 @@ const FORMATS: { id: ExportFormat; name: string; ext: string; blurb: string; ico
   { id: 'md', name: 'Markdown outline', ext: '.md', blurb: 'Nested list with notes and checklists.', icon: FileText, visual: false },
   { id: 'opml', name: 'OPML outline', ext: '.opml', blurb: 'Nested outline for outliners and feed readers.', icon: List, visual: false },
   { id: 'html', name: 'Web page', ext: '.html', blurb: 'One file you can open anywhere: pan, zoom, collapse, read notes.', icon: Globe, visual: false },
-  { id: 'json', name: 'Branchmint file', ext: '.json', blurb: 'Full-fidelity backup you can re-import.', icon: FileJson, visual: false },
+  { id: 'json', name: 'Mindroot file', ext: '.json', blurb: 'Full-fidelity backup you can re-import.', icon: FileJson, visual: false },
 ]
 
 export function ExportDialog() {

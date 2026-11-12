@@ -52,6 +52,9 @@ impl Paths {
 
     /// Create the folders and move a pre-vault `maps/` folder into place (once).
     pub fn ensure(&self) -> CmdResult<()> {
+        if let Some(parent) = self.root.parent() {
+            adopt_legacy(&self.root, &parent.join(LEGACY_APP_DIR))?;
+        }
         let old = self.root.join("maps");
         if old.is_dir() && !self.maps().exists() {
             fs::create_dir_all(self.vault()).map_err(|e| e.to_string())?;
@@ -62,6 +65,69 @@ impl Paths {
         }
         Ok(())
     }
+}
+
+/// The app-data folder name of the app before it was renamed to Mindroot.
+const LEGACY_APP_DIR: &str = "app.branchmint.desktop";
+/// Built-in plugin ids started with this before the rename.
+const LEGACY_ID_PREFIX: &str = "branchmint.";
+const ID_PREFIX: &str = "mindroot.";
+
+/// First start after the rename: copy the data of the old app into the new folder (once).
+/// The old folder is left as it is, so it stays as a backup. The vault is copied to a
+/// temporary name and renamed last: an interrupted copy starts again on the next start.
+pub fn adopt_legacy(root: &Path, legacy: &Path) -> CmdResult<()> {
+    let has_data = |d: &Path| d.join("vault").exists() || d.join("maps").exists();
+    if has_data(root) || !has_data(legacy) {
+        return Ok(());
+    }
+    let err = |e: std::io::Error| format!("Could not copy the data of the old app from {}: {e}", legacy.display());
+    fs::create_dir_all(root).map_err(err)?;
+    for name in ["plugins", "cache", "maps"] {
+        if legacy.join(name).is_dir() {
+            copy_dir(&legacy.join(name), &root.join(name)).map_err(err)?;
+        }
+    }
+    let settings = legacy.join("plugin-settings");
+    if settings.is_dir() {
+        fs::create_dir_all(root.join("plugin-settings")).map_err(err)?;
+        for entry in fs::read_dir(&settings).map_err(err)?.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !entry.path().is_file() {
+                continue;
+            }
+            // Settings are stored by plugin id, and the core settings list plugin ids.
+            let text = fs::read_to_string(entry.path()).map_err(err)?;
+            let (name, text) = match name.strip_prefix(LEGACY_ID_PREFIX) {
+                Some(rest) => (format!("{ID_PREFIX}{rest}"), text.replace(&format!("\"{LEGACY_ID_PREFIX}"), &format!("\"{ID_PREFIX}"))),
+                None => (name, text),
+            };
+            fs::write(root.join("plugin-settings").join(name), text).map_err(err)?;
+        }
+    }
+    if legacy.join("vault").is_dir() {
+        let tmp = root.join("vault.adopting");
+        let _ = fs::remove_dir_all(&tmp);
+        copy_dir(&legacy.join("vault"), &tmp).map_err(err)?;
+        fs::rename(&tmp, root.join("vault")).map_err(err)?;
+    }
+    Ok(())
+}
+
+/// Copy a folder with all files and sub-folders. Symbolic links are not followed and not copied.
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let target = to.join(entry.file_name());
+        if kind.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else if kind.is_file() {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
 }
 
 pub fn paths<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Paths> {
@@ -78,7 +144,7 @@ pub fn validate_id(id: &str) -> CmdResult<()> {
     if ok { Ok(()) } else { Err(format!("invalid id: {id:?}")) }
 }
 
-/// Plugin ids look like `branchmint.sync`.
+/// Plugin ids look like `mindroot.sync`.
 pub fn validate_plugin_id(id: &str) -> CmdResult<()> {
     let ok = !id.is_empty()
         && id.len() <= 64
@@ -323,7 +389,7 @@ mod tests {
     use super::*;
 
     fn temp_paths(name: &str) -> Paths {
-        let root = std::env::temp_dir().join(format!("branchmint-test-{name}-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("mindroot-test-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let p = Paths { root };
         p.ensure().unwrap();
@@ -337,7 +403,7 @@ mod tests {
         for bad in ["../etc/passwd", "", "a/b", "a.b"] {
             assert!(validate_id(bad).is_err(), "{bad}");
         }
-        assert!(validate_plugin_id("branchmint.sync").is_ok());
+        assert!(validate_plugin_id("mindroot.sync").is_ok());
         for bad in [".hidden", "a..b", "a/b", ""] {
             assert!(validate_plugin_id(bad).is_err(), "{bad}");
         }
@@ -413,7 +479,7 @@ mod tests {
 
     #[test]
     fn old_maps_folder_moves_into_the_vault() {
-        let root = std::env::temp_dir().join(format!("branchmint-test-migrate-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("mindroot-test-migrate-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("maps")).unwrap();
         fs::write(root.join("maps/a.json"), r#"{"meta":{"id":"a","title":"A","updatedAt":1}}"#).unwrap();
@@ -422,6 +488,37 @@ mod tests {
         assert!(!root.join("maps").exists());
         assert_eq!(read_metas(&p).unwrap().len(), 1);
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn data_of_the_old_app_is_adopted_once() {
+        let base = std::env::temp_dir().join(format!("mindroot-test-adopt-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let (legacy, root) = (base.join(LEGACY_APP_DIR), base.join("app.mindroot.desktop"));
+        fs::create_dir_all(legacy.join("vault/maps")).unwrap();
+        fs::create_dir_all(legacy.join("vault/.git")).unwrap();
+        fs::create_dir_all(legacy.join("plugin-settings")).unwrap();
+        fs::write(legacy.join("vault/maps/abc.jsonl"), MAP).unwrap();
+        fs::write(legacy.join("vault/.git/HEAD"), "ref: refs/heads/main").unwrap();
+        fs::write(legacy.join("plugin-settings/branchmint.sync.json"), r#"{"enabled":true}"#).unwrap();
+        fs::write(legacy.join("plugin-settings/branchmint.core.json"), r#"{"disabled":["branchmint.ai"],"enabledExternal":["acme.words"]}"#).unwrap();
+        fs::write(legacy.join("plugin-settings/acme.words.json"), r#"{"n":1}"#).unwrap();
+
+        let p = Paths { root: root.clone() };
+        p.ensure().unwrap();
+        assert_eq!(read_metas(&p).unwrap().len(), 1);
+        assert_eq!(fs::read_to_string(p.vault().join(".git/HEAD")).unwrap(), "ref: refs/heads/main");
+        assert_eq!(fs::read_to_string(p.settings().join("mindroot.sync.json")).unwrap(), r#"{"enabled":true}"#);
+        assert_eq!(fs::read_to_string(p.settings().join("mindroot.core.json")).unwrap(), r#"{"disabled":["mindroot.ai"],"enabledExternal":["acme.words"]}"#);
+        assert!(p.settings().join("acme.words.json").exists());
+        assert!(!p.settings().join("branchmint.sync.json").exists());
+        assert!(legacy.join("vault/maps/abc.jsonl").exists(), "the old folder stays as a backup");
+
+        // A later start must not copy again: a map deleted in the new app stays deleted.
+        fs::remove_file(p.maps().join("abc.jsonl")).unwrap();
+        p.ensure().unwrap();
+        assert_eq!(read_metas(&p).unwrap().len(), 0);
+        fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]
