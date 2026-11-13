@@ -1,6 +1,6 @@
 [package]
 name = "mindroot"
-version = "0.2.1"
+version = "0.3.0"
 description = "Mindroot — a fast, beautiful mind-mapping app"
 edition = "2021"
 license = "MIT"

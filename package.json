@@ -1,10 +1,10 @@
 {
   "name": "mindroot",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A fast, keyboard-first, local-first mind-mapping app for the desktop, with Git sync, plugins and live collaboration.",
   "author": "Farhad (https://github.com/falhad)",
-  "homepage": "https://github.com/falhad/mindroot",
+  "homepage": "https://mindroot.app",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/falhad/mindroot.git"
