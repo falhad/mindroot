@@ -56,8 +56,8 @@ export function MapLinkFields({ node }: { node: MindNode }) {
       {link && status !== 'ok' && <p className="text-[12px]" style={{ color: 'var(--danger)' }}>{status === 'trashed' ? 'This map is in the trash.' : 'This map is not in your library.'}</p>}
       {link && status === 'ok' && (
         <div className="flex items-center gap-1.5">
-          <button className="btn outline flex-1" onClick={() => followMapLink(link)}><ArrowUpRight size={14} /> Open</button>
-          <button className="btn outline flex-1" aria-expanded={picking} onClick={() => setPicking((v) => !v)}>{link.nodeId ? 'Change idea' : 'Pick an idea'}</button>
+          <button className="btn bordered flex-1" onClick={() => followMapLink(link)}><ArrowUpRight size={14} /> Open</button>
+          <button className="btn bordered flex-1" aria-expanded={picking} onClick={() => setPicking((v) => !v)}>{link.nodeId ? 'Change idea' : 'Pick an idea'}</button>
           {link.nodeId && <button className="btn icon" aria-label="Link to the whole map" title="Link to the whole map" onClick={() => commit((d) => void (d.nodes[node.id].mapLink = { mapId: link.mapId }))}><X size={14} /></button>}
         </div>
       )}

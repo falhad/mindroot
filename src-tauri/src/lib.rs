@@ -43,6 +43,8 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
             secrets::secret_get,
             secrets::secret_set,
             secrets::secret_remove,
+            secrets::secret_store_get,
+            secrets::secret_store_set,
             templates::template_list,
             templates::template_save,
             templates::template_delete,

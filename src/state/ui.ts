@@ -19,8 +19,20 @@ export interface ConfirmRequest {
   resolve: (ok: boolean) => void
 }
 
+export interface PromptRequest {
+  title: string
+  body?: string
+  placeholder?: string
+  multiline?: boolean
+  confirmLabel: string
+  initial?: string
+  submit?: (value: string, state: { cancelled(): boolean; status(text: string): void }) => Promise<string | void>
+  resolve: (value: string | null) => void
+}
+
 interface UiState {
   confirm: ConfirmRequest | null
+  prompt: PromptRequest | null
   route: Route
   themeMode: ThemeMode
   dark: boolean
@@ -46,7 +58,7 @@ interface UiState {
 
 function readTheme(): ThemeMode {
   try {
-    const t = localStorage.getItem('bm.theme')
+    const t = localStorage.getItem('mr.theme')
     if (t === 'light' || t === 'dark' || t === 'system') return t
   } catch {
     /* storage unavailable */
@@ -86,6 +98,7 @@ export const useUi = create<UiState>(() => ({
   tagFilter: [],
   toasts: [],
   confirm: null,
+  prompt: null,
 }))
 
 const set = useUi.setState
@@ -94,7 +107,7 @@ export function applyTheme(m: ThemeMode) {
   const dark = m === 'dark' || (m === 'system' && systemDark())
   document.documentElement.dataset.theme = dark ? 'dark' : 'light'
   try {
-    localStorage.setItem('bm.theme', m)
+    localStorage.setItem('mr.theme', m)
   } catch {
     /* ignore */
   }
@@ -135,6 +148,14 @@ export const ui = {
   setTagFilter: (tagFilter: string[]) => set({ tagFilter }),
   toggleTag: (tag: string) => set((s) => ({ tagFilter: s.tagFilter.includes(tag) ? s.tagFilter.filter((t) => t !== tag) : [...s.tagFilter, tag] })),
   setSettings: (settingsOpen: boolean, settingsTab?: string) => set((s) => ({ settingsOpen, settingsTab: settingsTab ?? s.settingsTab })),
+}
+
+/** Ask the user for text. Resolves with the text, or null when the user cancelled. */
+export function askPrompt(req: Omit<PromptRequest, 'resolve'>): Promise<string | null> {
+  return new Promise((resolve) => {
+    useUi.getState().prompt?.resolve(null) // only one at a time: a new request cancels the old one
+    set({ prompt: { ...req, resolve: (v) => { set({ prompt: null }); resolve(v) } } })
+  })
 }
 
 /** In-app replacement for window.confirm (webviews don't all support it). */

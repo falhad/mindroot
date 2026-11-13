@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, ChevronUp, CornerDownLeft, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, CornerDownLeft, Loader2, Search, X } from 'lucide-react'
 import { modKey } from '../io/env'
 import {
   addChild, addSibling, deleteSelection, duplicateSelection, setConnectFrom, startEdit, toggleCollapse, useDoc,
@@ -110,7 +110,7 @@ function PaletteInner() {
     const tokens = q.toLowerCase().split(/\s+/).filter(Boolean)
     if (!tokens.length) return commands
     return commands.filter((c) => {
-      const hay = `${c.group} ${c.title}`.toLowerCase()
+      const hay = `${c.group} ${c.title} ${c.keywords ?? ''}`.toLowerCase()
       return tokens.every((t) => hay.includes(t))
     })
   }, [q, commands])
@@ -133,7 +133,7 @@ function PaletteInner() {
         <input
           autoFocus
           className="h-12 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted"
-          placeholder="Type a command…"
+          placeholder="Type a command, or ? for the shortcut list"
           value={q}
           onChange={(e) => { setQ(e.target.value); setI(0) }}
           onKeyDown={(e) => {
@@ -332,6 +332,94 @@ export function HelpDialog() {
           </section>
         ))}
       </div>
+      <div className="border-t border-line px-5 py-2.5 text-[12.5px] text-muted">
+        To open this list again, press <kbd>?</kbd> on the map, or press <kbd>{modKey} K</kbd> and type <b>help</b>.
+      </div>
+    </Modal>
+  )
+}
+
+/** Asks for text (`askPrompt`). With a `submit` function it stays open and busy until the work is done. */
+export function PromptDialog() {
+  const req = useUi((s) => s.prompt)
+  if (!req) return null
+  return <PromptForm key={req.title} req={req} />
+}
+
+function PromptForm({ req }: { req: NonNullable<ReturnType<typeof useUi.getState>['prompt']> }) {
+  const [value, setValue] = useState(req.initial ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
+  const [startedAt, setStartedAt] = useState<number | null>(null)
+  const [seconds, setSeconds] = useState(0)
+  const cancelled = useRef(false)
+  useEffect(() => {
+    if (startedAt === null) return
+    setSeconds(0)
+    const t = setInterval(() => setSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000)
+    return () => clearInterval(t)
+  }, [startedAt])
+  // the dialog can go away while the work runs (cancel, or another prompt): never set state after that
+  useEffect(() => {
+    cancelled.current = false // React runs effects twice in development: the first cleanup must not count as a cancel
+    return () => { cancelled.current = true }
+  }, [])
+
+  const cancel = () => {
+    cancelled.current = true
+    req.resolve(null)
+  }
+  const send = async () => {
+    const text = value.trim()
+    if (!text || busy) return
+    if (!req.submit) return req.resolve(text)
+    setBusy(true)
+    setError('')
+    setStatus('')
+    setStartedAt(Date.now())
+    let problem: string | void
+    try {
+      problem = await req.submit(text, { cancelled: () => cancelled.current, status: (s) => { if (!cancelled.current) setStatus(s) } })
+    } catch (e) {
+      problem = e instanceof Error ? e.message : String(e)
+    }
+    if (cancelled.current) return
+    setStartedAt(null)
+    if (problem) {
+      setBusy(false)
+      setError(problem)
+    } else req.resolve(text)
+  }
+  const field = { className: 'field w-full', 'aria-label': req.title, placeholder: req.placeholder, value, disabled: busy, autoFocus: true, dir: 'auto' as const }
+  return (
+    <Modal onClose={cancel} label={req.title} width={req.multiline ? 560 : 420} top="18vh">
+      <form className="p-5" onSubmit={(e) => { e.preventDefault(); void send() }}>
+        <h2 className="text-[15px] font-semibold">{req.title}</h2>
+        {req.body && <p className="mb-3 mt-1.5 text-[13px] text-muted">{req.body}</p>}
+        {req.multiline ? (
+          <textarea {...field} data-prose rows={7} style={{ resize: 'vertical', minHeight: 120, paddingTop: 8, paddingBottom: 8, height: 'auto' }}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void send() } }} />
+        ) : (
+          <input {...field} onChange={(e) => setValue(e.target.value)} />
+        )}
+        {error && <p role="alert" className="mt-2.5 text-[12.5px]" style={{ color: 'var(--danger)' }}>{error}</p>}
+        <div className="mt-4 flex items-center justify-end gap-2">
+          {req.multiline && !busy && <span className="mr-auto text-[12px] text-muted"><kbd>{modKey}</kbd> <kbd>Enter</kbd> to send</span>}
+          {busy && (
+            <span className="mr-auto flex min-w-0 items-center gap-2 text-[12.5px] text-muted" role="status" aria-live="polite">
+              <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
+              <span className="truncate">{status || 'Working…'}</span>
+              <span className="shrink-0 tabular-nums">{seconds} s</span>
+            </span>
+          )}
+          <button type="button" className="btn bordered" onClick={cancel}>Cancel</button>
+          <button type="submit" className="btn primary" disabled={busy || !value.trim()}>
+            {req.confirmLabel}
+          </button>
+        </div>
+      </form>
     </Modal>
   )
 }
@@ -345,7 +433,7 @@ export function ConfirmDialog() {
         <h2 className="text-[15px] font-semibold">{req.title}</h2>
         {req.body && <p className="mt-1.5 text-[13px] text-muted">{req.body}</p>}
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" className="btn outline" onClick={() => req.resolve(false)}>Cancel</button>
+          <button type="button" className="btn bordered" onClick={() => req.resolve(false)}>Cancel</button>
           <button autoFocus type="submit" className={`btn ${req.danger ? '' : 'primary'}`} style={req.danger ? { background: 'var(--danger)', color: '#fff' } : undefined}>{req.confirmLabel}</button>
         </div>
       </form>

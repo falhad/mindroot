@@ -33,7 +33,7 @@ const until = async (fn: () => boolean, ms = 4000) => {
 }
 
 beforeAll(async () => {
-  dir = mkdtempSync(join(tmpdir(), 'bm-relay-'))
+  dir = mkdtempSync(join(tmpdir(), 'mr-relay-'))
   relay = await createRelay({ secret: SECRET, dataDir: dir, port: 0, host: '127.0.0.1', saveDelayMs: 50, idleMs: 100 })
 })
 afterEach(() => {
@@ -140,7 +140,7 @@ describe('relay server', () => {
 
 describe('relay limits', () => {
   it('refuses the 21st client in one room and the 51st room (close code 4429)', async () => {
-    const lim = await createRelay({ secret: SECRET, dataDir: mkdtempSync(join(tmpdir(), 'bm-lim-')), port: 0, host: '127.0.0.1', maxRooms: 3, maxClientsPerRoom: 2, saveDelayMs: 50, idleMs: 100 })
+    const lim = await createRelay({ secret: SECRET, dataDir: mkdtempSync(join(tmpdir(), 'mr-lim-')), port: 0, host: '127.0.0.1', maxRooms: 3, maxClientsPerRoom: 2, saveDelayMs: 50, idleMs: 100 })
     const connect = (r: string) =>
       new Promise<number>((res) => {
         const ws = new WebSocket(`ws://127.0.0.1:${lim.port}/${r}?token=${token(r)}`)

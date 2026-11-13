@@ -21,6 +21,8 @@ export interface ChatMessage {
 }
 
 const MAX_TOKENS = 2048
+/** A whole new map needs a longer answer than a list of ideas. */
+export const MAP_MAX_TOKENS = 4096
 
 function base(cfg: AiConfig): string {
   const b = cfg.baseUrl.trim().replace(/\/+$/, '')
@@ -28,7 +30,7 @@ function base(cfg: AiConfig): string {
   return b
 }
 
-export function buildRequest(cfg: AiConfig, key: string, messages: ChatMessage[]): NetRequest {
+export function buildRequest(cfg: AiConfig, key: string, messages: ChatMessage[], maxTokens = MAX_TOKENS): NetRequest {
   const root = base(cfg)
   if (cfg.kind === 'anthropic') {
     const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
@@ -36,7 +38,7 @@ export function buildRequest(cfg: AiConfig, key: string, messages: ChatMessage[]
       url: /\/v1$/.test(root) ? `${root}/messages` : `${root}/v1/messages`,
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: cfg.model, max_tokens: MAX_TOKENS, stream: false, ...(system ? { system } : {}), messages: messages.filter((m) => m.role !== 'system') }),
+      body: JSON.stringify({ model: cfg.model, max_tokens: maxTokens, stream: false, ...(system ? { system } : {}), messages: messages.filter((m) => m.role !== 'system') }),
       timeoutMs: cfg.timeoutMs,
     }
   }
@@ -107,9 +109,9 @@ function errorDetail(body: string, key: string): string {
   return msg ? `: ${msg}` : ''
 }
 
-export async function chat(cfg: AiConfig, key: string, messages: ChatMessage[], net: { request(r: NetRequest): Promise<NetResponse> }): Promise<string> {
+export async function chat(cfg: AiConfig, key: string, messages: ChatMessage[], net: { request(r: NetRequest): Promise<NetResponse> }, maxTokens?: number): Promise<string> {
   if (!key.trim()) throw new Error('Add your API key in Settings → AI')
-  const res = await net.request(buildRequest(cfg, key.trim(), messages))
+  const res = await net.request(buildRequest(cfg, key.trim(), messages, maxTokens))
   if (res.status < 200 || res.status >= 300) throw new Error(`The AI service answered ${res.status}${errorDetail(res.body, key.trim())}`)
   try {
     return parseResponse(cfg.kind, res.body)
@@ -166,4 +168,43 @@ export function parseItems(obj: Record<string, unknown> | null): string[] | null
 export function parseText(obj: Record<string, unknown> | null): string | null {
   const t = obj && typeof obj.text === 'string' ? obj.text.trim().slice(0, 8000) : ''
   return t || null
+}
+
+/** Limits for a map made by a model: the answer is never trusted to be small. */
+export const MAX_MAP_IDEAS = 150
+const MAX_MAP_DEPTH = 5
+const MAX_MAP_CHILDREN = 12
+
+export interface IdeaTree {
+  text: string
+  children: IdeaTree[]
+}
+
+/**
+ * A whole map: `{ "title": "…", "children": [{ "text": "…", "children": [...] }] }`.
+ * Texts are trimmed to 200 characters; empty and repeated ideas, and everything over the limits, are dropped.
+ * Null when there is no title or no idea under it. `count` is the number of ideas, the central one included.
+ */
+export function parseTree(obj: Record<string, unknown> | null): { tree: IdeaTree; count: number } | null {
+  const label = (o: any) => {
+    const t = typeof o === 'string' ? o : typeof o?.text === 'string' ? o.text : typeof o?.title === 'string' ? o.title : ''
+    return t.replace(/\s+/g, ' ').trim().slice(0, 200)
+  }
+  let count = 0
+  const build = (o: any, depth: number): IdeaTree | null => {
+    const text = label(o)
+    if (!text || count >= MAX_MAP_IDEAS) return null
+    count++
+    const node: IdeaTree = { text, children: [] }
+    const kids = depth < MAX_MAP_DEPTH && o && typeof o === 'object' && Array.isArray(o.children) ? o.children : []
+    for (const k of kids) {
+      if (node.children.length === MAX_MAP_CHILDREN) break
+      if (node.children.some((c) => c.text === label(k))) continue
+      const child = build(k, depth + 1)
+      if (child) node.children.push(child)
+    }
+    return node
+  }
+  const tree = obj ? build(obj, 0) : null
+  return tree && tree.children.length ? { tree, count } : null
 }

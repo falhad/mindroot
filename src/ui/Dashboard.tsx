@@ -30,6 +30,7 @@ export function Dashboard() {
   const [dropping, setDropping] = useState(false)
   const [tagsFor, setTagsFor] = useState<MapMeta | null>(null)
   const userTemplates = useTemplates((s) => s.items)
+  const newMapActions = useRegistry((s) => s.newMap)
 
   useEffect(() => {
     void refreshLibrary()
@@ -118,14 +119,14 @@ export function Dashboard() {
           {lib.query ? (
             <button className="btn icon absolute right-1 top-1/2 -translate-y-1/2" style={{ width: 26, height: 26 }} aria-label="Clear search" onClick={() => libraryActions.setQuery('')}><X size={14} /></button>
           ) : (
-            <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2">/</kbd>
+            <kbd className="absolute right-2.5 top-1/2 hidden -translate-y-1/2 sm:block">/</kbd>
           )}
         </div>
-        <div className="no-drag flex shrink-0 items-center gap-1">
+        <div className="no-drag flex shrink-0 items-center gap-1.5">
           <StatusSlot />
           <button className="btn icon" aria-label="Settings" title="Settings and plugins (⌘,)" onClick={() => ui.setSettings(true, 'general')}><Settings size={16} /></button>
           <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
-          <button className="btn outline" aria-label="Import" onClick={async () => void importFiles(await pickFile(importAccept(useRegistry.getState().importers), true))}>
+          <button className="btn bordered ml-1" aria-label="Import" onClick={async () => void importFiles(await pickFile(importAccept(useRegistry.getState().importers), true))}>
             <Upload size={15} /> <span className="hidden sm:inline">Import</span>
           </button>
           <button className="btn primary" aria-label="New map" disabled={busy} onClick={() => void open('blank')}>
@@ -134,6 +135,7 @@ export function Dashboard() {
         </div>
       </header>
 
+      {!isTauri && <WebNotice />}
       <div className="flex min-h-0 flex-1">
         <nav className="hidden w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r border-line p-3 md:flex" aria-label="Library">
           {([['all', 'All maps', Layers, counts.all], ['starred', 'Starred', Star, counts.starred], ['trash', 'Trash', Trash2, counts.trash]] as const).map(([id, label, Icon, n]) => (
@@ -162,7 +164,16 @@ export function Dashboard() {
 
             {showTemplates && (
               <section className="mb-9" aria-label="Start a new map">
-                <h2 className="mb-3 text-[13px] font-semibold text-muted">Start with a template</h2>
+                <div className="mb-3 flex min-h-8 items-center justify-between gap-3">
+                  <h2 className="text-[13px] font-semibold text-muted">Start with a template</h2>
+                  {newMapActions.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {newMapActions.map((a) => (
+                        <button key={a.id} className="btn bordered" title={a.hint} onClick={a.run}>{a.icon} {a.title}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                   {userTemplates.map((t) => (
                     <div key={t.id} className="group relative" data-user-template={t.id}>
@@ -370,8 +381,31 @@ function TagsDialog({ m, onClose }: { m: MapMeta; onClose: () => void }) {
           <input autoFocus className="field" placeholder="e.g. work, ideas, 2026" value={v} onChange={(e) => setV(e.target.value)} />
           <button className="btn primary" type="submit" disabled={!v.trim()}>Add</button>
         </form>
-        <div className="mt-4 flex justify-end"><button className="btn outline" onClick={onClose}>Done</button></div>
+        <div className="mt-4 flex justify-end"><button className="btn bordered" onClick={onClose}>Done</button></div>
       </div>
     </Modal>
+  )
+}
+
+const WEB_NOTICE_KEY = 'mr.web.notice'
+
+/** Browser version only: says where the maps are kept. Shown until the user closes it. */
+function WebNotice() {
+  const [show, setShow] = useState(() => {
+    try { return localStorage.getItem(WEB_NOTICE_KEY) !== 'off' } catch { return true }
+  })
+  if (!show) return null
+  const close = () => {
+    setShow(false)
+    try { localStorage.setItem(WEB_NOTICE_KEY, 'off') } catch { /* private window: the notice comes back */ }
+  }
+  return (
+    <div role="note" className="flex shrink-0 items-center gap-3 border-b border-line bg-hover px-4 py-2 text-[12.5px] text-muted">
+      <p className="min-w-0 flex-1">
+        Your maps are saved in this browser only. Export a map to keep a backup. Git sync and quick capture are in the{' '}
+        <a className="font-medium text-accent hover:underline" href="https://github.com/falhad/mindroot/releases/latest" target="_blank" rel="noreferrer">desktop app</a>.
+      </p>
+      <button className="btn icon shrink-0" style={{ width: 26, height: 26 }} aria-label="Close notice" onClick={close}><X size={14} /></button>
+    </div>
   )
 }

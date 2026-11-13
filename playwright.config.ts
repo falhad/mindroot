@@ -9,7 +9,13 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
-  use: { baseURL: 'http://localhost:1420', trace: 'retain-on-failure', ...devices['Desktop Chrome'] },
+  use: {
+    baseURL: 'http://localhost:1420',
+    trace: 'retain-on-failure',
+    ...devices['Desktop Chrome'],
+    // The first-use tour is off in the tests; tests/e2e/tour.spec.ts turns it on again.
+    storageState: { cookies: [], origins: [{ origin: 'http://localhost:1420', localStorage: [{ name: 'mr.tour', value: 'done' }] }] },
+  },
   webServer: [
     { command: 'pnpm dev', url: 'http://localhost:1420', reuseExistingServer: !process.env.CI, timeout: 60_000 },
     // the live-collaboration relay, for the two-browser tests

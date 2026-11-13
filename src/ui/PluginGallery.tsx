@@ -5,11 +5,11 @@ import { DEFAULT_INDEX_URL, entryState, parseIndex, type GalleryEntry } from '..
 import { forgetPluginEnabled, netRequest, useRegistry } from '../plugins/host'
 import { toast } from '../state/ui'
 
-const URL_KEY = 'bm.gallery.url'
+const URL_KEY = 'mr.gallery.url'
 const PERMISSION_HELP: Record<string, string> = {
   native: "Can call the app's native commands (files, Git)",
   net: 'Can make network requests',
-  secrets: 'Can store secrets such as API keys in your keychain',
+  secrets: 'Can store secrets such as API keys on this computer',
 }
 
 const readUrl = () => {
@@ -99,7 +99,7 @@ export function PluginGallery() {
               {state === 'installed' ? (
                 <span className="mt-1 shrink-0 text-[12.5px] text-muted">Installed</span>
               ) : (
-                <button className="btn outline shrink-0" disabled={!isTauri || busy !== null} title={isTauri ? undefined : 'Installing plugins needs the desktop app'} onClick={() => void install(e)}>
+                <button className="btn bordered shrink-0" disabled={!isTauri || busy !== null} title={isTauri ? undefined : 'Installing plugins needs the desktop app'} onClick={() => void install(e)}>
                   {busy === e.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} {state === 'update' ? 'Update' : 'Install'}
                 </button>
               )}

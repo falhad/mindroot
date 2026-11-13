@@ -1,0 +1,28 @@
+# Inner server of the Mindroot web container: plain HTTP on the Docker network only.
+# The edge Caddy holds the TLS certificate. Keep the headers in step with ../Caddyfile.
+# MINDROOT_SCRIPT_SRC is an optional extra script source (setup-web-docker.sh --script-src). It is empty by default.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /srv
+	encode zstd gzip
+	file_server
+
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self' blob: {$MINDROOT_SCRIPT_SRC}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	@fresh not path /assets/*
+	header @fresh Cache-Control "no-cache"
+}

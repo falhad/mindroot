@@ -10,6 +10,7 @@ import { startPresentation } from '../state/present'
 import { createMap, refreshLibrary, useLibrary } from '../state/library'
 import { saveAsTemplate } from '../state/templates'
 import { useRegistry } from '../plugins/host'
+import { startTour } from '../state/tour'
 import { cycleTheme, goTo, toast, ui } from '../state/ui'
 import { fitView, screenToWorld, setView, useView, zoomBy } from '../state/view'
 
@@ -18,6 +19,8 @@ export interface Command {
   title: string
   group: string
   hint?: string
+  /** More words that find this command in the palette. */
+  keywords?: string
   run: () => void
 }
 
@@ -159,7 +162,8 @@ export function buildCommands(): Command[] {
     }),
     c('Map', 'new', 'New map', () => void newMapAndOpen()),
     c('Map', 'home', 'All maps', () => void goHome()),
-    c('Help', 'help', 'Keyboard shortcuts', () => ui.setHelp(true), '?'),
+    { ...c('Help', 'help', 'Keyboard shortcuts', () => ui.setHelp(true), '?'), keywords: '? shortcut keys hotkeys cheat sheet' },
+    { ...c('Help', 'tour', 'Show the quick tour', () => startTour(true)), keywords: 'tutorial guide intro start' },
     c('Help', 'settings', 'Settings and plugins…', () => ui.setSettings(true, 'general'), `${modKey} ,`),
   ]
   for (const l of LAYOUTS) list.push(c('Layout', `layout-${l.id}`, `Layout: ${l.name}`, () => setLayout(l.id)))

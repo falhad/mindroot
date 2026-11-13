@@ -18,7 +18,7 @@ Only the latest release gets security fixes.
 ## How the app protects you
 
 - **Local-first.** The app sends no data anywhere unless you turn on Git sync, live collaboration, the AI assistant, or the update check.
-- **Secrets** (AI keys, relay secrets) go to the operating system keychain, not to map files.
+- **Secrets** (AI keys, relay secrets) never go to map files or to Git. You choose the place in Settings → General → Secret keys: a file in the app data folder that only your user account can read (`secrets.json`, mode 600), or the operating system keychain. The file is the default on macOS, the keychain on Windows and Linux. The file is not encrypted: a program that runs under your user account can read it. The keychain is the stronger choice; on macOS it asks for your password after each update, because the app is not signed by Apple yet.
 - **Git** runs through an allow-list of calls. A contract test fails if the engine makes a call that is not on the list.
 - **Notes** are sanitised (DOMPurify) before the app shows them.
 - **Updates** are signed. The app refuses an update whose signature does not match the public key in the app.

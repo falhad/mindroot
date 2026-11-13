@@ -1,0 +1,31 @@
+# Mindroot web app: static files from scripts/deploy-web.sh. Caddy gets the TLS certificate itself.
+# Use: copy this block into your Caddyfile (or import it), then `caddy reload`.
+
+www.mindroot.app {
+	redir https://mindroot.app{uri} permanent
+}
+
+mindroot.app {
+	root * /var/www/mindroot.app
+	encode zstd gzip
+	file_server
+
+	header {
+		# The app talks only to itself, to services the user sets up (AI, collaboration relay),
+		# and to the plugin gallery. blob: is for installed plugins.
+		Content-Security-Policy "default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
+	# Vite puts a content hash in these file names, so they never change.
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	# The page and the other files must be checked on each visit, so a new deploy shows at once.
+	@fresh not path /assets/*
+	header @fresh Cache-Control "no-cache"
+}

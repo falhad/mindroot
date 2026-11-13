@@ -199,7 +199,7 @@ function NodePanel({ node }: { node: MindNode }) {
         title="Icon"
         right={node.icon ? <button className="text-[12px] text-muted hover:text-ink" onClick={() => commit((d) => T.setNodeIcon(d, selection, undefined))}>Remove</button> : null}
       >
-        <button className="btn outline w-full justify-between" onClick={() => setIconOpen((v) => !v)} aria-expanded={iconOpen}>
+        <button className="btn bordered w-full justify-between" onClick={() => setIconOpen((v) => !v)} aria-expanded={iconOpen}>
           <span className="flex items-center gap-2">
             {node.icon ? <NodeIcon icon={node.icon} size={16} /> : <Smile size={16} className="text-muted" />}
             {node.icon ? 'Change icon' : 'Add an icon'}
@@ -230,9 +230,9 @@ function NodePanel({ node }: { node: MindNode }) {
 
       <Section title="Arrange">
         <div className="flex flex-wrap gap-1.5">
-          <button className="btn outline" onClick={() => groupSelection() || toast('Select nodes that share the same parent to group them')}>Group</button>
-          <button className="btn outline" onClick={() => summarizeSelection() || toast('Select two or more neighbouring siblings for a bracket')}>Bracket</button>
-          <button className="btn outline" disabled={node.id === doc.root || !node.parentId} onClick={() => floatSelection()}>Float</button>
+          <button className="btn bordered" onClick={() => groupSelection() || toast('Select nodes that share the same parent to group them')}>Group</button>
+          <button className="btn bordered" onClick={() => summarizeSelection() || toast('Select two or more neighbouring siblings for a bracket')}>Bracket</button>
+          <button className="btn bordered" disabled={node.id === doc.root || !node.parentId} onClick={() => floatSelection()}>Float</button>
         </div>
         <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[13px]">
           <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={!!node.sticky}
@@ -271,6 +271,7 @@ function NodePanel({ node }: { node: MindNode }) {
         ) : (
           <textarea
             className="field"
+            data-prose
             rows={4}
             dir="auto"
             style={{ resize: 'vertical', minHeight: 84 }}
@@ -303,7 +304,7 @@ function NodePanel({ node }: { node: MindNode }) {
         {node.image ? (
           <img src={node.image.src} alt="" className="max-h-40 w-full rounded-lg border border-line object-contain" />
         ) : (
-          <button className="btn outline w-full"
+          <button className="btn bordered w-full"
             onClick={async () => attachImage((await pickFile('image/*'))[0])}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); void attachImage(e.dataTransfer.files[0]) }}>
@@ -336,7 +337,7 @@ function NodePanel({ node }: { node: MindNode }) {
         </ul>
         <form className="mt-2 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); if (newItem.trim()) { commit((d) => void T.addChecklistItem(d, node.id, newItem.trim())); setNewItem('') } }}>
           <input className="field" placeholder="Add an item…" value={newItem} onChange={(e) => setNewItem(e.target.value)} />
-          <button className="btn icon outline" type="submit" aria-label="Add item" disabled={!newItem.trim()}><Plus size={15} /></button>
+          <button className="btn icon bordered" type="submit" aria-label="Add item" disabled={!newItem.trim()}><Plus size={15} /></button>
         </form>
       </Section>
 
@@ -436,7 +437,7 @@ function MapPanel() {
             ))}
           </div>
         ) : (
-          <button className="btn outline w-full" onClick={() => commit((d) => void (d.customTheme = [...resolveTheme(d).light]))}>Edit the eight colours</button>
+          <button className="btn bordered w-full" onClick={() => commit((d) => void (d.customTheme = [...resolveTheme(d).light]))}>Edit the eight colours</button>
         )}
         <p className="mt-1.5 text-[11.5px] text-muted">The first two colours colour the central idea.</p>
       </Section>

@@ -14,7 +14,7 @@ interface DigestState {
   ready: boolean
 }
 
-const KEY = 'bm.digest.v1'
+const KEY = 'mr.digest.v1'
 
 function restore(): Record<string, MapDigest> {
   try {

@@ -2,6 +2,13 @@
 
 How to use the features added after the first release. Everything works in the desktop app. In the browser build the parts that need files or the system (Git history, attachments on disk, quick capture, installing plugins, updates) are marked.
 
+## First use and help
+
+| Feature | How |
+|---|---|
+| **Quick tour** | The first map you open shows a short tour: add an idea (`Tab`), add the next one (`Enter`), open the command palette (`⌘K`). Each step moves on when you do it. The ✕ button skips it. To see it again: ⌘K → "Show the quick tour". On a phone, the tour uses the **Child** and **Sibling** buttons. |
+| **Shortcut list** | Press `?` on the map. Or press ⌘K and type `?`, `help` or `shortcut`. |
+
 ## Structure
 
 | Feature | How |

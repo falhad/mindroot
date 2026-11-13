@@ -33,6 +33,7 @@ import { Presentation } from './Presentation'
 import { Minimap } from './Minimap'
 import { StatusSlot } from './StatusSlot'
 import { TagFilter } from './TagFilter'
+import { Tour } from './Tour'
 import { ContextMenu, Palette, SearchBar, type ContextState } from './Overlays'
 
 type Phase = 'loading' | 'ready' | 'missing' | 'error'
@@ -60,7 +61,7 @@ export function Editor({ id }: { id: string }) {
         }
         if (!useLibrary.getState().loaded) void refreshLibrary() // for the map picker and link checks
         try {
-          const saved = JSON.parse(localStorage.getItem(`bm.view.${id}`) ?? 'null')
+          const saved = JSON.parse(localStorage.getItem(`mr.view.${id}`) ?? 'null')
           restore.current = saved && Number.isFinite(saved.k) ? saved : null
         } catch {
           restore.current = null
@@ -94,7 +95,7 @@ export function Editor({ id }: { id: string }) {
       if (!opened) return
       const v = useView.getState()
       try {
-        localStorage.setItem(`bm.view.${id}`, JSON.stringify({ x: v.x, y: v.y, k: v.k }))
+        localStorage.setItem(`mr.view.${id}`, JSON.stringify({ x: v.x, y: v.y, k: v.k }))
       } catch { /* ignore */ }
       emit('doc:closed', { id })
       void flushSave().finally(closeDoc)
@@ -187,6 +188,7 @@ function Workspace({ restore }: { restore: { x: number; y: number; k: number } |
           <Minimap doc={doc} layout={layout} />
           <Dock />
           <SearchBar />
+          {!connectFrom && <Tour />}
         </>
       )}
       <Presentation />
@@ -249,18 +251,18 @@ function TopBar() {
       />
       <span className="no-drag hidden sm:block"><SaveStatus /></span>
       <StatusSlot />
-      <div className="flex-1" />
+      <div className="hidden flex-1 sm:block" />
       <div className="no-drag flex items-center gap-0.5">
         <button className="btn icon" aria-label="Undo" title="Undo (⌘Z)" disabled={!canUndo} onClick={undo}><Undo2 size={16} /></button>
         <button className="btn icon" aria-label="Redo" title="Redo (⇧⌘Z)" disabled={!canRedo} onClick={redo}><Redo2 size={16} /></button>
         <span className="mx-1 h-5 w-px bg-line" />
-        <button className={`btn icon ${outlineOpen ? 'on' : ''}`} aria-label="Toggle outline" aria-pressed={outlineOpen} title="Outline (⌘⇧O)" onClick={ui.toggleOutline}><PanelLeft size={16} /></button>
+        <button className={`btn icon hidden sm:inline-flex ${outlineOpen ? 'on' : ''}`} aria-label="Toggle outline" aria-pressed={outlineOpen} title="Outline (⌘⇧O)" onClick={ui.toggleOutline}><PanelLeft size={16} /></button>
         <LayoutMenu />
         <TagFilter />
         <button className="btn icon" aria-label="Find" title="Find (⌘F)" onClick={() => ui.setSearch(true)}><Search size={16} /></button>
-        <button className="btn icon" aria-label="Command palette" title="Commands (⌘K)" onClick={() => ui.setPalette(true)}><Command size={16} /></button>
-        <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
-        <button className="btn outline hidden sm:inline-flex" onClick={() => ui.setExport(true)}><Download size={15} /> Export</button>
+        <button className="btn icon hidden sm:inline-flex" aria-label="Command palette" title="Commands (⌘K)" onClick={() => ui.setPalette(true)}><Command size={16} /></button>
+        <button className="btn icon hidden sm:inline-flex" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
+        <button className="btn bordered mx-1.5 hidden sm:inline-flex" onClick={() => ui.setExport(true)}><Download size={15} /> Export</button>
         <button className="btn icon sm:hidden" aria-label="Export" onClick={() => ui.setExport(true)}><Download size={16} /></button>
         <button className={`btn icon ${inspectorOpen ? 'on' : ''}`} aria-label="Toggle side panel" aria-pressed={inspectorOpen} title="Side panel (⌘I)" onClick={ui.toggleInspector}><PanelRight size={16} /></button>
       </div>

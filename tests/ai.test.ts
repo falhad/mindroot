@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { branchOutline, expandMessages } from '../src/plugins/builtin/ai/prompts'
-import { buildRequest, chat, parseAiJson, parseItems, parseResponse, type AiConfig } from '../src/plugins/builtin/ai/client'
+import { branchOutline, expandMessages, generateMessages, MAX_SOURCE_CHARS } from '../src/plugins/builtin/ai/prompts'
+import { buildRequest, chat, MAP_MAX_TOKENS, MAX_MAP_IDEAS, parseAiJson, parseItems, parseResponse, parseTree, type AiConfig } from '../src/plugins/builtin/ai/client'
 import { docFromOutline, parseOutline } from '../src/core/outline'
 import type { MapDoc } from '../src/core/types'
 
@@ -165,8 +165,8 @@ describe('AI plugin in the app', async () => {
     const topic = Object.values(d.nodes).find((n) => n.text === 'Topic')!.id
     store.select([topic])
     // settings: an OpenRouter-style endpoint; the key goes to the secrets store, never to the settings
-    localStorage.setItem('bm.plugin.mindroot.ai', JSON.stringify({ kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', model: 'm', timeoutMs: 5000 }))
-    sessionStorage.setItem('bm.secret.mindroot.ai.apikey', key)
+    localStorage.setItem('mr.plugin.mindroot.ai', JSON.stringify({ kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', model: 'm', timeoutMs: 5000 }))
+    sessionStorage.setItem('mr.secret.mindroot.ai.apikey', key)
     const run = (cmd: string) => useRegistry.getState().commands.find((c) => c.id === `mindroot.ai:${cmd}`)!.run()
     return { d, topic, run }
   }
@@ -200,7 +200,7 @@ describe('AI plugin in the app', async () => {
   it('without an API key nothing is sent', async () => {
     const f = reply('{"items":["x"]}')
     const { run } = await setup(f, '')
-    sessionStorage.removeItem('bm.secret.mindroot.ai.apikey')
+    sessionStorage.removeItem('mr.secret.mindroot.ai.apikey')
     run('expand')
     await settle()
     expect(f).not.toHaveBeenCalled()
@@ -254,9 +254,93 @@ describe('AI plugin in the app', async () => {
     const { topic, run } = await setup(slow as never)
     run('expand')
     await settle() // the request is now waiting for the model
+    // the header chip says what the AI does while it waits
+    const { useActivity } = await import('../src/plugins/builtin/ai/activity')
+    expect(useActivity.getState().current).toMatchObject({ title: 'Expanding “Topic”', step: 'asking m' })
+    expect(useRegistry.getState().status.map((x) => x.id)).toContain('mindroot.ai:working')
     store.commit((d) => void T.removeNodes(d, [topic]))
     release()
     await settle()
+    expect(useActivity.getState().current).toBeNull() // and it goes away when the work ends, also when the answer is dropped
     expect(Object.values(store.useDoc.getState().doc!.nodes).map((x) => x.text)).not.toContain('late')
+  })
+})
+
+describe('AI: a whole map from a topic or a text', () => {
+  it('parseTree keeps a clean tree and counts the ideas', () => {
+    const r = parseTree({ title: '  Launch   plan ', children: [{ text: 'Research', children: [{ text: 'Interviews' }, 'Surveys'] }, { title: 'Build' }] })!
+    expect(r.tree).toEqual({ text: 'Launch plan', children: [{ text: 'Research', children: [{ text: 'Interviews', children: [] }, { text: 'Surveys', children: [] }] }, { text: 'Build', children: [] }] })
+    expect(r.count).toBe(5)
+  })
+
+  it('parseTree refuses an answer with no title or no ideas', () => {
+    expect(parseTree(null)).toBeNull()
+    expect(parseTree({ children: [{ text: 'a' }] })).toBeNull()
+    expect(parseTree({ title: 'Alone', children: [] })).toBeNull()
+    expect(parseTree({ title: 'Bad kids', children: [{}, { text: '   ' }, 7, null] })).toBeNull()
+  })
+
+  it('parseTree drops empty and repeated ideas and never goes over its limits', () => {
+    const wide = { title: 'T', children: Array.from({ length: 30 }, (_, i) => ({ text: `b${i}`, children: Array.from({ length: 30 }, (_, j) => ({ text: `c${i}-${j}` })) })) }
+    const r = parseTree(wide)!
+    expect(r.tree.children).toHaveLength(12)
+    expect(r.tree.children.every((c) => c.children.length <= 12)).toBe(true)
+    expect(r.count).toBeLessThanOrEqual(MAX_MAP_IDEAS)
+
+    let deep: any = { text: 'leaf' }
+    for (let i = 0; i < 30; i++) deep = { text: `level ${i}`, children: [deep] }
+    let depth = 0
+    for (let n = parseTree({ title: 'T', children: [deep] })!.tree; n.children.length; n = n.children[0]) depth++
+    expect(depth).toBe(5)
+
+    const dup = parseTree({ title: 'T', children: [{ text: 'Same' }, { text: 'Same' }, { text: '' }, { text: 'x'.repeat(500) }] })!
+    expect(dup.tree.children.map((c) => c.text.length)).toEqual([4, 200])
+  })
+
+  it('the request carries only the text the user gave, cut at the limit, and asks for a longer answer', () => {
+    const m = generateMessages(`  ${'a'.repeat(MAX_SOURCE_CHARS + 500)}  `)
+    expect(m[1]).toEqual({ role: 'user', content: 'a'.repeat(MAX_SOURCE_CHARS) })
+    expect(m[0].content).toContain('{"title"')
+    expect(JSON.parse(buildRequest(anthropic, 'k', m, MAP_MAX_TOKENS).body!).max_tokens).toBe(MAP_MAX_TOKENS)
+    expect(JSON.parse(buildRequest(anthropic, 'k', m).body!).max_tokens).toBe(2048)
+  })
+})
+
+describe('AI activity for the header chip', async () => {
+  const { beginActivity, shortModel, useActivity } = await import('../src/plugins/builtin/ai/activity')
+
+  it('shows the newest task; an older task cannot change or end it', () => {
+    const first = beginActivity('First', 'asking')
+    const second = beginActivity('Second', 'asking')
+    first.step('late step')
+    first.end()
+    expect(useActivity.getState().current).toMatchObject({ title: 'Second', step: 'asking' })
+    second.step('reading the answer')
+    expect(useActivity.getState().current!.step).toBe('reading the answer')
+    second.end()
+    expect(useActivity.getState().current).toBeNull()
+  })
+
+  it('an error from the service also ends the activity', async () => {
+    const { startPlugins, useRegistry } = await import('../src/plugins/host')
+    const { aiPlugin } = await import('../src/plugins/builtin/ai')
+    const store = await import('../src/state/doc')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"error":"no"}', { status: 500 })))
+    useRegistry.setState({ plugins: [], commands: [], status: [], panels: [], importers: [], exporters: [], ready: false })
+    await startPlugins([{ builtin: true, plugin: aiPlugin }])
+    const d = docFromOutline(parseOutline('# Root\n- Topic'))
+    store.openDoc(d)
+    store.select([Object.values(d.nodes).find((n) => n.text === 'Topic')!.id])
+    localStorage.setItem('mr.plugin.mindroot.ai', JSON.stringify({ kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', model: 'm', timeoutMs: 5000 }))
+    sessionStorage.setItem('mr.secret.mindroot.ai.apikey', 'k')
+    useRegistry.getState().commands.find((c) => c.id === 'mindroot.ai:expand')!.run()
+    await new Promise((r) => setTimeout(r, 30))
+    expect(useActivity.getState().current).toBeNull()
+  })
+
+  it('the model name in a status line has no provider part', () => {
+    expect(shortModel('openai/gpt-4o-mini')).toBe('gpt-4o-mini')
+    expect(shortModel('claude-x')).toBe('claude-x')
+    expect(shortModel('  ')).toBe('the model')
   })
 })

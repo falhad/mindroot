@@ -9,7 +9,7 @@ import { applyTheme, parseRoute, toast, ui, useUi } from '../state/ui'
 import { Dashboard } from './Dashboard'
 import { TasksView } from './TasksView'
 import { Editor } from './Editor'
-import { ConfirmDialog, HelpDialog, Toasts } from './Overlays'
+import { ConfirmDialog, HelpDialog, PromptDialog, Toasts } from './Overlays'
 import { SettingsDialog } from './SettingsDialog'
 import { Capture } from './Capture'
 import { autoCheckEnabled, updater, useUpdater } from '../io/updater'
@@ -129,6 +129,7 @@ export function App() {
       {route.name === 'editor' && <Toasts />}
       <HelpDialog />
       <SettingsDialog />
+      <PromptDialog />
       <ConfirmDialog />
     </>
   )

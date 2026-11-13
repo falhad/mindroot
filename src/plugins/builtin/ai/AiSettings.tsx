@@ -34,7 +34,7 @@ export function AiSettings({ ctx }: { ctx: PluginContext }) {
     await ctx.secrets!.set('apikey', k)
     setKeyInput('')
     setHasKey(true)
-    setStatus({ ok: true, text: ctx.isDesktop ? 'Key saved in your system keychain.' : 'Key kept for this tab only (the web version does not store keys).' })
+    setStatus({ ok: true, text: ctx.isDesktop ? 'Key saved on this computer, outside your maps.' : 'Key kept for this tab only (the web version does not store keys).' })
   }
   const removeKey = async () => {
     await ctx.secrets!.remove('apikey')
@@ -91,12 +91,12 @@ export function AiSettings({ ctx }: { ctx: PluginContext }) {
         <span className="mb-1 block text-muted">API key {hasKey && <b className="text-ink">· saved</b>}</span>
         <div className="flex gap-2">
           <input className="field" type="password" aria-label="API key" autoComplete="off" placeholder={hasKey ? '•••••••• (saved, type a new one to replace)' : 'Paste your key'} value={keyInput} onChange={(e) => setKeyInput(e.target.value)} />
-          <button className="btn outline" onClick={() => void saveKey()} disabled={!keyInput.trim()}>Save key</button>
+          <button className="btn bordered" onClick={() => void saveKey()} disabled={!keyInput.trim()}>Save key</button>
           {hasKey && <button className="btn" onClick={() => void removeKey()}>Remove</button>}
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <button className="btn outline" onClick={() => void test()} disabled={busy || !hasKey}>{busy ? 'Testing…' : 'Test connection'}</button>
+        <button className="btn bordered" onClick={() => void test()} disabled={busy || !hasKey}>{busy ? 'Testing…' : 'Test connection'}</button>
         {status && <span role="status" className="text-[12.5px]" style={{ color: status.ok ? undefined : 'var(--danger)' }}>{status.text}</span>}
       </div>
     </div>

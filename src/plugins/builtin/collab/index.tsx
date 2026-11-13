@@ -10,7 +10,7 @@ import { roomName, roomToken } from './crypto'
 import { decodeInvite, encodeInvite, validServerUrl, type Invite } from './invite'
 import { Session, useCollab } from './session'
 
-/** Where and how one map is shared. The token is kept in the keychain, under `token:<mapId>`. */
+/** Where and how one map is shared. The token is kept with the secrets of the app, under `token:<mapId>`. */
 export interface Connection {
   serverUrl: string
   room: string

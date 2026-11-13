@@ -5,7 +5,8 @@ import { PluginGallery } from './PluginGallery'
 import { registerCaptureShortcut } from '../io/captureShortcut'
 import { DEFAULT_SHORTCUT, getInboxName, getShortcut, setInboxName, setShortcut } from '../state/capture'
 import { Blocks, FolderOpen, Moon, Puzzle, Settings2, Sun, Monitor, X } from 'lucide-react'
-import { isTauri } from '../io/env'
+import { isMac, isTauri } from '../io/env'
+import { getSecretStore, setSecretStore, type SecretStore } from '../io/secretStore'
 import { forgetPluginEnabled, setPluginEnabled, useRegistry, type PluginRecord } from '../plugins/host'
 import { applyTheme, ui, useUi } from '../state/ui'
 import { Modal } from './Overlays'
@@ -71,10 +72,11 @@ function General() {
       </section>
       <section>
         <div className="label mb-2">Keyboard</div>
-        <button className="btn outline" onClick={() => { ui.setSettings(false); ui.setHelp(true) }}>Show all shortcuts</button>
+        <button className="btn bordered" onClick={() => { ui.setSettings(false); ui.setHelp(true) }}>Show all shortcuts</button>
       </section>
       {isTauri && <UpdateSettings />}
       {isTauri && <CaptureSettings />}
+      {isTauri && <SecretSettings />}
     </div>
   )
 }
@@ -97,7 +99,7 @@ function UpdateSettings() {
         ) : state.kind === 'ready' ? (
           <button className="btn primary" onClick={() => void updater.restart()}>Restart to finish the update</button>
         ) : (
-          <button className="btn outline" disabled={busy} onClick={() => void updater.check()}>{state.kind === 'checking' ? 'Checking…' : 'Check for updates'}</button>
+          <button className="btn bordered" disabled={busy} onClick={() => void updater.check()}>{state.kind === 'checking' ? 'Checking…' : 'Check for updates'}</button>
         )}
         <label className="flex cursor-pointer items-center gap-2 text-[12.5px]">
           <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={auto} onChange={(e) => { setAuto(e.target.checked); setAutoCheck(e.target.checked) }} />
@@ -116,6 +118,49 @@ function UpdateSettings() {
         {state.kind === 'ready' && `Version ${state.version} is installed. Restart to use it.`}
         {state.kind === 'error' && <span style={{ color: 'var(--danger)' }}>{state.message}</span>}
       </div>
+    </section>
+  )
+}
+
+/** Where API keys and relay secrets are kept: a private file (no password dialog) or the system keychain. */
+function SecretSettings() {
+  const [mode, setMode] = useState<SecretStore | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    void getSecretStore().then(setMode).catch((e) => setError(String(e instanceof Error ? e.message : e)))
+  }, [])
+  const change = async (next: SecretStore) => {
+    if (next === mode || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await setSecretStore(next)
+      setMode(next)
+    } catch (e) {
+      setError(String(e instanceof Error ? e.message : e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const opts: [SecretStore, string][] = [['file', 'App file'], ['keychain', 'System keychain']]
+  return (
+    <section>
+      <div className="label mb-2">Secret keys</div>
+      <p className="mb-2.5 text-[12.5px] text-muted">Where Mindroot keeps your API keys and relay secrets. They never go into a map or into Git.</p>
+      <div className="seg" role="radiogroup" aria-label="Place for secret keys">
+        {opts.map(([id, label]) => (
+          <button key={id} role="radio" aria-checked={mode === id} disabled={busy || mode === null} className={mode === id ? 'on' : ''} onClick={() => void change(id)}>{label}</button>
+        ))}
+      </div>
+      <p className="mt-2.5 text-[12.5px] text-muted" role="status" aria-live="polite" data-testid="secret-store-status">
+        {error ? <span style={{ color: 'var(--danger)' }}>{error}</span>
+          : mode === 'file' ? 'A file in the app data folder that only your user account can read. There is no password dialog.'
+          : mode === 'keychain' ? (isMac
+            ? 'The macOS keychain. macOS asks for your password after each update of Mindroot, because the app is not signed by Apple yet.'
+            : 'The keychain of your system.')
+          : '…'}
+      </p>
     </section>
   )
 }
@@ -144,7 +189,7 @@ function CaptureSettings() {
           <span className="mb-1 block text-muted">Shortcut, for example Alt+Shift+Space or CommandOrControl+Shift+N</span>
           <input className="field" aria-label="Capture shortcut" value={shortcut} spellCheck={false} onChange={(e) => setShortcutText(e.target.value)} />
         </label>
-        <button className="btn outline self-end" onClick={() => void apply()}>Apply</button>
+        <button className="btn bordered self-end" onClick={() => void apply()}>Apply</button>
       </div>
       <label className="mt-2.5 block text-[12.5px]">
         <span className="mb-1 block text-muted">Map that collects the notes</span>

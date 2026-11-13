@@ -3,8 +3,8 @@ import { prepareForSave, store } from '../io/storage'
 import { commit, useDoc } from './doc'
 import { mutate } from './library'
 
-const NAME_KEY = 'bm.capture.inbox'
-const SHORTCUT_KEY = 'bm.capture.shortcut'
+const NAME_KEY = 'mr.capture.inbox'
+const SHORTCUT_KEY = 'mr.capture.shortcut'
 export const DEFAULT_INBOX = 'Inbox'
 export const DEFAULT_SHORTCUT = 'Alt+Shift+Space'
 

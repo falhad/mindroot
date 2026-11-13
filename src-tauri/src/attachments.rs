@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn copies_into_a_private_folder_and_replaces_planted_files() {
-        let base = std::env::temp_dir().join(format!("bm-attach-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("mr-attach-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let assets = base.join("assets");
         fs::create_dir_all(&assets).unwrap();

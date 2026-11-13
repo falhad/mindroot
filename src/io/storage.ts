@@ -84,6 +84,8 @@ function openIdb(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
   })
+  // Ask the browser not to delete the maps when the disk is full. Browsers can refuse; that is not an error.
+  void navigator.storage?.persist?.().catch(() => {})
   return idb
 }
 

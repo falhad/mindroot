@@ -65,3 +65,24 @@ export function rewriteMessages(doc: MapDoc, id: string): ChatMessage[] {
     { role: 'user', content: `${context(doc, id)}\n\nText to rewrite: ${clip(doc.nodes[id].text, 500) || '(empty)'}` },
   ]
 }
+
+/** Only this much of a pasted text is sent to a model. */
+export const MAX_SOURCE_CHARS = 12_000
+
+/** A whole new map from a topic or from a pasted text. */
+export function generateMessages(source: string): ChatMessage[] {
+  const text = source.trim().slice(0, MAX_SOURCE_CHARS)
+  return [
+    {
+      role: 'system',
+      content:
+        'You make mind maps. Reply with JSON only, with no other text. Write in the same language as the input. ' +
+        'If the input is a short topic or a question, make a map of that topic from what you know. ' +
+        'If the input is a longer text (notes, an article, a transcript), make a map of what the text says and add nothing that is not in it. ' +
+        'The map has a short title, 4 to 7 main branches, and 2 to 5 ideas under each branch. Add a third level only where it helps. ' +
+        'At most 60 ideas in total. Each idea is short (at most 8 words) and is not a full sentence. ' +
+        'Reply as {"title": "…", "children": [{"text": "…", "children": [{"text": "…"}]}]}.',
+    },
+    { role: 'user', content: text },
+  ]
+}

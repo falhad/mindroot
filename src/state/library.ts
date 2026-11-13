@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { buildOutlineDoc, type OutNode } from '../core/outline'
 import { docFromTemplate, TEMPLATES } from '../core/templates'
 import { createDoc, plainTitle } from '../core/tree'
 import { uid } from '../core/ids'
@@ -80,6 +81,32 @@ export async function createMap(templateId = 'blank'): Promise<string> {
   const t = TEMPLATES.find((x) => x.id === templateId) ?? TEMPLATES[0]
   const doc = t.id === 'blank' ? createDoc('Central idea') : docFromTemplate(t)
   if (t.id === 'blank') doc.themeId = t.themeId
+  await persistNew(doc)
+  void refreshLibrary()
+  return doc.meta.id
+}
+
+/** Most ideas a plugin can put into a new map. */
+export const MAX_OUTLINE_IDEAS = 2000
+
+/** Make a new map from a tree of ideas (used by plugins). Texts are trimmed and the size is limited. */
+export async function createFromOutline(outline: { text: string; notes?: string; children?: unknown[] }): Promise<string> {
+  let left = MAX_OUTLINE_IDEAS
+  const clean = (o: any, depth: number): OutNode | null => {
+    if (!o || typeof o !== 'object' || left <= 0 || depth > 40) return null
+    left--
+    const text = typeof o.text === 'string' ? o.text.replace(/\s+/g, ' ').trim().slice(0, 500) : ''
+    const node: OutNode = { text, children: [] }
+    if (typeof o.notes === 'string' && o.notes.trim()) node.notes = o.notes.slice(0, 20_000)
+    for (const c of Array.isArray(o.children) ? o.children : []) {
+      const child = clean(c, depth + 1)
+      if (child && (child.text || child.children.length)) node.children.push(child)
+    }
+    return node
+  }
+  const root = clean(outline, 0)
+  if (!root || !root.text) throw new Error('A new map needs a central idea with text')
+  const { doc } = buildOutlineDoc([root])
   await persistNew(doc)
   void refreshLibrary()
   return doc.meta.id

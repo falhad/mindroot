@@ -63,6 +63,7 @@ This needs a paid Apple Developer account. Windows signing needs a code-signing 
 
 - **"Git call contract is up to date" fails:** the sync engine now makes a git call it did not make before. Run `pnpm test`, check that `src-tauri/tests/fixtures/git-calls.json` changed as you expect, make sure the Rust allow-list in `src-tauri/src/git.rs` accepts the new call, and commit the file.
 - **Lockfile errors:** run `pnpm install` locally and commit `pnpm-lock.yaml`.
+- **A package install step fails or stops at its time limit** ("Install Linux libraries for Tauri", "Install the browser for the tests"): the system package mirror of the runner did not answer. The steps retry and each job has a time limit. Run the job again: `gh run rerun <id> --failed`.
 
 ## Automatic updates (signed)
 

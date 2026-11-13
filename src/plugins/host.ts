@@ -4,11 +4,11 @@ import { mergeDocs } from '../sync/merge'
 import { isTauri } from '../io/env'
 import { store } from '../io/storage'
 import { applyRemoteDoc, commit, markSaved, replaceDoc, undoHandlers, useDoc } from '../state/doc'
-import { refreshLibrary } from '../state/library'
+import { createFromOutline, refreshLibrary } from '../state/library'
 import { flushSave, pauseSaves, saveListeners } from '../state/persist'
-import { askConfirm, toast, ui } from '../state/ui'
+import { askConfirm, askPrompt, goTo, toast, ui } from '../state/ui'
 import type { Command } from '../ui/commands'
-import type { AppEvent, Disposable, ExporterSpec, ImporterSpec, NetRequest, NetResponse, Plugin, PluginContext, PluginManifest, SettingsPanel, StatusItem } from './types'
+import type { AppEvent, Disposable, ExporterSpec, ImporterSpec, NewMapAction, NetRequest, NetResponse, Plugin, PluginContext, PluginManifest, SettingsPanel, StatusItem } from './types'
 
 export interface PluginRecord {
   manifest: PluginManifest
@@ -26,10 +26,12 @@ interface RegistryState {
   panels: Contributed<SettingsPanel>[]
   importers: Contributed<ImporterSpec>[]
   exporters: Contributed<ExporterSpec>[]
+  /** Buttons that plugins add to the "new map" area of the dashboard. */
+  newMap: Contributed<NewMapAction>[]
   ready: boolean
 }
 
-export const useRegistry = create<RegistryState>(() => ({ plugins: [], commands: [], status: [], panels: [], importers: [], exporters: [], ready: false }))
+export const useRegistry = create<RegistryState>(() => ({ plugins: [], commands: [], status: [], panels: [], importers: [], exporters: [], newMap: [], ready: false }))
 const set = useRegistry.setState
 
 interface Loaded {
@@ -49,7 +51,7 @@ async function readSettings(id: string): Promise<Record<string, unknown> | null>
       const text = await invoke<string | null>('plugin_settings_get', { id })
       return text ? JSON.parse(text) : null
     }
-    const t = localStorage.getItem(`bm.plugin.${id}`)
+    const t = localStorage.getItem(`mr.plugin.${id}`)
     return t ? JSON.parse(t) : null
   } catch {
     return null
@@ -60,7 +62,7 @@ async function writeSettings(id: string, value: object) {
   if (isTauri) {
     const { invoke } = await import('@tauri-apps/api/core')
     await invoke('plugin_settings_set', { id, json: JSON.stringify(value) })
-  } else localStorage.setItem(`bm.plugin.${id}`, JSON.stringify(value))
+  } else localStorage.setItem(`mr.plugin.${id}`, JSON.stringify(value))
 }
 
 // ---------- network and secrets ----------
@@ -95,7 +97,7 @@ export async function netRequest(req: NetRequest): Promise<NetResponse> {
   }
 }
 
-const secretKey = (pid: string, key: string) => `bm.secret.${pid}.${key}`
+const secretKey = (pid: string, key: string) => `mr.secret.${pid}.${key}`
 
 function makeSecrets(pid: string): NonNullable<PluginContext['secrets']> {
   if (isTauri) {
@@ -106,7 +108,7 @@ function makeSecrets(pid: string): NonNullable<PluginContext['secrets']> {
       remove: (key) => call<void>('secret_remove', { key }),
     }
   }
-  // Browser build: kept for this tab only (sessionStorage); the desktop app uses the OS keychain.
+  // Browser build: kept for this tab only (sessionStorage); the desktop app uses a private file or the OS keychain.
   return {
     get: async (key) => sessionStorage.getItem(secretKey(pid, key)),
     set: async (key, value) => void sessionStorage.setItem(secretKey(pid, key), value),
@@ -165,8 +167,23 @@ function createContext(plugin: Plugin, l: Loaded, isBuiltin: boolean): PluginCon
       toast: (text, kind) => toast(text, kind),
       confirm: (o) => askConfirm(o),
       openSettings: (tab) => ui.setSettings(true, tab ?? pid),
+      prompt: (o) => askPrompt(o),
     },
-    library: { refresh: () => refreshLibrary() },
+    library: {
+      refresh: () => refreshLibrary(),
+      async create(outline, opts) {
+        const id = await createFromOutline(outline)
+        if (opts?.open) goTo({ name: 'editor', id })
+        return id
+      },
+    },
+    newMap: {
+      register(action) {
+        const entry = { ...action, id: `${pid}:${action.id}`, pluginId: pid, run: () => void Promise.resolve(action.run()).catch((e) => toast(`${m.name}: ${e instanceof Error ? e.message : e}`, 'error')) }
+        set((s) => ({ newMap: [...s.newMap.filter((x) => x.id !== entry.id), entry] }))
+        return track(l, { dispose: () => set((s) => ({ newMap: s.newMap.filter((x) => x.id !== entry.id) })) })
+      },
+    },
     docs: {
       openId: () => useDoc.getState().doc?.meta.id ?? null,
       current: () => useDoc.getState().doc,

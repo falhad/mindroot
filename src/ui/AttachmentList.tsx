@@ -57,7 +57,7 @@ export function AttachmentList({ nodeId, items }: { nodeId: string; items: Attac
         </ul>
       )}
       <button
-        className="btn outline w-full"
+        className="btn bordered w-full"
         disabled={busy}
         onClick={async () => void add(await pickFile('*/*', true))}
         onDragOver={(e) => e.preventDefault()}

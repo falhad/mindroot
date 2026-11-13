@@ -140,7 +140,7 @@ export const updater = createUpdater(
 )
 export const useUpdater = updater.store
 
-const AUTO_KEY = 'bm.updates.auto'
+const AUTO_KEY = 'mr.updates.auto'
 
 export function autoCheckEnabled(): boolean {
   try {

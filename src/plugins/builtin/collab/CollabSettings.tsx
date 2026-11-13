@@ -54,7 +54,7 @@ export function CollabSettings({ ctx }: { ctx: PluginContext }) {
         <span className="mb-1 block text-muted">Relay secret (only needed to share your own maps) {hasSecret && <b className="text-ink">· saved</b>}</span>
         <div className="flex gap-2">
           <input className="field" type="password" aria-label="Shared secret" autoComplete="off" placeholder={hasSecret ? '•••••••• (saved, type a new one to replace)' : 'At least 16 characters'} value={secretInput} onChange={(e) => setSecretInput(e.target.value)} />
-          <button className="btn outline" disabled={!secretInput.trim()} onClick={() => void saveSecret(secretInput)}>Save</button>
+          <button className="btn bordered" disabled={!secretInput.trim()} onClick={() => void saveSecret(secretInput)}>Save</button>
           <button className="btn" title="Make a long random secret" onClick={() => void saveSecret(randomSecret())}>Generate</button>
         </div>
       </div>

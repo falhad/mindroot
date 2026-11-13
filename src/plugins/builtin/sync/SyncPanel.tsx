@@ -66,7 +66,7 @@ export function SyncPanel({ desktop }: { desktop: boolean }) {
           </button>
           {connected && (
             <>
-              <button className="btn outline" disabled={s.phase === 'syncing'} onClick={() => void c.sync('manual')}>
+              <button className="btn bordered" disabled={s.phase === 'syncing'} onClick={() => void c.sync('manual')}>
                 <RefreshCw size={15} className={s.phase === 'syncing' ? 'animate-spin' : ''} /> Sync now
               </button>
               <button className="btn" onClick={() => void c.disconnect()}><Unplug size={15} /> Turn off</button>

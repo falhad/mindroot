@@ -150,13 +150,26 @@ fn net_and_secrets_work_the_way_the_frontend_calls_them() {
     assert!(call(&w, "secret_get", json!({ "pluginId": "other.plugin", "key": "k" })).unwrap().is_null());
     call(&w, "secret_remove", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap();
     assert!(call(&w, "secret_get", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap().is_null());
+
+    // the place for secrets: file or keychain; a change moves the secrets and keeps them readable
+    call(&w, "secret_set", json!({ "pluginId": "mindroot.ai", "key": "k", "value": "S3CRET" })).unwrap();
+    for mode in ["keychain", "file", "keychain", "file"] {
+        call(&w, "secret_store_set", json!({ "mode": mode })).unwrap();
+        assert_eq!(call(&w, "secret_store_get", json!({})).unwrap(), mode);
+        assert_eq!(call(&w, "secret_get", json!({ "pluginId": "mindroot.ai", "key": "k" })).unwrap(), "S3CRET");
+    }
+    assert!(call(&w, "secret_store_set", json!({ "mode": "cloud" })).is_err());
     // bad plugin ids and empty keys are refused
     assert!(call(&w, "secret_set", json!({ "pluginId": "", "key": "k", "value": "v" })).is_err());
     assert!(call(&w, "secret_set", json!({ "pluginId": "../x", "key": "k", "value": "v" })).is_err());
     assert!(call(&w, "secret_set", json!({ "pluginId": "a.b", "key": "", "value": "v" })).is_err());
 
     // secrets never touch the vault or the plugin settings folder
-    let leaked = std::process::Command::new("grep").args(["-rl", "S3CRET"]).arg(&home).output().unwrap();
-    assert!(leaked.stdout.is_empty(), "secret leaked to disk: {}", String::from_utf8_lossy(&leaked.stdout));
+    // (the only file that may hold it is the private secrets file of the app, beside the vault)
+    let found = std::process::Command::new("grep").args(["-rl", "S3CRET"]).arg(&home).output().unwrap();
+    let found = String::from_utf8_lossy(&found.stdout).to_string();
+    let leaked: Vec<&str> = found.lines().filter(|l| !l.ends_with("/secrets.json") || l.contains("/vault/") || l.contains("/plugin-settings/")).collect();
+    assert!(leaked.is_empty(), "secret leaked to disk: {leaked:?}");
+    assert_eq!(found.lines().count(), 1, "the secret is in the secrets file, and only there: {found}");
     let _ = std::fs::remove_dir_all(&home);
 }

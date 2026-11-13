@@ -210,7 +210,7 @@ mod tests {
         hex(&Sha256::digest(b))
     }
     fn tmp(name: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!("bm-gallery-{name}-{}", std::process::id()));
+        let p = std::env::temp_dir().join(format!("mr-gallery-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&p);
         fs::create_dir_all(&p).unwrap();
         p

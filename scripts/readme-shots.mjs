@@ -259,6 +259,8 @@ async function main() {
   const browser = await chromium.launch()
   try {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })
+    // The web-only storage notice is not part of the product pictures.
+    await ctx.addInitScript(() => { localStorage.setItem('mr.web.notice', 'off'); localStorage.setItem('mr.tour', 'done') })
     const page = await ctx.newPage()
 
     // supporting maps first, so the dashboard has content

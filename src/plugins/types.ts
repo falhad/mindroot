@@ -34,7 +34,7 @@ export interface NetResponse {
 }
 
 /**
- * The Mindroot plugin API (version 2; version 1 plugins still load).
+ * The Mindroot plugin API (version 3; version 1 and 2 plugins still load).
  *
  * A plugin is an object with a manifest and an `activate(ctx)` function. Everything a plugin
  * adds (commands, status chips, settings panels, event listeners) is registered through `ctx`
@@ -43,11 +43,11 @@ export interface NetResponse {
  * Built-in plugins (like Git sync) use exactly this API. Plugins installed in the plugins
  * folder get the same `ctx`.
  */
-export const PLUGIN_API_VERSION = 2
+export const PLUGIN_API_VERSION = 3
 /** Plugins written for these API versions still load (the API only grows). */
-export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2]
+export const SUPPORTED_API_VERSIONS: readonly number[] = [1, 2, 3]
 
-/** `native` = app Rust commands, `net` = HTTP requests, `secrets` = the OS keychain. */
+/** `native` = app Rust commands, `net` = HTTP requests, `secrets` = the secret store of the app. */
 export type PluginPermission = 'native' | 'net' | 'secrets'
 
 export interface PluginManifest {
@@ -90,6 +90,43 @@ export interface SettingsPanel {
   render(): ReactNode
 }
 
+/** (API 3) One idea of a new map: its text, optional notes, and the ideas under it. */
+export interface OutlineIdea {
+  text: string
+  notes?: string
+  children?: OutlineIdea[]
+}
+
+/** (API 3) A dialog that asks the user for text. */
+export interface PromptOptions {
+  title: string
+  body?: string
+  placeholder?: string
+  /** A text area with several lines instead of one line. */
+  multiline?: boolean
+  confirmLabel: string
+  initial?: string
+  /**
+   * Work to do with the text while the dialog stays open and shows that it is busy.
+   * Return a message to show it as an error and keep the dialog open (the user's text is kept).
+   * Return nothing to close the dialog. `state.cancelled()` is true when the user closed the dialog
+   * in the meantime: drop your result then. `state.status(text)` says what you do now; the dialog
+   * shows it beside a spinner and the seconds since the start.
+   */
+  submit?(value: string, state: { cancelled(): boolean; status(text: string): void }): Promise<string | void>
+}
+
+/** (API 3) A button in the "new map" area of the dashboard. */
+export interface NewMapAction {
+  /** Unique inside the plugin. */
+  id: string
+  title: string
+  /** Shown as a tooltip. */
+  hint?: string
+  icon?: ReactNode
+  run(): void | Promise<void>
+}
+
 export type AppEvent =
   /** All plugins are loaded. */
   | 'app:ready'
@@ -118,11 +155,17 @@ export interface PluginContext {
     toast(text: string, kind?: 'info' | 'error' | 'success'): void
     confirm(opts: { title: string; body?: string; confirmLabel: string; danger?: boolean }): Promise<boolean>
     openSettings(tab?: string): void
+    /** (API 3) Ask the user for text. Resolves with the text, or null when the user cancelled. */
+    prompt(opts: PromptOptions): Promise<string | null>
   }
   library: {
     /** Re-read the list of maps (after files changed on disk). */
     refresh(): Promise<void>
+    /** (API 3) Make a new map from a tree of ideas. Returns the id of the map. `open` shows it in the editor. */
+    create(outline: OutlineIdea, opts?: { open?: boolean }): Promise<string>
   }
+  /** (API 3) Add a button to the "new map" area of the dashboard. */
+  newMap: { register(action: NewMapAction): Disposable }
   docs: {
     /** Id of the map open in the editor, or null. */
     openId(): string | null
@@ -152,7 +195,7 @@ export interface PluginContext {
   }
   /** (API 2) HTTP requests. Needs the `net` permission. https only (plain http only to localhost). */
   net?: { request(req: NetRequest): Promise<NetResponse> }
-  /** (API 2) Secrets (API keys) kept in the OS keychain, never in the vault. Needs the `secrets` permission. */
+  /** (API 2) Secrets (API keys) kept in the secret store of the app (a private file or the OS keychain), never in the vault. Needs the `secrets` permission. */
   secrets?: {
     get(key: string): Promise<string | null>
     set(key: string, value: string): Promise<void>

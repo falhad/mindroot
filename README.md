@@ -4,7 +4,7 @@
 
 # Mindroot
 
-**A fast, keyboard-first mind-mapping app for the desktop.**<br />
+**A fast, keyboard-first mind-mapping app for the desktop and the browser.**<br />
 Local-first. Your maps are plain files on your disk. Sync them with your own Git repository.
 
 [![CI](https://github.com/falhad/mindroot/actions/workflows/ci.yml/badge.svg)](https://github.com/falhad/mindroot/actions/workflows/ci.yml)
@@ -12,7 +12,7 @@ Local-first. Your maps are plain files on your disk. Sync them with your own Git
 [![License: MIT](https://img.shields.io/badge/license-MIT-14b8a6.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-14b8a6.svg)](CONTRIBUTING.md)
 
-[Download](#download) · [Features](#features) · [Build from source](#build-from-source) · [Write a plugin](docs/plugins.md) · [Contribute](CONTRIBUTING.md)
+[Try it in the browser](https://mindroot.app) · [Download](#download) · [Features](#features) · [Build from source](#build-from-source) · [Write a plugin](docs/plugins.md) · [Contribute](CONTRIBUTING.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/map-dark.png" />
@@ -47,6 +47,10 @@ The builds are not code-signed yet. Your system shows a warning the first time:
 - **macOS:** move the app to Applications, then run `xattr -dr com.apple.quarantine /Applications/Mindroot.app`. Or right-click the app, choose **Open**, and confirm.
 - **Windows:** on the SmartScreen dialog choose **More info → Run anyway**.
 - **Linux:** `chmod +x Mindroot_*.AppImage` and run it, or install the `.deb` / `.rpm`.
+
+### Web version
+
+Use Mindroot without an install at **[mindroot.app](https://mindroot.app)**. Your maps stay in your browser and are not sent to a server. The site counts visits with Cloudflare Web Analytics, which sets no cookies. Git sync and quick capture need the desktop app. To host it yourself, see [docs/web.md](docs/web.md).
 
 ## Features
 
@@ -91,7 +95,7 @@ Persian, Arabic and Hebrew maps mirror the whole layout.
 |---|---|
 | **Git sync** | Keep maps in a private Git repository and in step across computers, with idea-by-idea merging. Restore an old version of a map, or one idea from it. [docs/sync.md](docs/sync.md) |
 | **Live collaboration** | Edit one map together in real time through a small relay server that you run. Presence, and undo that only undoes your own edits. [docs/collab.md](docs/collab.md) |
-| **AI assistant** | Expand an idea, find gaps, summarize, rewrite. Use your own key with any OpenAI-compatible or Anthropic-compatible service. [docs/ai.md](docs/ai.md) |
+| **AI assistant** | Make a whole map from a topic or a pasted text. Expand an idea, find gaps, summarize, rewrite. Use your own key with any OpenAI-compatible or Anthropic-compatible service. [docs/ai.md](docs/ai.md) |
 | **Plugins** | Add commands, header chips, settings panels and event listeners. Install from the plugin gallery. [docs/plugins.md](docs/plugins.md) |
 | **Compare** | See the difference between two maps or two versions. |
 | **Quick capture** | A system-wide shortcut (default `Alt+Shift+Space`) puts a thought into your Inbox map. |
@@ -124,7 +128,7 @@ The full feature guide is in [docs/features.md](docs/features.md).
 | Fit / 100% / zoom | `⌘0` / `⌘1` / `⌘+` `⌘-` |
 | Palette / find / export / panel | `⌘K` / `⌘F` / `⌘E` / `⌘I` |
 
-(`Ctrl` on Windows and Linux. Press `?` in the app for the full sheet.)
+(`Ctrl` on Windows and Linux. Press `?` in the app for the full sheet, or press `⌘K` and type `help`. The first map you open shows a short tour of the basics.)
 
 ## Build from source
 
@@ -147,7 +151,7 @@ pnpm e2e              # end-to-end tests in a browser (Playwright)
 cargo test --manifest-path src-tauri/Cargo.toml   # storage, git runner, and an IPC test of every command
 ```
 
-`node scripts/readme-shots.mjs` makes the screenshots on this page again.
+`node scripts/readme-shots.mjs` makes the screenshots on this page again. `scripts/deploy-web.sh` puts the web version on a server ([docs/web.md](docs/web.md)).
 
 ## Architecture
 
@@ -174,7 +178,7 @@ Design notes:
 - **Merge by idea, not by line.** One record per line lets Git see small diffs. On a conflict, a three-way merge works on ideas: two people can edit different ideas of one map and both edits survive.
 - **Undo = array of Immer snapshots.** Structural sharing keeps this cheap. Rapid edits with the same key (typing in notes) merge into one step.
 - **Same numbers everywhere.** Node sizes come from one measure function; the canvas, minimap, thumbnails and all exports read the same layout, so exports match the screen.
-- **Browser fallback.** Outside Tauri the storage layer uses IndexedDB, so `pnpm dev` is a complete app for fast UI work.
+- **Browser version.** Outside Tauri the storage layer uses IndexedDB. So `pnpm dev` is a complete app for fast UI work, and `pnpm build` gives the static web version.
 - PDF export has two forms: vector (shapes and selectable text, Helvetica) for maps whose text a PDF base font can draw, and a 2-3x raster on a page sized to the map for the rest (Persian, Arabic, CJK, emoji). See [docs/features.md](docs/features.md).
 
 ## Roadmap

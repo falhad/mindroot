@@ -93,7 +93,7 @@ function Inner() {
                   Since this version: <b>{diff.added.length}</b> ideas added, <b>{diff.removed.length}</b> removed, <b>{diff.changed.length}</b> changed.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <button className="btn outline" onClick={() => { close(); ui.setCompare({ a: old, b: current, labelA: `Version from ${ago(result.versions.find((v) => v.sha === sha)!.at)}`, labelB: 'Now' }) }}><GitCompare size={15} /> Compare side by side</button>
+                  <button className="btn bordered" onClick={() => { close(); ui.setCompare({ a: old, b: current, labelA: `Version from ${ago(result.versions.find((v) => v.sha === sha)!.at)}`, labelB: 'Now' }) }}><GitCompare size={15} /> Compare side by side</button>
                   <button className="btn primary" onClick={() => void restoreAll()}><RotateCcw size={15} /> Restore this version</button>
                 </div>
                 {diff.removed.length > 0 && (

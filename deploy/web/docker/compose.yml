@@ -1,0 +1,23 @@
+# Mindroot web app behind a Caddy edge container. No public port: the edge reaches it on the shared network.
+# Set up by scripts/setup-web-docker.sh. See docs/web.md.
+name: mindroot
+services:
+  web:
+    image: caddy:2.11.7
+    container_name: mindroot-web
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/config, /data]
+    environment:
+      MINDROOT_SCRIPT_SRC: ${MINDROOT_SCRIPT_SRC:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${MINDROOT_WEB_ROOT:-/var/www/mindroot.app}:/srv:ro
+    networks: [edge]
+networks:
+  edge:
+    name: ${MINDROOT_EDGE_NETWORK:-edge}
+    external: true

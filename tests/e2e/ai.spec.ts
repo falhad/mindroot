@@ -73,3 +73,88 @@ test('AI assistant: an error from the service is shown and the map is not change
   await expect(page.getByText(/answered 401/)).toBeVisible()
   await expect(page.locator('[data-node-id]')).toHaveCount(2)
 })
+
+test('AI: "Generate with AI" on the dashboard makes a new map from a topic and opens it', async ({ page }) => {
+  const bodies: string[] = []
+  let answer = 'No JSON here, sorry.'
+  await page.route('https://openrouter.ai/**', async (route) => {
+    const req = route.request()
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS })
+    bodies.push(req.postData() ?? '')
+    await route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ choices: [{ message: { content: answer } }] }) })
+  })
+  await page.addInitScript(() => sessionStorage.setItem('mr.secret.mindroot.ai.apikey', 'sk-e2e-test-key'))
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Generate with AI' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New map with AI' })
+  const box = dialog.getByRole('textbox')
+  await expect(box).toBeFocused()
+  await expect(dialog.getByRole('button', { name: 'Make the map' })).toBeDisabled() // nothing typed yet
+  await box.fill('Plan a trip to Japan')
+  await shoot(page, 'ai-generate')
+
+  // a bad answer: the dialog stays open with a message, and the text is still there
+  await dialog.getByRole('button', { name: 'Make the map' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('did not give a usable map')
+  await expect(box).toHaveValue('Plan a trip to Japan')
+
+  answer = '```json\n{"title":"Trip to Japan","children":[{"text":"Tokyo","children":[{"text":"Shibuya"},{"text":"Museums"}]},{"text":"Kyoto","children":[{"text":"Temples"}]},{"text":"Budget"}]}\n```'
+  await box.press('Control+Enter')
+  for (const t of ['Trip to Japan', 'Tokyo', 'Shibuya', 'Museums', 'Kyoto', 'Temples', 'Budget']) await expect(node(page, t)).toBeVisible()
+  await expect(dialog).toHaveCount(0)
+  expect(JSON.parse(bodies[1]).messages[1].content).toBe('Plan a trip to Japan')
+
+  // the map is saved: it is on the dashboard after a reload
+  await page.getByRole('button', { name: 'All maps' }).click()
+  await page.reload()
+  await expect(page.getByText('Trip to Japan').first()).toBeVisible()
+})
+
+test('typing fields switch off the text suggestions of the system', async ({ page }) => {
+  await newMap(page, '# Root\n- A')
+  await page.keyboard.press('Control+k')
+  const palette = page.getByPlaceholder(/command/i)
+  await expect(palette).toBeFocused()
+  for (const [name, value] of [['autocomplete', 'off'], ['autocorrect', 'off'], ['writingsuggestions', 'false']]) await expect(palette).toHaveAttribute(name, value)
+})
+
+test('AI shows what it is doing: a chip in the header for the open map, a status line in the dialog', async ({ page }) => {
+  let release: () => void = () => {}
+  let content = '{"items":["Budget","Timeline"]}'
+  await page.route('https://openrouter.ai/**', async (route) => {
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS })
+    await new Promise<void>((r) => { release = r }) // the model is "thinking" until the test lets it answer
+    await route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ choices: [{ message: { content } }] }) })
+  })
+  await page.addInitScript(() => sessionStorage.setItem('mr.secret.mindroot.ai.apikey', 'sk-e2e-test-key'))
+
+  // a command on the open map: the chip is there while the model works, with the step and the seconds
+  await newMap(page, '# Project\n- Launch')
+  await node(page, 'Launch').click()
+  await page.keyboard.press('Control+k')
+  await page.getByPlaceholder(/command/i).fill('AI: Expand')
+  await page.keyboard.press('Enter')
+  const chip = page.getByRole('banner').getByRole('status').filter({ hasText: 'AI:' })
+  await expect(chip).toContainText('AI: asking gpt-4o-mini')
+  await expect(chip).toContainText(/[1-9]\d* s/) // the seconds count up
+  await expect(chip).toHaveAttribute('title', 'Expanding “Launch”: asking gpt-4o-mini')
+  await shoot(page, 'ai-working-chip')
+  release()
+  await expect(node(page, 'Budget')).toBeVisible()
+  await expect(chip).toHaveCount(0)
+
+  // a new map: the dialog says what happens and stays busy until the answer comes
+  await page.getByRole('button', { name: 'All maps' }).click()
+  await page.getByRole('button', { name: 'Generate with AI' }).click()
+  const dialog = page.getByRole('dialog', { name: 'New map with AI' })
+  await dialog.getByRole('textbox').fill('Plan a trip')
+  content = '{"title":"Trip","children":[{"text":"Tokyo"},{"text":"Kyoto"}]}'
+  await dialog.getByRole('button', { name: 'Make the map' }).click()
+  await expect(dialog.getByRole('status')).toContainText('Asking gpt-4o-mini for the map…')
+  await expect(dialog.getByRole('status')).toContainText(/[1-9]\d* s/)
+  await expect(dialog.getByRole('button', { name: 'Make the map' })).toBeDisabled()
+  await shoot(page, 'ai-working-dialog')
+  release()
+  await expect(node(page, 'Tokyo')).toBeVisible()
+})

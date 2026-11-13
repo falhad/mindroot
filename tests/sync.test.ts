@@ -98,7 +98,7 @@ const nid = (d: MapDoc, t: string) => Object.values(d.nodes).find((n) => n.text 
 const edit = (d: MapDoc, at: number, fn: (x: MapDoc) => void) => produce(d, (x) => { fn(x); x.meta.updatedAt = at })
 
 beforeAll(async () => {
-  root = mkdtempSync(join(tmpdir(), 'bm-sync-'))
+  root = mkdtempSync(join(tmpdir(), 'mr-sync-'))
 })
 afterAll(() => {
   rmSync(root, { recursive: true, force: true })

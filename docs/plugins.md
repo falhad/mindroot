@@ -103,9 +103,19 @@ Version 2 adds what the built-in AI and collaboration plugins need. Plugins writ
 | `ctx.formats.registerImporter({ id, title, extensions, parse(file) })` | Add a file type to **Import**. `parse` returns a map. | |
 | `ctx.formats.registerExporter({ id, title, extension, mime, build(doc) })` | Add a format to **Export**. `build` returns text or bytes. | |
 | `ctx.net.request({ url, method, headers, body, timeoutMs })` | HTTP request. `https` only (`http` to localhost). Answers `{ status, body }`. | `net` |
-| `ctx.secrets.get / set / remove` | Keep a secret (an API key) in the operating system keychain. Never saved in the vault. In the browser build it lasts for the tab only. | `secrets` |
+| `ctx.secrets.get / set / remove` | Keep a secret (an API key) in the secret store of the app: a private file or the operating system keychain, as the user chose in Settings. Never saved in the vault. In the browser build it lasts for the tab only. | `secrets` |
 
 `permissions` in the manifest can now also list `"net"` and `"secrets"`. They are shown to the user.
+
+## API version 3
+
+Version 3 adds what "Generate with AI" needs: ask the user for text, make a new map, and put a button on the dashboard. Set `"api": 3` in the manifest when you use these.
+
+| API | What it does |
+|---|---|
+| `ctx.ui.prompt({ title, body, placeholder, multiline, confirmLabel, initial, submit })` | Ask the user for text. Resolves with the text, or `null` when the user cancelled. With `submit(value, state)` the dialog stays open and shows that it is busy while your work runs: return a message to show an error and keep the dialog (and the text) open, return nothing to close it. `state.cancelled()` is true when the user closed the dialog in the meantime. `state.status(text)` says what you do now; the dialog shows it beside a spinner and the seconds since the start. |
+| `ctx.library.create(outline, { open })` | Make a new map from a tree `{ text, notes?, children? }`. Returns the id of the map. `open: true` shows it in the editor. At most 2,000 ideas. |
+| `ctx.newMap.register({ id, title, hint, icon, run })` | Add a button beside "Start with a template" on the dashboard. |
 
 ### Plugin gallery
 

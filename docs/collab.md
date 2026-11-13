@@ -13,7 +13,7 @@ Edit a map with other people at the same time. It uses a small **relay server** 
 ## Set up
 
 1. **Run the relay** (see `server/relay/README.md`): `SECRET=<16+ characters> node server/relay/src/index.js`, or the Docker image. Put a TLS reverse proxy in front: the app connects with `wss://`. Use a long random secret.
-2. In Mindroot: **Settings → Live collaboration**. Enter the relay address (`wss://relay.example.com`), your name, and the secret (or press Generate if you are setting up the relay now). The secret stays in your system keychain.
+2. In Mindroot: **Settings → Live collaboration**. Enter the relay address (`wss://relay.example.com`), your name, and the secret (or press Generate if you are setting up the relay now). The secret stays in the secret store of the app (Settings → General → Secret keys), not in a map.
 3. Open the map and run **⌘K → "Share this map live…"**. An invite is copied.
 4. Send the invite **privately** to your colleague. They paste it in **Settings → Live collaboration → Join a shared map**. The map is downloaded into their library and opens.
 

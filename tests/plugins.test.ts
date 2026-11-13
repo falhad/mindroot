@@ -291,10 +291,9 @@ describe('plugin API v2', () => {
     expect(ctx.docs.selection()).toEqual([d.root])
   })
 
-  it('manifest accepts api 1 and 2, refuses others, and keeps net and secrets permissions', () => {
-    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 1 })).toMatchObject({ id: 'a.b' })
-    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 2 })).toMatchObject({ id: 'a.b' })
-    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 3 })).toMatch(/API/)
+  it('manifest accepts api 1, 2 and 3, refuses others, and keeps net and secrets permissions', () => {
+    for (const api of [1, 2, 3]) expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api })).toMatchObject({ id: 'a.b' })
+    expect(validateManifest({ id: 'a.b', name: 'x', version: '1', api: 4 })).toMatch(/API/)
     expect(validateManifest({ id: 'a.b', name: 'x', version: '1', permissions: ['native', 'net', 'secrets', 'root'] })).toMatchObject({
       permissions: ['native', 'net', 'secrets'],
     })
