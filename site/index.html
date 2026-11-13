@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#07090d" media="(prefers-color-scheme: dark)" />
+    <title>Mindroot: fast, keyboard-first mind mapping. Free and open source.</title>
+    <meta name="description" content="Mindroot is a free, open-source mind-mapping app for macOS, Windows, Linux and the browser. Local-first and keyboard-first: your maps are plain files, with no account and no cloud. Sync with your own Git repository." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mindroot" />
+    <meta property="og:title" content="Mindroot: fast, keyboard-first mind mapping" />
+    <meta property="og:description" content="Local-first mind maps with Markdown notes, six layouts, right-to-left support and Git sync. Free and open source." />
+    <meta property="og:url" content="https://mindroot.app/" />
+    <meta property="og:image" content="https://mindroot.app/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://mindroot.app/" />
+    <link rel="alternate" type="text/markdown" href="/llms.txt" title="Mindroot for language models" />
+    <!-- Structured data for search engines. It is data, not code: the browser does not run it. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Mindroot",
+        "description": "A free, open-source mind-mapping app for the desktop and the browser. Local-first and keyboard-first: maps are plain files on your disk, with no account and no cloud. Sync with your own Git repository.",
+        "url": "https://mindroot.app/",
+        "image": "https://mindroot.app/og.png",
+        "applicationCategory": "ProductivityApplication",
+        "applicationSubCategory": "Mind mapping",
+        "operatingSystem": "macOS, Windows, Linux, Web",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "isAccessibleForFree": true,
+        "license": "https://opensource.org/licenses/MIT",
+        "downloadUrl": "https://github.com/falhad/mindroot/releases/latest",
+        "sameAs": ["https://github.com/falhad/mindroot"],
+        "author": { "@type": "Person", "name": "Farhad", "url": "https://github.com/falhad" },
+        "featureList": [
+          "Keyboard-first editing",
+          "Local-first: plain files, no account, works offline",
+          "Sync with your own Git repository, merged idea by idea",
+          "Six layouts: mind map, trees, org charts, radial",
+          "Markdown notes with code and LaTeX",
+          "Right-to-left maps for Persian, Arabic and Hebrew",
+          "AI assistant with your own API key",
+          "Import from XMind, FreeMind, OPML, Markdown and Obsidian canvas",
+          "Export to PNG, SVG, PDF, Markdown, OPML and a single-file web page",
+          "Outline view, focus mode and presentation mode",
+          "Plugins"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Is Mindroot free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Mindroot is free and open source under the MIT license. There is no paid plan and no subscription." } },
+          { "@type": "Question", "name": "Do I need an account?", "acceptedAnswer": { "@type": "Answer", "text": "No. There is no account and no sign-up. Open the app and start a map." } },
+          { "@type": "Question", "name": "Where are my maps stored?", "acceptedAnswer": { "@type": "Answer", "text": "In the desktop app, each map is one readable file in a folder on your disk. In the browser version, maps stay in the storage of your browser and are not sent to a server." } },
+          { "@type": "Question", "name": "How do I sync maps between two computers?", "acceptedAnswer": { "@type": "Answer", "text": "Turn on Git sync in the desktop app and give it a private Git repository that you own. When two computers change the same map, Mindroot merges the changes idea by idea." } },
+          { "@type": "Question", "name": "Can I open my XMind or FreeMind maps?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Mindroot imports XMind, FreeMind, OPML, Markdown outlines and Obsidian canvas files." } },
+          { "@type": "Question", "name": "Does Mindroot work for Persian, Arabic and Hebrew?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Right-to-left maps mirror the whole layout, and exports embed the font." } },
+          { "@type": "Question", "name": "Why does my system show a warning when I install it?", "acceptedAnswer": { "@type": "Answer", "text": "The installers are not code-signed yet, because a signing certificate costs money each year. The code is open, and GitHub builds each installer from it. The download dialog shows how to pass the warning." } },
+          { "@type": "Question", "name": "Does the AI assistant cost money?", "acceptedAnswer": { "@type": "Answer", "text": "Mindroot adds no cost. The AI assistant is optional and uses your own API key for an OpenAI-compatible or Anthropic-compatible service." } }
+        ]
+      }
+    </script>
+    <script src="/theme.js"></script>
+    <script type="module" src="./landing.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <div class="progress" aria-hidden="true"></div>
+
+    <header class="nav" data-nav>
+      <div class="wrap nav-in">
+        <a class="brand" href="/" aria-label="Mindroot home">
+          <img src="/favicon.svg" width="28" height="28" alt="" />
+          <span>Mindroot</span>
+        </a>
+        <nav class="nav-links" aria-label="Sections">
+          <a href="#features">Features</a>
+          <a href="#tour">Tour</a>
+          <a href="#sync">Sync</a>
+          <a href="#download">Download</a>
+          <a href="#faq">Questions</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="ghost icon-btn" href="https://github.com/falhad/mindroot" aria-label="Mindroot on GitHub" title="Source code on GitHub">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          </a>
+          <button class="ghost icon-btn" type="button" data-theme-toggle aria-label="Switch between light and dark">
+            <svg class="sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <svg class="moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
+          <a class="btn primary sm" href="/app/" data-open-app>Open the app</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero">
+        <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="grid-bg" aria-hidden="true"></div>
+        <div class="wrap hero-in">
+          <a class="pill" href="https://github.com/falhad/mindroot/releases/latest" data-reveal>
+            <span class="dot"></span> <span data-version-text>Open source</span> · MIT license
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <h1 data-reveal>
+            <span class="line">Think at the speed</span>
+            <span class="line">of your <em>keyboard</em>.</span>
+          </h1>
+          <p class="lede" data-reveal>
+            Mindroot is a fast mind-mapping app for your desktop and your browser. Your maps are plain files on your disk.
+            No account, no cloud. Sync them with your own Git repository.
+          </p>
+          <div class="cta" data-reveal>
+            <a class="btn primary lg" href="/app/" data-open-app>
+              Open in your browser
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="btn outline lg" href="#download" data-download-main>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-download-label>Download the desktop app</span>
+            </a>
+          </div>
+          <p class="fine" data-reveal>Free forever · No sign-up · macOS, Windows and Linux</p>
+
+          <div class="stage" data-reveal data-tilt>
+            <div class="window">
+              <div class="window-bar">
+                <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="window-title">Product launch</span>
+                <button class="replay" type="button" data-replay aria-label="Play the demo again" title="Play again">
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <div class="demo" data-demo>
+                <!-- Shown when JavaScript is off, and until the animated map is ready. -->
+                <picture class="demo-fallback">
+                  <img class="only-dark" src="./img/map-dark.webp" width="1800" height="1125" alt="A mind map in Mindroot: a product launch plan with branches for research, design, marketing and release" />
+                  <img class="only-light" src="./img/map-light.webp" width="1800" height="1125" alt="" />
+                </picture>
+              </div>
+              <div class="keys" data-keys aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Numbers -->
+      <section class="stats" aria-label="Mindroot in numbers">
+        <div class="wrap stats-in">
+          <div class="stat" data-reveal><b><span data-count="5">5</span> MB</b><span>installer on macOS and Windows</span></div>
+          <div class="stat" data-reveal><b><span data-count="0">0</span></b><span>accounts, trackers or cloud servers</span></div>
+          <div class="stat" data-reveal><b><span data-count="6">6</span></b><span>layouts, from mind map to org chart</span></div>
+          <div class="stat" data-reveal><b><span data-count="100">100</span>%</b><span>of the desktop app works offline</span></div>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section class="section" id="features">
+        <div class="wrap">
+          <p class="eyebrow" data-reveal>Why Mindroot</p>
+          <h2 data-reveal>Built for people who think in structure.</h2>
+          <p class="sub" data-reveal>Each decision in Mindroot has one goal: nothing stands between you and the next idea.</p>
+
+          <div class="bento">
+            <article class="card span-2" data-reveal data-spot>
+              <div class="card-art art-keys" aria-hidden="true">
+                <kbd class="cap k1">Tab</kbd><kbd class="cap k2">Enter</kbd><kbd class="cap k3">←</kbd><kbd class="cap k4">↑</kbd><kbd class="cap k5">↓</kbd><kbd class="cap k6">→</kbd><kbd class="cap k7">⌘ K</kbd>
+              </div>
+              <h3>Made for the keyboard</h3>
+              <p><kbd>Tab</kbd> adds a child. <kbd>Enter</kbd> adds a sibling. The arrow keys move. A command palette holds every action. You can build a full map and never touch the mouse.</p>
+            </article>
+
+            <article class="card" data-reveal data-spot>
+              <div class="card-art art-file" aria-hidden="true">
+                <div class="file"><span class="fname">launch.jsonl</span>
+                  <code><i>{"id":"a1","text":"Research"}</i><i>{"id":"a2","text":"Design"}</i><i>{"id":"a3","text":"Release"}</i></code>
+                </div>
+              </div>
+              <h3>Your data stays yours</h3>
+              <p>No account and no cloud. Each map is one readable file on your disk. The app works fully offline.</p>
+            </article>
+
+            <article class="card" data-reveal data-spot>
+              <div class="card-art art-git" aria-hidden="true">
+                <svg viewBox="0 0 240 110">
+                  <path class="g-base" d="M16 55h208" />
+                  <path class="g-a" d="M60 55c22 0 22-30 44-30h28c22 0 22 30 44 30" />
+                  <path class="g-b" d="M60 55c22 0 22 30 44 30h28c22 0 22-30 44-30" />
+                  <circle class="g-dot" cx="60" cy="55" r="6" /><circle class="g-dot a" cx="118" cy="25" r="6" /><circle class="g-dot b" cx="118" cy="85" r="6" /><circle class="g-dot m" cx="176" cy="55" r="7" />
+                </svg>
+              </div>
+              <h3>Git is the sync engine</h3>
+              <p>Point the app at your own private repository. Two computers edit one map, and Mindroot merges idea by idea, not line by line.</p>
+            </article>
+
+            <article class="card" data-reveal data-spot>
+              <div class="card-art art-rtl" aria-hidden="true" dir="rtl" lang="fa">
+                <span class="n root">نقشهٔ ذهنی</span>
+                <span class="n c1">پژوهش</span><span class="n c2">طراحی</span><span class="n c3">انتشار</span>
+                <svg viewBox="0 0 240 110"><path d="M150 55C120 55 120 22 92 22M150 55H92M150 55c-30 0-30 33-58 33" /></svg>
+              </div>
+              <h3>Right-to-left, done properly</h3>
+              <p>Persian, Arabic and Hebrew maps mirror the whole layout. The font is bundled and embedded in exports.</p>
+            </article>
+
+            <article class="card" data-reveal data-spot>
+              <div class="card-art art-notes" aria-hidden="true">
+                <div class="md"><b># Decision</b><span>Ship the <mark>web version</mark> first.</span><code>E = mc²&nbsp;&nbsp;·&nbsp;&nbsp;fn main() {}</code></div>
+              </div>
+              <h3>Notes with depth</h3>
+              <p>Markdown, highlighted code and LaTeX on every idea. Tags, tasks, due dates, files and links between maps.</p>
+            </article>
+
+            <article class="card span-2" data-reveal data-spot>
+              <div class="card-art art-ai" aria-hidden="true">
+                <div class="prompt"><svg viewBox="0 0 24 24" width="15" height="15"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" fill="currentColor"/></svg><span class="typed">A launch plan for a mobile app</span></div>
+                <div class="chips"><span>Research</span><span>Pricing</span><span>Beta test</span><span>Store page</span><span>Launch day</span><span>Support</span></div>
+              </div>
+              <h3>AI, with your own key</h3>
+              <p>Turn a topic or a pasted text into a full map. Expand an idea, find what is missing, summarize a branch. Mindroot has no AI service of its own: you connect the one you trust, and only the text you choose is sent.</p>
+            </article>
+
+            <article class="card" data-reveal data-spot>
+              <div class="card-art art-io" aria-hidden="true">
+                <div class="marquee"><div><span>XMind</span><span>FreeMind</span><span>OPML</span><span>Markdown</span><span>Obsidian</span><span>PDF</span><span>SVG</span><span>PNG</span><span>JSON</span><span>XMind</span><span>FreeMind</span><span>OPML</span><span>Markdown</span><span>Obsidian</span><span>PDF</span><span>SVG</span><span>PNG</span><span>JSON</span></div></div>
+              </div>
+              <h3>Bring your maps, take them out</h3>
+              <p>Import from XMind, FreeMind, OPML, Markdown and Obsidian canvas. Export to PDF, SVG, PNG, Markdown or one web page.</p>
+            </article>
+
+            <article class="card" data-reveal data-spot>
+              <div class="card-art art-plug" aria-hidden="true">
+                <span class="plug p1">Git sync</span><span class="plug p2">AI</span><span class="plug p3">Collaboration</span><span class="plug p4">+ yours</span>
+              </div>
+              <h3>Open to extension</h3>
+              <p>Git sync, the AI assistant and live collaboration are plugins on the same public API that you can use.</p>
+            </article>
+
+            <article class="card span-2" data-reveal data-spot>
+              <div class="card-art art-views" aria-hidden="true">
+                <div class="view v1"><b>Focus</b><i></i><i></i><i></i></div>
+                <div class="view v2"><b>Outline</b><i></i><i></i><i></i><i></i></div>
+                <div class="view v3"><b>Present</b><i></i></div>
+              </div>
+              <h3>Focus, outline, present</h3>
+              <p>Work on one branch alone. Edit the map as a list beside the canvas. Present one idea or one branch at a time, straight from the map.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tour -->
+      <section class="section alt" id="tour">
+        <div class="wrap">
+          <p class="eyebrow" data-reveal>A short tour</p>
+          <h2 data-reveal>One app, many ways to see your thinking.</h2>
+          <div class="tour" data-tour data-reveal>
+            <div class="tabs" role="tablist" aria-label="Views of Mindroot">
+              <button role="tab" aria-selected="true" aria-controls="shot-0" id="tab-0" type="button"><b>Canvas</b><span>Six layouts, three line styles, six colour themes.</span><i></i></button>
+              <button role="tab" aria-selected="false" aria-controls="shot-1" id="tab-1" type="button" tabindex="-1"><b>Outline</b><span>Edit the map as a list, beside the canvas.</span><i></i></button>
+              <button role="tab" aria-selected="false" aria-controls="shot-2" id="tab-2" type="button" tabindex="-1"><b>Notes</b><span>Markdown, code and formulas on any idea.</span><i></i></button>
+              <button role="tab" aria-selected="false" aria-controls="shot-3" id="tab-3" type="button" tabindex="-1"><b>Library</b><span>Search, stars, tags, templates and a tasks page.</span><i></i></button>
+              <button role="tab" aria-selected="false" aria-controls="shot-4" id="tab-4" type="button" tabindex="-1"><b>Right-to-left</b><span>A mirrored layout for Persian, Arabic and Hebrew.</span><i></i></button>
+              <button role="tab" aria-selected="false" aria-controls="shot-5" id="tab-5" type="button" tabindex="-1"><b>Present</b><span>Show one idea or one branch at a time.</span><i></i></button>
+            </div>
+            <div class="shots">
+              <figure class="shot on" id="shot-0" role="tabpanel" aria-labelledby="tab-0">
+                <img class="only-dark" src="./img/map-dark.webp" width="1800" height="1125" loading="lazy" alt="The Mindroot canvas with a mind map of a product launch" />
+                <img class="only-light" src="./img/map-light.webp" width="1800" height="1125" loading="lazy" alt="The Mindroot canvas with a mind map of a product launch" />
+              </figure>
+              <figure class="shot" id="shot-1" role="tabpanel" aria-labelledby="tab-1" hidden><img src="./img/outline-dark.webp" width="1800" height="1125" loading="lazy" alt="The outline panel beside the map" /></figure>
+              <figure class="shot" id="shot-2" role="tabpanel" aria-labelledby="tab-2" hidden><img src="./img/notes-light.webp" width="1800" height="1125" loading="lazy" alt="Markdown notes with code on an idea" /></figure>
+              <figure class="shot" id="shot-3" role="tabpanel" aria-labelledby="tab-3" hidden>
+                <img class="only-dark" src="./img/dashboard-dark.webp" width="1800" height="1125" loading="lazy" alt="The library with all maps and templates" />
+                <img class="only-light" src="./img/dashboard-light.webp" width="1800" height="1125" loading="lazy" alt="The library with all maps and templates" />
+              </figure>
+              <figure class="shot" id="shot-4" role="tabpanel" aria-labelledby="tab-4" hidden><img src="./img/rtl-dark.webp" width="1800" height="1125" loading="lazy" alt="A Persian map with a mirrored layout" /></figure>
+              <figure class="shot" id="shot-5" role="tabpanel" aria-labelledby="tab-5" hidden><img src="./img/present-dark.webp" width="1800" height="1125" loading="lazy" alt="Presentation mode that shows one idea" /></figure>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sync -->
+      <section class="section" id="sync">
+        <div class="wrap">
+          <p class="eyebrow" data-reveal>Sync without a service</p>
+          <h2 data-reveal>Your repository is the cloud.</h2>
+          <p class="sub" data-reveal>No server of ours holds your maps. Sync runs through a Git repository that you own, on GitHub, GitLab or your own server.</p>
+          <ol class="steps" data-steps>
+            <li data-reveal><span class="num">1</span><h3>Point to a repository</h3><p>Paste the address of a private Git repository in the settings. Mindroot uses the Git that is on your computer.</p></li>
+            <li data-reveal><span class="num">2</span><h3>Work on any computer</h3><p>Each map is one file with one idea on each line. Changes travel as small, readable commits.</p></li>
+            <li data-reveal><span class="num">3</span><h3>Merge idea by idea</h3><p>Two people change the same map? Both edits survive. You can also restore an old version of a map, or one idea from it.</p></li>
+          </ol>
+          <p class="note" data-reveal>Need to work at the same moment? Live collaboration runs through a small relay server that you host. <a href="https://github.com/falhad/mindroot/blob/main/docs/collab.md">Read how</a>.</p>
+        </div>
+      </section>
+
+      <!-- Download -->
+      <section class="section alt" id="download">
+        <div class="wrap dl">
+          <div class="dl-head">
+            <p class="eyebrow" data-reveal>Download</p>
+            <h2 data-reveal>Get Mindroot for your desktop.</h2>
+            <p class="sub" data-reveal>The desktop app keeps your maps as files on your disk. It adds Git sync, quick capture from any app, and an AI assistant that works with all services.</p>
+            <div class="cta left" data-reveal>
+              <a class="btn primary lg" href="https://github.com/falhad/mindroot/releases/latest" data-download-main>
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span data-download-label>Download the desktop app</span>
+              </a>
+              <a class="btn outline lg" href="/app/" data-open-app>Or use it in the browser</a>
+            </div>
+            <p class="fine left" data-reveal><span data-version>Latest release</span> · <a href="https://github.com/falhad/mindroot/releases/latest">Release notes</a></p>
+          </div>
+
+          <div class="platforms">
+            <article class="platform" data-os="mac" data-reveal data-spot>
+              <h3><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M9 9V6.5A2.5 2.5 0 1 0 6.5 9H9Zm0 0h6M9 9v6m6-6V6.5A2.5 2.5 0 1 1 17.5 9H15Zm0 0v6m0 0H9m6 0v2.5a2.5 2.5 0 1 0 2.5-2.5H15Zm-6 0v2.5A2.5 2.5 0 1 1 6.5 15H9Z"/></svg> macOS</h3>
+              <ul data-files="mac">
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">Apple Silicon (.dmg)</a></li>
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">Intel (.dmg)</a></li>
+              </ul>
+              <details><summary>How to install</summary><ol data-steps-for="mac"><li>Open the .dmg file and drag Mindroot to Applications.</li><li>Open Mindroot. If macOS shows a warning, open System Settings → Privacy &amp; Security and click "Open Anyway".</li></ol></details>
+            </article>
+            <article class="platform" data-os="windows" data-reveal data-spot>
+              <h3><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z"/></svg> Windows</h3>
+              <ul data-files="windows">
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">Installer (.exe)</a></li>
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">MSI package</a></li>
+              </ul>
+              <details><summary>How to install</summary><ol data-steps-for="windows"><li>Open the downloaded file.</li><li>On "Windows protected your PC", click "More info", then "Run anyway".</li></ol></details>
+            </article>
+            <article class="platform" data-os="linux" data-reveal data-spot>
+              <h3><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 9.5l3 2.5-3 2.5M12.5 15h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Linux</h3>
+              <ul data-files="linux">
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">AppImage</a></li>
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">.deb</a></li>
+                <li><a href="https://github.com/falhad/mindroot/releases/latest">.rpm</a></li>
+              </ul>
+              <details><summary>How to install</summary><ol data-steps-for="linux"><li>AppImage: make the file executable, then run it.</li><li>Or install the .deb or .rpm file with your package manager.</li></ol></details>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Open source -->
+      <section class="section" id="open-source">
+        <div class="wrap oss" data-reveal data-spot>
+          <div>
+            <p class="eyebrow">Open source</p>
+            <h2>Read the code. Change it. Make it yours.</h2>
+            <p class="sub">Mindroot is MIT licensed and built in the open. Bug reports, ideas, plugins and pull requests are welcome.</p>
+            <div class="cta left">
+              <a class="btn primary" href="https://github.com/falhad/mindroot">
+                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8L12 3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                Star on GitHub
+              </a>
+              <a class="btn outline" href="https://github.com/falhad/mindroot/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22">Find a first issue</a>
+              <a class="btn outline" href="https://github.com/falhad/mindroot/blob/main/docs/plugins.md">Write a plugin</a>
+            </div>
+          </div>
+          <ul class="stack" aria-label="What open means here">
+            <li>MIT license</li><li>Public roadmap</li><li>Open plugin API</li><li>Tests on every change</li><li>Signed updates</li><li>No account, ever</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Questions -->
+      <section class="section alt" id="faq">
+        <div class="wrap narrow">
+          <p class="eyebrow" data-reveal>Questions</p>
+          <h2 data-reveal>Good to know.</h2>
+          <div class="faq">
+            <details data-reveal><summary>Is Mindroot free?</summary><div><p>Yes. Mindroot is free and open source under the MIT license. There is no paid plan and no subscription.</p></div></details>
+            <details data-reveal><summary>Do I need an account?</summary><div><p>No. There is no account and no sign-up. Open the app and start a map.</p></div></details>
+            <details data-reveal><summary>Where are my maps stored?</summary><div><p>In the desktop app, each map is one readable file in a folder on your disk. In the browser version, maps stay in the storage of your browser and are not sent to a server.</p></div></details>
+            <details data-reveal><summary>How do I sync maps between two computers?</summary><div><p>Turn on Git sync in the desktop app and give it a private Git repository that you own. When two computers change the same map, Mindroot merges the changes idea by idea.</p></div></details>
+            <details data-reveal><summary>Can I open my XMind or FreeMind maps?</summary><div><p>Yes. Mindroot imports XMind, FreeMind, OPML, Markdown outlines and Obsidian canvas files.</p></div></details>
+            <details data-reveal><summary>Does Mindroot work for Persian, Arabic and Hebrew?</summary><div><p>Yes. Right-to-left maps mirror the whole layout, and exports embed the font.</p></div></details>
+            <details data-reveal><summary>Why does my system show a warning when I install it?</summary><div><p>The installers are not code-signed yet, because a signing certificate costs money each year. The code is open, and GitHub builds each installer from it. The download section above shows how to pass the warning.</p></div></details>
+            <details data-reveal><summary>Does the AI assistant cost money?</summary><div><p>Mindroot adds no cost. The AI assistant is optional and uses your own API key for an OpenAI-compatible or Anthropic-compatible service.</p></div></details>
+          </div>
+        </div>
+      </section>
+
+      <!-- Final call -->
+      <section class="final">
+        <div class="aurora small" aria-hidden="true"><i></i><i></i></div>
+        <div class="wrap">
+          <h2 data-reveal>Start your first map in ten seconds.</h2>
+          <p class="sub" data-reveal>No install and no sign-up. A short tour shows you the three keys you need.</p>
+          <div class="cta" data-reveal>
+            <a class="btn primary lg" href="/app/" data-open-app>Open Mindroot
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-in">
+        <a class="brand" href="/"><img src="/favicon.svg" width="24" height="24" alt="" /><span>Mindroot</span></a>
+        <nav aria-label="Links">
+          <a href="/app/">Web app</a>
+          <a href="https://github.com/falhad/mindroot">GitHub</a>
+          <a href="https://github.com/falhad/mindroot/releases/latest">Releases</a>
+          <a href="https://github.com/falhad/mindroot/blob/main/docs/features.md">Feature guide</a>
+          <a href="https://github.com/falhad/mindroot/blob/main/SECURITY.md">Security</a>
+          <a href="https://github.com/falhad/mindroot/blob/main/LICENSE">MIT license</a>
+        </nav>
+        <p>Made by <a href="https://github.com/falhad">Farhad</a>. This site sets no cookies.</p>
+      </div>
+    </footer>
+  </body>
+</html>

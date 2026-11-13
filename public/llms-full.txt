@@ -1,8 +1,9 @@
 # Mindroot
 
-Mindroot is a free, open-source mind-mapping app. It runs as a desktop app on macOS, Windows and Linux, and as a web app at https://mindroot.app. It is local-first: maps are plain files on the user's disk, and the app needs no account and no cloud service. It is keyboard-first: a user can build a full map without the mouse. The license is MIT.
+Mindroot is a free, open-source mind-mapping app. It runs as a desktop app on macOS, Windows and Linux, and as a web app at https://mindroot.app/app/. It is local-first: maps are plain files on the user's disk, and the app needs no account and no cloud service. It is keyboard-first: a user can build a full map without the mouse. The license is MIT.
 
-- Website and web version: https://mindroot.app
+- Website: https://mindroot.app
+- Web version (the app in the browser): https://mindroot.app/app/
 - Source code: https://github.com/falhad/mindroot
 - Download: https://github.com/falhad/mindroot/releases/latest
 - Author: Farhad (GitHub: falhad)
@@ -59,7 +60,7 @@ Git sync, the AI assistant and live collaboration are plugins on a public plugin
 
 ## Platforms and install
 
-- Web: https://mindroot.app (no install). Git sync and quick capture need the desktop app.
+- Web: https://mindroot.app/app/ (no install). Git sync and quick capture need the desktop app.
 - macOS: .dmg for Apple Silicon and for Intel.
 - Windows: .exe installer or .msi.
 - Linux: AppImage, .deb, .rpm (x86-64).

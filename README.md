@@ -12,7 +12,7 @@ Local-first. Your maps are plain files on your disk. Sync them with your own Git
 [![License: MIT](https://img.shields.io/badge/license-MIT-14b8a6.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-14b8a6.svg)](CONTRIBUTING.md)
 
-[Try it in the browser](https://mindroot.app) · [Download](#download) · [Features](#features) · [Build from source](#build-from-source) · [Write a plugin](docs/plugins.md) · [Contribute](CONTRIBUTING.md)
+[Website](https://mindroot.app) · [Try it in the browser](https://mindroot.app/app/) · [Download](#download) · [Features](#features) · [Build from source](#build-from-source) · [Write a plugin](docs/plugins.md) · [Contribute](CONTRIBUTING.md)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/map-dark.png" />
@@ -50,7 +50,7 @@ The builds are not code-signed yet. Your system shows a warning the first time:
 
 ### Web version
 
-Use Mindroot without an install at **[mindroot.app](https://mindroot.app)**. Your maps stay in your browser and are not sent to a server. The site counts visits with Cloudflare Web Analytics, which sets no cookies. Git sync and quick capture need the desktop app: the **Download** button in the web version offers the installer for your system and shows the install steps. To host it yourself, see [docs/web.md](docs/web.md). A plain-text description for AI assistants is at [mindroot.app/llms.txt](https://mindroot.app/llms.txt).
+Use Mindroot without an install at **[mindroot.app/app](https://mindroot.app/app/)**. Your maps stay in your browser and are not sent to a server. The site counts visits with Cloudflare Web Analytics, which sets no cookies. Git sync and quick capture need the desktop app: the **Download** button in the web version offers the installer for your system and shows the install steps. To host it yourself, see [docs/web.md](docs/web.md). A plain-text description for AI assistants is at [mindroot.app/llms.txt](https://mindroot.app/llms.txt).
 
 ## Features
 
@@ -178,7 +178,7 @@ Design notes:
 - **Merge by idea, not by line.** One record per line lets Git see small diffs. On a conflict, a three-way merge works on ideas: two people can edit different ideas of one map and both edits survive.
 - **Undo = array of Immer snapshots.** Structural sharing keeps this cheap. Rapid edits with the same key (typing in notes) merge into one step.
 - **Same numbers everywhere.** Node sizes come from one measure function; the canvas, minimap, thumbnails and all exports read the same layout, so exports match the screen.
-- **Browser version.** Outside Tauri the storage layer uses IndexedDB. So `pnpm dev` is a complete app for fast UI work, and `pnpm build` gives the static web version.
+- **Browser version.** Outside Tauri the storage layer uses IndexedDB. So `pnpm dev` is a complete app for fast UI work, and `pnpm build:web` gives the static website: the landing page (`site/`) at `/` and the app at `/app/`.
 - PDF export has two forms: vector (shapes and selectable text, Helvetica) for maps whose text a PDF base font can draw, and a 2-3x raster on a page sized to the map for the rest (Persian, Arabic, CJK, emoji). See [docs/features.md](docs/features.md).
 
 ## Roadmap

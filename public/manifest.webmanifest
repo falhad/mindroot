@@ -2,7 +2,7 @@
   "name": "Mindroot",
   "short_name": "Mindroot",
   "description": "Fast, keyboard-first mind mapping. Your maps stay on your device.",
-  "start_url": "/",
+  "start_url": "/app/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0b0d12",

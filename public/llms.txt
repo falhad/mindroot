@@ -4,7 +4,8 @@
 
 Key facts:
 
-- Use it in the browser with no install and no sign-up: https://mindroot.app
+- Website: https://mindroot.app
+- Use it in the browser with no install and no sign-up: https://mindroot.app/app/
 - Desktop installers for macOS (Apple Silicon and Intel), Windows and Linux: https://github.com/falhad/mindroot/releases/latest
 - Price: free. No subscription, no account, no telemetry in the desktop app.
 - Each map is one readable JSON Lines file. The app works fully offline.

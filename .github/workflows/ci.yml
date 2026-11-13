@@ -76,7 +76,7 @@ jobs:
           node-version: 24
       - run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - run: pnpm build:web
 
   e2e:
     name: End-to-end tests (browser)

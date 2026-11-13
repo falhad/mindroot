@@ -23,7 +23,7 @@ A browser can delete the data of a site when the disk is full, and "Clear site d
 
 ```bash
 pnpm install
-pnpm build        # static files in dist/ (about 4 MB)
+pnpm build:web    # static files in dist/ (about 5 MB): the landing page at /, the app at /app/
 pnpm preview      # serve dist/ on this computer to try it
 ```
 
@@ -69,6 +69,21 @@ The two configurations set these. If you use another server or a CDN, set them t
 - A service worker, so the web version also starts without a network connection.
 - Hosted sync with accounts.
 
+## The landing page
+
+The website has two pages:
+
+| Address | What | Source |
+|---|---|---|
+| `/` | The landing page: static HTML, so search engines can read it | `site/index.html`, `site/landing.css`, `site/landing.ts` |
+| `/app/` | The app | `index.html`, `src/` |
+
+- `pnpm build:web` builds both and then runs `scripts/web-layout.mjs`, which puts each page at its address. `pnpm build` (used by the desktop app) builds the app only, at `/`.
+- In development (`pnpm dev`) the app is at `/` and the landing page at `/site/`. A link to `/app/` goes to the app.
+- Maps do not move: the browser keeps them for the whole site, not for one address.
+- The landing page uses no framework. Its download links come from the same code as the dialog in the app (`src/core/download.ts`). All motion stops for people who ask their system for reduced motion.
+- The screenshots in `site/img/` are smaller copies of `docs/screenshots/`. To make them again: `cwebp -q 80 -resize 1800 0 docs/screenshots/<name>.png -o site/img/<name>.webp`.
+
 ## Search engines and AI assistants
 
 The page is an app that needs JavaScript, and most crawlers do not run JavaScript. These files tell them what Mindroot is:
@@ -78,9 +93,10 @@ The page is an app that needs JavaScript, and most crawlers do not run JavaScrip
 | `public/llms.txt` | A short description with links, in the [llms.txt](https://llmstxt.org) format |
 | `public/llms-full.txt` | The full description: features, install steps, limits, common questions |
 | `public/robots.txt`, `public/sitemap.xml` | Allow all crawlers and list the pages |
-| `index.html` | The description and preview tags, structured data (`SoftwareApplication`), and a `<noscript>` block with the same facts as text |
+| `site/index.html` | The landing page: the text itself, the description and preview tags, and structured data (`SoftwareApplication`, `FAQPage`) |
+| `index.html` | The app page. It has a `<noscript>` block with the main facts; on the website it is marked `noindex`, so search results show the landing page |
 
-Keep them in step with the app: when a feature, a platform or a limit changes, change `llms.txt`, `llms-full.txt` and the `<noscript>` block in the same pull request. A wrong statement there is repeated by assistants for a long time.
+Keep them in step with the app: when a feature, a platform or a limit changes, change `llms.txt`, `llms-full.txt` and the landing page in the same pull request. A wrong statement there is repeated by assistants for a long time.
 
 If the site is behind Cloudflare, check **Security → Bots** in the dashboard: "Block AI bots" and "AI Labyrinth" must be off, or the assistants cannot read the site.
 

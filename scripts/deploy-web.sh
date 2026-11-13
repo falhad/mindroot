@@ -7,7 +7,7 @@ usage() {
   cat <<'HELP'
 Usage: scripts/deploy-web.sh --host <user@server> [options]
 
-Builds the web app (pnpm build) and copies dist/ to the server.
+Builds the website (pnpm build:web: the landing page at / and the app at /app/) and copies dist/ to the server.
 
 Options:
   --host <user@server>   SSH target. Also read from MINDROOT_WEB_HOST.
@@ -55,10 +55,10 @@ command -v rsync >/dev/null || die "rsync is not installed"
 cd "$(dirname "$0")/.."
 
 if [[ $BUILD -eq 1 ]]; then
-  say "Building the web app"
-  pnpm build
+  say "Building the website"
+  pnpm build:web
 fi
-[[ -f dist/index.html ]] || die "dist/index.html is missing: run without --skip-build"
+[[ -f dist/index.html && -f dist/app/index.html ]] || die "dist/ is not a website build: run without --skip-build"
 
 FLAGS=(-az --delete --delay-updates --human-readable --itemize-changes -e "ssh -p $PORT")
 [[ $DRY -eq 1 ]] && FLAGS+=(--dry-run)
@@ -81,8 +81,17 @@ if [[ $CHECK -eq 1 ]]; then
     sleep 10
   done
   [[ "$code" == "200" ]] || die "$URL answered with HTTP $code"
-  # The page must be this build: compare the name of the main script.
-  want=$(grep -o 'assets/index-[^"]*\.js' dist/index.html | head -1)
-  curl -s --max-time 20 "$URL/" | grep -q "$want" || die "$URL does not serve this build ($want). Is a cache or another folder in the way?"
-  printf '%sok%s %s serves this build\n' "$G" "$Z" "$URL"
+  # Both pages must be this build: compare the name of the main script of each.
+  for page in "" "app/"; do
+    want=$(grep -o 'assets/[A-Za-z0-9_-]*\.js' "dist/${page}index.html" | head -1)
+    [[ -n "$want" ]] || die "dist/${page}index.html names no script"
+    # A proxy in front of the server can answer with the old page for a few seconds, so try for up to 30 seconds.
+    seen=0
+    for _ in 1 2 3 4 5 6; do
+      if curl -s --max-time 20 "$URL/$page" | grep -q "$want"; then seen=1; break; fi
+      sleep 5
+    done
+    [[ $seen -eq 1 ]] || die "$URL/$page does not serve this build ($want). Is a cache or another folder in the way?"
+    printf '%sok%s %s/%s serves this build\n' "$G" "$Z" "$URL" "$page"
+  done
 fi
