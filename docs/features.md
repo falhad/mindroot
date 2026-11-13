@@ -8,6 +8,7 @@ How to use the features added after the first release. Everything works in the d
 |---|---|
 | **Quick tour** | The first map you open shows a short tour: add an idea (`Tab`), add the next one (`Enter`), open the command palette (`⌘K`). Each step moves on when you do it. The ✕ button skips it. To see it again: ⌘K → "Show the quick tour". On a phone, the tour uses the **Child** and **Sibling** buttons. |
 | **Shortcut list** | Press `?` on the map. Or press ⌘K and type `?`, `help` or `shortcut`. |
+| **Download the desktop app** (web version) | The **Download** button on the maps page, or ⌘K → "Download the desktop app". The dialog offers the installer for your system (macOS Apple Silicon or Intel, Windows, Linux), lists the other files, and shows the install steps for an unsigned app. It asks GitHub for the newest release; if GitHub does not answer, it uses the version of the web build. A phone or a tablet does not show the button. |
 
 ## Structure
 

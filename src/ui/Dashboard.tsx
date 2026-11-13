@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  CalendarDays, Copy, FolderOpen, GraduationCap, Lightbulb, ListChecks, Target, Inbox, Layers, Loader2, MoreHorizontal, Monitor, Settings, Moon, Pencil, Plus, RotateCcw, Search, Star, Sun, Tag, Trash2, Upload, X,
+  CalendarDays, Copy, Download, FolderOpen, GraduationCap, Lightbulb, ListChecks, Target, Inbox, Layers, Loader2, MoreHorizontal, Monitor, Settings, Moon, Pencil, Plus, RotateCcw, Search, Star, Sun, Tag, Trash2, Upload, X,
 } from 'lucide-react'
 import { TEMPLATES } from '../core/templates'
 import type { MapMeta } from '../core/types'
 import { isMac, isTauri } from '../io/env'
+import { visitorOs } from '../io/release'
 import { pickFile } from '../io/files'
 import { importAccept } from '../io/importers'
 import { useRegistry } from '../plugins/host'
@@ -126,6 +127,11 @@ export function Dashboard() {
           <StatusSlot />
           <button className="btn icon" aria-label="Settings" title="Settings and plugins (⌘,)" onClick={() => ui.setSettings(true, 'general')}><Settings size={16} /></button>
           <button className="btn icon" aria-label={`Theme: ${mode}`} title={`Appearance: ${mode}`} onClick={cycleTheme}><ThemeIcon size={16} /></button>
+          {!isTauri && visitorOs !== 'mobile' && (
+            <button className="btn bordered ml-1" aria-label="Download the desktop app" title="Download the desktop app" onClick={() => ui.setDownload(true)}>
+              <Download size={15} /> <span className="hidden lg:inline">Download</span>
+            </button>
+          )}
           <button className="btn bordered ml-1" aria-label="Import" onClick={async () => void importFiles(await pickFile(importAccept(useRegistry.getState().importers), true))}>
             <Upload size={15} /> <span className="hidden sm:inline">Import</span>
           </button>
@@ -403,7 +409,7 @@ function WebNotice() {
     <div role="note" className="flex shrink-0 items-center gap-3 border-b border-line bg-hover px-4 py-2 text-[12.5px] text-muted">
       <p className="min-w-0 flex-1">
         Your maps are saved in this browser only. Export a map to keep a backup. Git sync and quick capture are in the{' '}
-        <a className="font-medium text-accent hover:underline" href="https://github.com/falhad/mindroot/releases/latest" target="_blank" rel="noreferrer">desktop app</a>.
+        <button className="font-medium text-accent hover:underline" onClick={() => ui.setDownload(true)}>desktop app</button>.
       </p>
       <button className="btn icon shrink-0" style={{ width: 26, height: 26 }} aria-label="Close notice" onClick={close}><X size={14} /></button>
     </div>

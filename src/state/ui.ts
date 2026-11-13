@@ -42,6 +42,8 @@ interface UiState {
   searchOpen: boolean
   exportOpen: boolean
   helpOpen: boolean
+  /** The dialog with the installers of the desktop app (web version only). */
+  downloadOpen: boolean
   settingsOpen: boolean
   /** Tab id in the settings dialog: `general`, `plugins`, or a plugin id. */
   settingsTab: string
@@ -89,6 +91,7 @@ export const useUi = create<UiState>(() => ({
   searchOpen: false,
   exportOpen: false,
   helpOpen: false,
+  downloadOpen: false,
   settingsOpen: false,
   settingsTab: 'general',
   pendingSelect: null,
@@ -145,6 +148,7 @@ export const ui = {
   setSearch: (searchOpen: boolean) => set({ searchOpen }),
   setExport: (exportOpen: boolean) => set({ exportOpen }),
   setHelp: (helpOpen: boolean) => set({ helpOpen }),
+  setDownload: (downloadOpen: boolean) => set({ downloadOpen }),
   setTagFilter: (tagFilter: string[]) => set({ tagFilter }),
   toggleTag: (tag: string) => set((s) => ({ tagFilter: s.tagFilter.includes(tag) ? s.tagFilter.filter((t) => t !== tag) : [...s.tagFilter, tag] })),
   setSettings: (settingsOpen: boolean, settingsTab?: string) => set((s) => ({ settingsOpen, settingsTab: settingsTab ?? s.settingsTab })),

@@ -1,6 +1,6 @@
 import { THEMES } from '../core/themes'
 import type { BgKind, EdgeKind, FontId, LayoutKind } from '../core/types'
-import { modKey } from '../io/env'
+import { isTauri, modKey } from '../io/env'
 import {
   addChild, addFloatAt, addSibling, commit, deleteSelection, duplicateSelection, expandToLevel, floatSelection, groupSelection, indent, outdent, redo, reorder, select,
   selectAll, setConnectFrom, toggleFocus, startEdit, summarizeSelection, toggleCollapse, undo, ungroupSelection, useDoc, primary,
@@ -166,6 +166,7 @@ export function buildCommands(): Command[] {
     { ...c('Help', 'tour', 'Show the quick tour', () => startTour(true)), keywords: 'tutorial guide intro start' },
     c('Help', 'settings', 'Settings and plugins…', () => ui.setSettings(true, 'general'), `${modKey} ,`),
   ]
+  if (!isTauri) list.push({ ...c('Help', 'download', 'Download the desktop app', () => ui.setDownload(true)), keywords: 'install installer mac windows linux dmg exe app' })
   for (const l of LAYOUTS) list.push(c('Layout', `layout-${l.id}`, `Layout: ${l.name}`, () => setLayout(l.id)))
   for (const e of EDGES) list.push(c('Lines', `edge-${e.id}`, `Lines: ${e.name}`, () => setEdge(e.id)))
   for (const t of THEMES) list.push(c('Theme', `theme-${t.id}`, `Colour theme: ${t.name}`, () => setMapTheme(t.id)))

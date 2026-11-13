@@ -10,6 +10,7 @@ import { Dashboard } from './Dashboard'
 import { TasksView } from './TasksView'
 import { Editor } from './Editor'
 import { ConfirmDialog, HelpDialog, PromptDialog, Toasts } from './Overlays'
+import { DownloadDialog } from './DownloadDialog'
 import { SettingsDialog } from './SettingsDialog'
 import { Capture } from './Capture'
 import { autoCheckEnabled, updater, useUpdater } from '../io/updater'
@@ -128,6 +129,7 @@ export function App() {
       {route.name === 'editor' ? <Editor key={route.id} id={route.id} /> : route.name === 'tasks' ? <TasksView /> : <Dashboard />}
       {route.name === 'editor' && <Toasts />}
       <HelpDialog />
+      {!isTauri && <DownloadDialog />}
       <SettingsDialog />
       <PromptDialog />
       <ConfirmDialog />
