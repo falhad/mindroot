@@ -68,3 +68,19 @@ The two configurations set these. If you use another server or a CDN, set them t
 
 - A service worker, so the web version also starts without a network connection.
 - Hosted sync with accounts.
+
+## Search engines and AI assistants
+
+The page is an app that needs JavaScript, and most crawlers do not run JavaScript. These files tell them what Mindroot is:
+
+| File | Purpose |
+|---|---|
+| `public/llms.txt` | A short description with links, in the [llms.txt](https://llmstxt.org) format |
+| `public/llms-full.txt` | The full description: features, install steps, limits, common questions |
+| `public/robots.txt`, `public/sitemap.xml` | Allow all crawlers and list the pages |
+| `index.html` | The description and preview tags, structured data (`SoftwareApplication`), and a `<noscript>` block with the same facts as text |
+
+Keep them in step with the app: when a feature, a platform or a limit changes, change `llms.txt`, `llms-full.txt` and the `<noscript>` block in the same pull request. A wrong statement there is repeated by assistants for a long time.
+
+If the site is behind Cloudflare, check **Security → Bots** in the dashboard: "Block AI bots" and "AI Labyrinth" must be off, or the assistants cannot read the site.
+

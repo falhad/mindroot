@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f4f5f8" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
-    <title>Mindroot</title>
+    <title>Mindroot: fast, keyboard-first mind mapping</title>
     <meta name="description" content="Mindroot is a fast, keyboard-first mind-mapping app. Your maps stay on your device. Free and open source." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Mindroot" />
@@ -18,10 +18,72 @@
     <meta property="og:image" content="https://mindroot.app/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href="https://mindroot.app/" />
+    <!-- A plain-text description of the app for language models (llmstxt.org). -->
+    <link rel="alternate" type="text/markdown" href="/llms.txt" title="Mindroot for language models" />
+    <!-- Structured data for search engines. It is data, not code: the browser does not run it. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Mindroot",
+        "description": "A free, open-source mind-mapping app for the desktop and the browser. Local-first and keyboard-first: maps are plain files on your disk, with no account and no cloud. Sync with your own Git repository.",
+        "url": "https://mindroot.app/",
+        "image": "https://mindroot.app/og.png",
+        "applicationCategory": "ProductivityApplication",
+        "applicationSubCategory": "Mind mapping",
+        "operatingSystem": "macOS, Windows, Linux, Web",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "isAccessibleForFree": true,
+        "license": "https://opensource.org/licenses/MIT",
+        "downloadUrl": "https://github.com/falhad/mindroot/releases/latest",
+        "sameAs": ["https://github.com/falhad/mindroot"],
+        "author": { "@type": "Person", "name": "Farhad", "url": "https://github.com/falhad" },
+        "featureList": [
+          "Keyboard-first editing",
+          "Local-first: plain files, no account, works offline",
+          "Sync with your own Git repository, merged idea by idea",
+          "Six layouts: mind map, trees, org charts, radial",
+          "Markdown notes with code and LaTeX",
+          "Right-to-left maps for Persian, Arabic and Hebrew",
+          "AI assistant with your own API key",
+          "Import from XMind, FreeMind, OPML, Markdown and Obsidian canvas",
+          "Export to PNG, SVG, PDF, Markdown, OPML and a single-file web page",
+          "Outline view, focus mode and presentation mode",
+          "Plugins"
+        ]
+      }
+    </script>
     <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>
+    <!-- For readers that do not run JavaScript: search engines, AI assistants, text browsers. -->
+    <noscript>
+      <main style="max-width: 44rem; margin: 3rem auto; padding: 0 1rem; font: 16px/1.6 system-ui, sans-serif">
+        <h1>Mindroot: fast, keyboard-first mind mapping</h1>
+        <p>
+          Mindroot is a free, open-source mind-mapping app for macOS, Windows, Linux and the browser. It is local-first: your maps are
+          plain files on your disk, with no account and no cloud. It is keyboard-first: Tab adds a child idea, Enter adds a sibling,
+          and you can build a full map without the mouse.
+        </p>
+        <p><strong>This page is the app itself, and it needs JavaScript.</strong> Turn on JavaScript to use Mindroot in the browser, or install the desktop app.</p>
+        <ul>
+          <li><a href="https://github.com/falhad/mindroot/releases/latest">Download for macOS, Windows and Linux</a></li>
+          <li><a href="https://github.com/falhad/mindroot">Source code on GitHub (MIT license)</a></li>
+          <li><a href="/llms-full.txt">Full description: features, install steps and common questions</a></li>
+        </ul>
+        <h2>Features</h2>
+        <ul>
+          <li>Six layouts: mind map, right tree, left tree, org chart down and up, radial.</li>
+          <li>Notes in Markdown with code and LaTeX. Tags, tasks, due dates, files and links on each idea.</li>
+          <li>Sync between computers with your own Git repository. Changes merge idea by idea.</li>
+          <li>Right-to-left maps for Persian, Arabic and Hebrew.</li>
+          <li>An optional AI assistant that makes a map from a topic or a pasted text, with your own API key.</li>
+          <li>Import from XMind, FreeMind, OPML, Markdown and Obsidian canvas. Export to PNG, SVG, PDF, Markdown and OPML.</li>
+          <li>Outline view, focus mode, presentation mode, live collaboration and plugins.</li>
+        </ul>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

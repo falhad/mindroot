@@ -1,2 +1,6 @@
+# Everything on this site is public. Search engines and AI assistants are welcome.
 User-agent: *
 Allow: /
+
+# A short description for language models: https://mindroot.app/llms.txt
+Sitemap: https://mindroot.app/sitemap.xml

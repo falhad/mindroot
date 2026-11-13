@@ -50,7 +50,7 @@ The builds are not code-signed yet. Your system shows a warning the first time:
 
 ### Web version
 
-Use Mindroot without an install at **[mindroot.app](https://mindroot.app)**. Your maps stay in your browser and are not sent to a server. The site counts visits with Cloudflare Web Analytics, which sets no cookies. Git sync and quick capture need the desktop app: the **Download** button in the web version offers the installer for your system and shows the install steps. To host it yourself, see [docs/web.md](docs/web.md).
+Use Mindroot without an install at **[mindroot.app](https://mindroot.app)**. Your maps stay in your browser and are not sent to a server. The site counts visits with Cloudflare Web Analytics, which sets no cookies. Git sync and quick capture need the desktop app: the **Download** button in the web version offers the installer for your system and shows the install steps. To host it yourself, see [docs/web.md](docs/web.md). A plain-text description for AI assistants is at [mindroot.app/llms.txt](https://mindroot.app/llms.txt).
 
 ## Features
 

@@ -1,0 +1,97 @@
+# Mindroot
+
+Mindroot is a free, open-source mind-mapping app. It runs as a desktop app on macOS, Windows and Linux, and as a web app at https://mindroot.app. It is local-first: maps are plain files on the user's disk, and the app needs no account and no cloud service. It is keyboard-first: a user can build a full map without the mouse. The license is MIT.
+
+- Website and web version: https://mindroot.app
+- Source code: https://github.com/falhad/mindroot
+- Download: https://github.com/falhad/mindroot/releases/latest
+- Author: Farhad (GitHub: falhad)
+
+## Who it is for
+
+- People who want a fast mind-mapping tool that works offline and keeps data on their own computer.
+- Developers and writers who prefer the keyboard and plain files, and who already use Git.
+- People who write in Persian, Arabic or Hebrew and need a correct right-to-left layout.
+- People who look for a free, open-source alternative to a paid or cloud-based mind-mapping service.
+
+## Main features
+
+- Infinite canvas with six layouts: mind map (both sides), right tree, left tree, org chart down, org chart up, radial.
+- Keyboard-first editing: Tab adds a child idea, Enter adds a sibling, the arrow keys move, Ctrl/Cmd+K opens a command palette with all commands.
+- Each idea can have a colour, shape, icon, tags, a due date, a checklist, attached files, and a link to another map.
+- Notes on each idea in Markdown, with code highlighting and LaTeX formulas.
+- Cross-links between ideas, groups, summary brackets, floating ideas and sticky notes.
+- Outline view (edit the map as a list), focus mode (work on one branch), and presentation mode (one idea or one branch at a time).
+- A library for all maps: search in titles and idea text, stars, tags, trash, templates, and a tasks page with the open tasks of all maps.
+- Three line styles, six colour themes, light and dark.
+- Right-to-left maps: Persian, Arabic and Hebrew maps mirror the whole layout. The Vazirmatn font is bundled and embedded in exports.
+- Compare two maps, or two versions of one map.
+- Quick capture (desktop): a system-wide shortcut puts a thought into an Inbox map.
+
+## Data and privacy
+
+- No account, no sign-up, no cloud storage.
+- Desktop: each map is one JSON Lines file in a local folder ("vault"). Files are written atomically.
+- Web version: maps are stored in the browser (IndexedDB) and are not sent to a server. The website counts visits with Cloudflare Web Analytics, which sets no cookies.
+- The desktop app sends no data unless the user turns on Git sync, live collaboration, the AI assistant or the update check.
+
+## Sync and collaboration
+
+- Git sync: the user points the app at their own private Git repository (for example on GitHub, GitLab or a private server). Maps sync between computers. When two computers edit the same map, Mindroot merges the changes idea by idea, not line by line, so both edits survive.
+- History: restore an old version of a map, or one idea from it (desktop, with Git sync).
+- Live collaboration: several people edit one map in real time through a small relay server that the user runs (Node, Docker). There is no hosted collaboration service.
+
+## AI assistant
+
+- Optional. The user brings their own API key for an OpenAI-compatible or Anthropic-compatible service (for example OpenAI, Anthropic, OpenRouter, or a custom address).
+- Commands: make a new map from a topic or a pasted text; expand an idea; find what is missing in a branch; summarize a branch into notes; rewrite the text of an idea.
+- Only the text that the user typed, or the selected branch, is sent to the service the user configured.
+- Mindroot has no AI service of its own and adds no cost.
+
+## Import and export
+
+- Import: Markdown and indented outlines, FreeMind (.mm), OPML, XMind, Obsidian canvas, Mindroot JSON, and generic JSON with text and children.
+- Export: JSON, Markdown, OPML, PNG, SVG, PDF (vector with selectable text, or image), and a single-file web page that opens in any browser.
+
+## Plugins
+
+Git sync, the AI assistant and live collaboration are plugins on a public plugin API. Other people can write plugins that add commands, header chips, settings panels and event listeners. Plugins install from a gallery.
+
+## Platforms and install
+
+- Web: https://mindroot.app (no install). Git sync and quick capture need the desktop app.
+- macOS: .dmg for Apple Silicon and for Intel.
+- Windows: .exe installer or .msi.
+- Linux: AppImage, .deb, .rpm (x86-64).
+- The installers are not code-signed yet, so the system shows a warning at the first start. On macOS: System Settings → Privacy & Security → "Open Anyway", or run `xattr -dr com.apple.quarantine /Applications/Mindroot.app`. On Windows: "More info" → "Run anyway".
+- The desktop app updates itself; updates are signature-checked.
+
+## Technology
+
+Tauri 2 (Rust) for the desktop shell, React 19, TypeScript, Vite, Tailwind 4 and Zustand. Tauri uses the system web view, so the macOS and Windows installers are about 5 MB and the app starts fast.
+
+## Known limits
+
+- No mobile app yet. The web version works on a phone browser.
+- No public share links. The single-file web page export is the closest today.
+- Installers are not code-signed yet.
+- In the web version, some AI services refuse requests that come directly from a browser; the desktop app has no such limit.
+- No Linux build for ARM yet.
+
+## Common questions
+
+**Is Mindroot free?** Yes. It is free and open source (MIT). There is no paid plan.
+
+**Does it need an account?** No.
+
+**Where are my maps?** Desktop: in a folder on your disk, one file for each map. Web: in your browser's storage.
+
+**Can I use it offline?** Yes, with the desktop app: it works fully offline. The web version needs a connection to load the page.
+
+**How do I sync between two computers?** Turn on Git sync and give it a private Git repository that you own.
+
+**Can I open my XMind or FreeMind maps?** Yes. Import supports XMind, FreeMind (.mm), OPML, Markdown and Obsidian canvas.
+
+**Does it work for Persian, Arabic or Hebrew?** Yes. Right-to-left maps mirror the full layout, and exports embed the font.
+
+**How does it compare with cloud mind-mapping services?** Mindroot stores data locally in an open format, has no subscription, and syncs through the user's own Git repository. It has no hosted real-time service and no mobile app.

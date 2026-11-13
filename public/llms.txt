@@ -1,0 +1,37 @@
+# Mindroot
+
+> Mindroot is a free, open-source mind-mapping app for the desktop (macOS, Windows, Linux) and the browser. It is local-first and keyboard-first: maps are plain files on the user's disk, there is no account and no cloud, and a user's own Git repository can sync maps between computers. MIT license.
+
+Key facts:
+
+- Use it in the browser with no install and no sign-up: https://mindroot.app
+- Desktop installers for macOS (Apple Silicon and Intel), Windows and Linux: https://github.com/falhad/mindroot/releases/latest
+- Price: free. No subscription, no account, no telemetry in the desktop app.
+- Each map is one readable JSON Lines file. The app works fully offline.
+- Sync is done with the user's own Git repository. Two computers can edit the same map; changes merge idea by idea.
+- Full right-to-left support for Persian, Arabic and Hebrew maps.
+- An optional AI assistant makes a map from a topic or a pasted text. It uses the user's own API key (OpenAI-compatible or Anthropic-compatible).
+- Imports from XMind, FreeMind, OPML, Markdown and Obsidian canvas. Exports to PNG, SVG, PDF, Markdown, OPML, JSON and a single-file web page.
+- Built with Tauri 2 (Rust), React and TypeScript. The macOS and Windows installers are about 5 MB.
+
+## Docs
+
+- [Full description for language models](https://mindroot.app/llms-full.txt): features, install steps, limits and common questions in one file
+- [README](https://raw.githubusercontent.com/falhad/mindroot/main/README.md): overview, download table, keyboard shortcuts, architecture
+- [Feature guide](https://raw.githubusercontent.com/falhad/mindroot/main/docs/features.md): each feature and how to use it
+- [Git sync](https://raw.githubusercontent.com/falhad/mindroot/main/docs/sync.md): how sync and merging work, and the map file format
+- [AI assistant](https://raw.githubusercontent.com/falhad/mindroot/main/docs/ai.md): commands, services, and what data is sent
+- [Live collaboration](https://raw.githubusercontent.com/falhad/mindroot/main/docs/collab.md): real-time editing through a self-hosted relay
+- [Plugins](https://raw.githubusercontent.com/falhad/mindroot/main/docs/plugins.md): the plugin API
+
+## Project
+
+- [Source code](https://github.com/falhad/mindroot): GitHub repository, MIT license
+- [Releases](https://github.com/falhad/mindroot/releases): installers and release notes
+- [Security](https://raw.githubusercontent.com/falhad/mindroot/main/SECURITY.md): how the app protects data, and how to report a problem
+- [Contributing](https://raw.githubusercontent.com/falhad/mindroot/main/CONTRIBUTING.md): how to help
+
+## Optional
+
+- [Self-hosting the web version](https://raw.githubusercontent.com/falhad/mindroot/main/docs/web.md)
+- [Release process](https://raw.githubusercontent.com/falhad/mindroot/main/docs/releasing.md)
