@@ -108,7 +108,7 @@ jobs:
 
       - name: Build and release (macOS signing and notarization)
         if: steps.apple.outputs.signed == 'true'
-        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Signs the update files (latest.json and the .sig files) so installed apps accept them. See docs/releasing.md.
@@ -137,7 +137,7 @@ jobs:
 
       - name: Build and release (unsigned installers)
         if: steps.apple.outputs.signed != 'true'
-        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Signs the update files (latest.json and the .sig files) so installed apps accept them. See docs/releasing.md.
